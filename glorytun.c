@@ -42,7 +42,8 @@ static int gt_open_tun (char *name)
     return fd;
 }
 
-static void gt_sa_stop (int sig) {
+static void gt_sa_stop (int sig)
+{
     switch (sig) {
     case SIGINT:
     case SIGTERM:
@@ -65,6 +66,54 @@ static int gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
+static inline int buffer_read_fd (buffer_t *buffer, int fd)
+{
+    buffer_shift(buffer);
+
+    size_t size = buffer_write_size(buffer);
+
+    if (!size)
+        return -1;
+
+    ssize_t ret = read(fd, buffer->write, size);
+
+    if (ret==-1) {
+        if (errno==EAGAIN || errno==EINTR)
+            return -1;
+        if (errno)
+            printf("read: %m\n");
+        return 0;
+    }
+
+    buffer->write += ret;
+
+    return 1;
+}
+
+static inline int buffer_write_fd (buffer_t *buffer, int fd)
+{
+    size_t size = buffer_read_size(buffer);
+
+    if (!size)
+        return -1;
+
+    ssize_t ret = write(fd, buffer->read, size);
+
+    if (ret==-1) {
+        if (errno==EAGAIN || errno==EINTR)
+            return -1;
+        if (errno)
+            printf("read: %m\n");
+        return 0;
+    }
+
+    buffer->read += ret;
+
+    buffer_shift(buffer);
+
+    return 1;
+}
+
 int main (int argc, char **argv)
 {
     gt_set_signal();
@@ -77,6 +126,9 @@ int main (int argc, char **argv)
     struct pollfd fds[] = {
         { .fd = tun_fd, .events = POLLIN },
     };
+
+    buffer_t input;
+    buffer_setup(&input, NULL, 256*1024);
 
     while (running) {
         int ret = poll(fds, COUNT(fds), 0);
@@ -92,9 +144,13 @@ int main (int argc, char **argv)
             continue;
 
         if (fds[0].revents & POLLIN) {
-            printf("POLLIN!\n");
+            int read_ret = buffer_read_fd(&input, fds[0].fd);
+            printf("read %zu\n", buffer_read_size(&input));
+            buffer_format(&input);
         }
     }
+
+    free(input.data);
 
     return 0;
 }
