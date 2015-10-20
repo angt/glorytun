@@ -43,7 +43,7 @@ static inline void byte_copy (void *dst, const void *src, size_t size)
         *d++ = *s++;
 }
 
-static inline size_t str_cpy (char *dst, const char *src, size_t len)
+static inline size_t str_cpy (char *restrict dst, const char *restrict src, size_t len)
 {
     if (!dst || !src)
         return 0;
@@ -56,6 +56,18 @@ static inline size_t str_cpy (char *dst, const char *src, size_t len)
     dst[i] = 0;
 
     return i;
+}
+
+static inline int str_cmp (const char *restrict sa, const char *restrict sb)
+{
+    if (!sa || !sb)
+        return 1;
+
+     while (*sa==*sb++)
+         if (!*sa++)
+             return 0;
+
+    return 1;
 }
 
 typedef struct buffer buffer_t;
