@@ -131,7 +131,7 @@ int main (int argc, char **argv)
     buffer_setup(&input, NULL, 256*1024);
 
     while (running) {
-        int ret = poll(fds, COUNT(fds), 0);
+        int ret = poll(fds, COUNT(fds), -1);
 
         if (ret==-1) {
             if (errno==EINTR)
