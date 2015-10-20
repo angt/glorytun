@@ -11,7 +11,8 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-#define GT_NAME "glorytun"
+#define GT_NAME        "glorytun"
+#define GT_BUFFER_SIZE (256*1024)
 
 volatile sig_atomic_t running;
 
@@ -66,7 +67,7 @@ static int gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-static inline int buffer_read_fd (buffer_t *buffer, int fd)
+static inline int read_to_buffer (int fd, buffer_t *buffer)
 {
     buffer_shift(buffer);
 
@@ -90,7 +91,7 @@ static inline int buffer_read_fd (buffer_t *buffer, int fd)
     return 1;
 }
 
-static inline int buffer_write_fd (buffer_t *buffer, int fd)
+static inline int write_from_buffer (int fd, buffer_t *buffer)
 {
     size_t size = buffer_read_size(buffer);
 
@@ -128,7 +129,7 @@ int main (int argc, char **argv)
     };
 
     buffer_t input;
-    buffer_setup(&input, NULL, 256*1024);
+    buffer_setup(&input, NULL, GT_BUFFER_SIZE);
 
     while (running) {
         int ret = poll(fds, COUNT(fds), -1);
@@ -144,7 +145,7 @@ int main (int argc, char **argv)
             continue;
 
         if (fds[0].revents & POLLIN) {
-            int read_ret = buffer_read_fd(&input, fds[0].fd);
+            int read_ret = read_to_buffer(fds[0].fd, &input);
             printf("read %zu\n", buffer_read_size(&input));
             buffer_format(&input);
         }
