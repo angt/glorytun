@@ -62,6 +62,7 @@ static int gt_set_signal (void)
 
     sa.sa_handler = SIG_IGN;
     sigaction(SIGHUP,  &sa, NULL);
+    sigaction(SIGPIPE, &sa, NULL);
 }
 
 int main (int argc, char **argv)
