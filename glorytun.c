@@ -145,7 +145,7 @@ static int read_to_buffer (int fd, buffer_t *buffer, size_t size)
 
     buffer->write += ret;
 
-    return 1;
+    return ret;
 }
 
 static int write_from_buffer (int fd, buffer_t *buffer, size_t size)
@@ -168,7 +168,7 @@ static int write_from_buffer (int fd, buffer_t *buffer, size_t size)
 
     buffer->read += ret;
 
-    return 1;
+    return ret;
 }
 
 enum option_type {
@@ -291,45 +291,50 @@ int main (int argc, char **argv)
             buffer_shift(&tun.recv);
 
             if (fds[0].revents & POLLIN) {
-                uint8_t *tmp = tun.recv.write;
-                int r = read_to_buffer(fds[0].fd, &tun.recv, buffer_write_size(&tun.recv));
-                size_t ps = (tmp[2]<<8)|tmp[3];
-                printf("packet len %zu\n", ps);
-                if (!r)   return 2;
-                if (r==1) printf("tun -> tun.recv\n");
+                if (buffer_write_size(&tun.recv)) {
+                    uint8_t *tmp = tun.recv.write;
+                    int r = read_to_buffer(fds[0].fd, &tun.recv, buffer_write_size(&tun.recv));
+                    if (!r)
+                        return 2;
+                    if (r>0 && r!=((tmp[2]<<8)|tmp[3]))
+                        tun.recv.write = tmp;
+                }
             }
 
-            if (buffer_read_size(&tun.recv)) {
+            if (fds[1].revents & POLLOUT)
                 fds[1].events = POLLIN;
+
+            if (buffer_read_size(&tun.recv)) {
                 int r = write_from_buffer(fds[1].fd, &tun.recv, buffer_read_size(&tun.recv));
-                if (!r)    goto restart;
-                if (r==-1) fds[1].events = POLLIN|POLLOUT;
-                if (r==1)  printf("tun.recv -> socket\n");
+                if (!r)
+                    goto restart;
+                if (r==-1)
+                    fds[1].events = POLLIN|POLLOUT;
             }
 
             buffer_shift(&sock.recv);
 
             if (fds[1].revents & POLLIN) {
                 int r = read_to_buffer(fds[1].fd, &sock.recv, buffer_write_size(&sock.recv));
-                if (!r)   goto restart;
-                if (r==1) printf("socket -> sock.recv\n");
+                if (!r)
+                    goto restart;
             }
 
-            if (buffer_read_size(&sock.recv)) {
-                if ((sock.recv.read[0]>>4)!=4)
-                    return 4;
-
-                size_t ps = (sock.recv.read[2]<<8)|sock.recv.read[3];
-                printf("recv %zu\n", ps);
-
+            if (fds[0].revents & POLLOUT)
                 fds[0].events = POLLIN;
 
-                int r = write_from_buffer(fds[0].fd, &sock.recv, ps);
-                if (!r)    return 2;
-                if (r==-1) fds[0].events = POLLIN|POLLOUT;
-                if (r==1)  printf("sock.recv -> tun\n");
+            if (buffer_read_size(&sock.recv)>=20) {
+                if ((sock.recv.read[0]>>4)!=4)
+                    return 4;
+                size_t ps = (sock.recv.read[2]<<8)|sock.recv.read[3];
+                if (buffer_read_size(&sock.recv)>=ps) {
+                    int r = write_from_buffer(fds[0].fd, &sock.recv, ps);
+                    if (!r)
+                        return 2;
+                    if (r==-1)
+                        fds[0].events = POLLIN|POLLOUT;
+                }
             }
-
         }
 
     restart:
