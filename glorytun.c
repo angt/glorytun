@@ -45,7 +45,13 @@ static int gt_open_sock (char *host, char *port, int listener)
         int ret;
 
         if (listener) {
+            const int val = 1;
+
+            if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val))==-1)
+                printf("setsockopt: %m\n");
+
             ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
+
             if (!ret)
                 ret = listen(fd, 1);
         } else {
