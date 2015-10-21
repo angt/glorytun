@@ -182,9 +182,10 @@ struct option {
     enum option_type type;
 };
 
-static void option (int argc, char **argv, int n, struct option *opt)
+static int option (int argc, char **argv, int n, struct option *opt)
 {
-    for (int i=0; i<argc; i++) {
+    for (int i=1; i<argc; i++) {
+        int found = 0;
         for (int k=0; k<n; k++) {
             if (str_cmp(opt[k].name, argv[i]))
                 continue;
@@ -202,8 +203,16 @@ static void option (int argc, char **argv, int n, struct option *opt)
                     break;
                 }
             }
+            found = 1;
+            break;
+        }
+        if (!found) {
+            printf("option `%s' is unknown\n", argv[i]);
+            return 1;
         }
     }
+
+    return 0;
 }
 
 struct netio {
@@ -228,7 +237,8 @@ int main (int argc, char **argv)
         { "listener", &listener, option_flag   },
     };
 
-    option(argc, argv, COUNT(opts), opts);
+    if (option(argc, argv, COUNT(opts), opts))
+        return 1;
 
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
