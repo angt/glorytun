@@ -125,16 +125,15 @@ static void gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-static int read_to_buffer (int fd, buffer_t *buffer)
+static int read_to_buffer (int fd, buffer_t *buffer, size_t size)
 {
-    buffer_shift(buffer);
-
-    size_t size = buffer_write_size(buffer);
-
-    if (!size)
+    if (!size || buffer_write_size(buffer)<size)
         return -1;
 
     ssize_t ret = read(fd, buffer->write, size);
+
+    if (!ret)
+        return 0;
 
     if (ret==-1) {
         if (errno==EAGAIN || errno==EINTR)
@@ -149,26 +148,25 @@ static int read_to_buffer (int fd, buffer_t *buffer)
     return 1;
 }
 
-static int write_from_buffer (int fd, buffer_t *buffer)
+static int write_from_buffer (int fd, buffer_t *buffer, size_t size)
 {
-    size_t size = buffer_read_size(buffer);
-
-    if (!size)
+    if (!size || buffer_read_size(buffer)<size)
         return -1;
 
     ssize_t ret = write(fd, buffer->read, size);
+
+    if (!ret)
+        return 0;
 
     if (ret==-1) {
         if (errno==EAGAIN || errno==EINTR)
             return -1;
         if (errno)
-            printf("read: %m\n");
+            printf("write: %m\n");
         return 0;
     }
 
     buffer->read += ret;
-
-    buffer_shift(buffer);
 
     return 1;
 }
@@ -208,6 +206,12 @@ static void option (int argc, char **argv, int n, struct option *opt)
     }
 }
 
+struct netio {
+    int fd;
+    buffer_t recv;
+    buffer_t send; // TODO
+};
+
 int main (int argc, char **argv)
 {
     gt_set_signal();
@@ -226,41 +230,112 @@ int main (int argc, char **argv)
 
     option(argc, argv, COUNT(opts), opts);
 
-    int tun_fd  = gt_open_tun(dev);
-    int sock_fd = gt_open_sock(host, port, listener);
+    struct netio tun  = { .fd = -1 };
+    struct netio sock = { .fd = -1 };
 
-    if (tun_fd==-1 || sock_fd==-1)
+    int fd = gt_open_sock(host, port, listener);
+
+    if (fd==-1)
         return 1;
 
-    struct pollfd fds[] = {
-        { .fd = tun_fd,  .events = POLLIN },
-        { .fd = sock_fd, .events = POLLIN },
-    };
+    tun.fd = gt_open_tun(dev);
 
-    buffer_t input;
-    buffer_setup(&input, NULL, GT_BUFFER_SIZE);
+    if (tun.fd==-1)
+        return 1;
 
     while (running) {
-        int ret = poll(fds, COUNT(fds), -1);
 
-        if (ret==-1) {
-            if (errno==EINTR)
+        if (listener) {
+            printf("waiting for a client...\n");
+
+            struct sockaddr_storage addr_storage;
+            struct sockaddr *addr = (struct sockaddr *)&addr_storage;
+            socklen_t addr_size = sizeof(addr_storage);
+            sock.fd = accept(fd, addr, &addr_size);
+
+            if (sock.fd==-1) {
+                printf("accept: %m\n");
+                return 1;
+            }
+
+            // setup socket
+        } else {
+            // reconnect
+            sock.fd = fd;
+        }
+
+        printf("running...\n");
+
+        buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
+        buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
+
+        while (running) {
+
+            struct pollfd fds[] = {
+                { .fd = tun.fd,  .events = POLLIN },
+                { .fd = sock.fd, .events = POLLIN },
+            };
+
+            int ret = poll(fds, COUNT(fds), -1);
+
+            if (ret==-1) {
+                if (errno==EINTR)
+                    continue;
+                printf("poll: %m\n");
+                return 1;
+            }
+
+            if (ret==0)
                 continue;
-            printf("poll: %m\n");
-            return 1;
+
+            buffer_shift(&tun.recv);
+
+            if (fds[0].revents & POLLIN) {
+                uint8_t *tmp = tun.recv.write;
+                int r = read_to_buffer(fds[0].fd, &tun.recv, buffer_write_size(&tun.recv));
+                size_t ps = (tmp[2]<<8)|tmp[3];
+                printf("packet len %zu\n", ps);
+                if (!r)   return 2;
+                if (r==1) printf("tun -> tun.recv\n");
+            }
+
+            if (buffer_read_size(&tun.recv)) {
+                fds[1].events = POLLIN;
+                int r = write_from_buffer(fds[1].fd, &tun.recv, buffer_read_size(&tun.recv));
+                if (!r)    goto restart;
+                if (r==-1) fds[1].events = POLLIN|POLLOUT;
+                if (r==1)  printf("tun.recv -> socket\n");
+            }
+
+            buffer_shift(&sock.recv);
+
+            if (fds[1].revents & POLLIN) {
+                int r = read_to_buffer(fds[1].fd, &sock.recv, buffer_write_size(&sock.recv));
+                if (!r)   goto restart;
+                if (r==1) printf("socket -> sock.recv\n");
+            }
+
+            if (buffer_read_size(&sock.recv)) {
+                if ((sock.recv.read[0]>>4)!=4)
+                    return 4;
+
+                size_t ps = (sock.recv.read[2]<<8)|sock.recv.read[3];
+                printf("recv %zu\n", ps);
+
+                fds[0].events = POLLIN;
+
+                int r = write_from_buffer(fds[0].fd, &sock.recv, ps);
+                if (!r)    return 2;
+                if (r==-1) fds[0].events = POLLIN|POLLOUT;
+                if (r==1)  printf("sock.recv -> tun\n");
+            }
+
         }
 
-        if (ret==0)
-            continue;
-
-        if (fds[0].revents & POLLIN) {
-            int read_ret = read_to_buffer(fds[0].fd, &input);
-            printf("read %zu\n", buffer_read_size(&input));
-            buffer_format(&input);
-        }
+    restart:
+        free(tun.recv.data);
+        free(sock.recv.data);
     }
-
-    free(input.data);
 
     return 0;
 }

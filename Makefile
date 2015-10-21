@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -fsanitize=address -fno-omit-frame-pointer
+CFLAGS=-std=c99 -g -fsanitize=address -fno-omit-frame-pointer -Wall
 
 glorytun:
 
