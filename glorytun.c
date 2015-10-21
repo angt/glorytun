@@ -104,7 +104,7 @@ static void gt_sa_stop (int sig)
     }
 }
 
-static int gt_set_signal (void)
+static void gt_set_signal (void)
 {
     struct sigaction sa = {0};
 
@@ -119,7 +119,7 @@ static int gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-static inline int read_to_buffer (int fd, buffer_t *buffer)
+static int read_to_buffer (int fd, buffer_t *buffer)
 {
     buffer_shift(buffer);
 
@@ -143,7 +143,7 @@ static inline int read_to_buffer (int fd, buffer_t *buffer)
     return 1;
 }
 
-static inline int write_from_buffer (int fd, buffer_t *buffer)
+static int write_from_buffer (int fd, buffer_t *buffer)
 {
     size_t size = buffer_read_size(buffer);
 
@@ -186,11 +186,17 @@ static void option (int argc, char **argv, int n, struct option *opt)
                 continue;
             switch (opt[k].type) {
             case option_flag:
-                *(int *)opt[k].data = 1;
-                break;
+                {
+                    const int val = 1;
+                    byte_cpy(opt[k].data, &val, sizeof(val));
+                    break;
+                }
             case option_string:
-                *(char **)opt[k].data = argv[++i];
-                break;
+                {
+                    const char *val = argv[++i];
+                    byte_cpy(opt[k].data, &val, sizeof(val));
+                    break;
+                }
             }
         }
     }

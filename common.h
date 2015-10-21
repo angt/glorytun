@@ -31,7 +31,7 @@ static inline void byte_set (void *dst, const char value, size_t size)
         *d++ = value;
 }
 
-static inline void byte_copy (void *dst, const void *src, size_t size)
+static inline void byte_cpy (void *dst, const void *src, size_t size)
 {
     if (!dst || !src)
         return;
@@ -120,7 +120,7 @@ static inline void buffer_shift (buffer_t *buffer)
         const uint8_t *src = PALIGN_DOWN(buffer->read);
         const size_t size = ALIGN(buffer->write-src);
         if (buffer->data+size<src) {
-            byte_copy(buffer->data, src, size);
+            byte_cpy(buffer->data, src, size);
             buffer->read  -= src-buffer->data;
             buffer->write -= src-buffer->data;
         }
