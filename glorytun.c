@@ -11,8 +11,10 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <linux/if.h>
-#include <linux/if_tun.h>
+#ifdef __linux__
+# include <linux/if.h>
+# include <linux/if_tun.h>
+#endif
 
 #define GT_BUFFER_SIZE (256*1024)
 
@@ -54,8 +56,11 @@ static void fd_set_congestion (int fd, const char *name)
     if (!len)
         return;
 
+    (void) fd;
+#ifdef TCP_CONGESTION
     if (setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, name, len+1)==-1)
         printf("setsockopt TCP_CONGESTION: %m\n");
+#endif
 }
 
 static int fd_listen (int fd, struct addrinfo *ai)
@@ -101,6 +106,7 @@ static int fd_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
     return -1;
 }
 
+#ifdef __linux__
 static int tun_create (char *name)
 {
     int fd = open("/dev/net/tun", O_RDWR);
@@ -127,6 +133,24 @@ static int tun_create (char *name)
 
     return fd;
 }
+#else
+static int tun_create (char *name)
+{
+    char dev_path[11U];
+    unsigned int dev_id;
+    int fd;
+
+    (void) name;
+    for (dev_id = 0U; dev_id < 32U; dev_id++) {
+        snprintf(dev_path, sizeof dev_path, "/dev/tun%u", dev_id);
+        fd = open(dev_path, O_RDWR);
+        if (fd != -1) {
+            break;
+        }
+    }
+    return fd;
+}
+#endif
 
 static void gt_sa_stop (int sig)
 {
@@ -139,8 +163,9 @@ static void gt_sa_stop (int sig)
 
 static void gt_set_signal (void)
 {
-    struct sigaction sa = {0};
+    struct sigaction sa;
 
+    byte_set(&sa, 0, sizeof sa);
     running = 1;
 
     sa.sa_handler = gt_sa_stop;
