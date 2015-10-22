@@ -70,6 +70,19 @@ static inline int str_cmp (const char *restrict sa, const char *restrict sb)
     return 1;
 }
 
+static inline size_t str_len (const char *restrict str)
+{
+    if (!str)
+        return 0;
+
+    size_t i = 0;
+
+    while (str[i])
+        i++;
+
+    return i;
+}
+
 typedef struct buffer buffer_t;
 
 struct buffer {

@@ -47,6 +47,17 @@ static void fd_set_reuseaddr (int fd)
         printf("setsockopt SO_REUSEADDR: %m\n");
 }
 
+static void fd_set_congestion (int fd, const char *name)
+{
+    size_t len = str_len(name);
+
+    if (!len)
+        return;
+
+    if (setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, name, len+1)==-1)
+        printf("setsockopt TCP_CONGESTION: %m\n");
+}
+
 static int gt_open_sock (struct addrinfo *res) // bad
 {
     for (struct addrinfo *ai=res; ai; ai=ai->ai_next) {
@@ -213,12 +224,15 @@ int main (int argc, char **argv)
     char *port = "5000";
     char *dev  = "glorytun";
     int listener = 0;
+    char *congestion = NULL;
+
 
     struct option opts[] = {
-        { "dev",      &dev,      option_string },
-        { "host",     &host,     option_string },
-        { "port",     &port,     option_string },
-        { "listener", &listener, option_flag   },
+        { "dev",        &dev,        option_string },
+        { "host",       &host,       option_string },
+        { "port",       &port,       option_string },
+        { "listener",   &listener,   option_flag   },
+        { "congestion", &congestion, option_string },
     };
 
     if (option(argc, argv, COUNT(opts), opts))
@@ -305,6 +319,7 @@ int main (int argc, char **argv)
 
         fd_set_nonblock(sock.fd);
         fd_set_nodelay(sock.fd);
+        fd_set_congestion(sock.fd, congestion);
 
         printf("running...\n");
 
