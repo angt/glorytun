@@ -30,7 +30,7 @@ static void fd_set_nonblock (int fd)
     } while (ret==-1 && errno==EINTR);
 
     if (ret==-1)
-        printf("ioctl FIONBIO: %m\n");
+        perror("ioctl FIONBIO");
 }
 
 static void fd_set_nodelay (int fd)
@@ -38,7 +38,7 @@ static void fd_set_nodelay (int fd)
     int val = 1;
 
     if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY , &val, sizeof(val))==-1)
-        printf("setsockopt TCP_NODELAY: %m\n");
+        perror("setsockopt TCP_NODELAY");
 }
 
 static void fd_set_reuseaddr (int fd)
@@ -46,7 +46,7 @@ static void fd_set_reuseaddr (int fd)
     int val = 1;
 
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val))==-1)
-        printf("setsockopt SO_REUSEADDR: %m\n");
+        perror("setsockopt SO_REUSEADDR");
 }
 
 static void fd_set_congestion (int fd, const char *name)
@@ -59,7 +59,7 @@ static void fd_set_congestion (int fd, const char *name)
     (void) fd;
 #ifdef TCP_CONGESTION
     if (setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, name, len+1)==-1)
-        printf("setsockopt TCP_CONGESTION: %m\n");
+        perror("setsockopt TCP_CONGESTION");
 #endif
 }
 
@@ -70,14 +70,14 @@ static int fd_listen (int fd, struct addrinfo *ai)
     int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
 
     if (ret==-1) {
-        printf("bind: %m\n");
+        perror("bind");
         return -1;
     }
 
     ret = listen(fd, 1);
 
     if (ret==-1) {
-        printf("listen: %m\n");
+        perror("listen");
         return -1;
     }
 
@@ -112,7 +112,7 @@ static int tun_create (char *name)
     int fd = open("/dev/net/tun", O_RDWR);
 
     if (fd<0) {
-        printf("open /dev/net/tun: %m\n");
+        perror("open /dev/net/tun");
         return -1;
     }
 
@@ -125,7 +125,7 @@ static int tun_create (char *name)
     int ret = ioctl(fd, TUNSETIFF, &ifr);
 
     if (ret<0) {
-        printf("ioctl TUNSETIFF: %m\n");
+        perror("ioctl TUNSETIFF");
         return -1;
     }
 
@@ -191,7 +191,7 @@ static int read_to_buffer (int fd, buffer_t *buffer, size_t size)
         if (errno==EAGAIN || errno==EINTR)
             return -1;
         if (errno)
-            printf("read: %m\n");
+            perror("read");
         return 0;
     }
 
@@ -214,7 +214,7 @@ static int write_from_buffer (int fd, buffer_t *buffer, size_t size)
         if (errno==EAGAIN || errno==EINTR)
             return -1;
         if (errno)
-            printf("write: %m\n");
+            perror("write");
         return 0;
     }
 
@@ -332,7 +332,7 @@ int main (int argc, char **argv)
             sock.fd = accept(fd, addr, &addr_size);
 
             if (sock.fd==-1) {
-                printf("accept: %m\n");
+                perror("accept");
                 return 1;
             }
         } else {
@@ -363,7 +363,7 @@ int main (int argc, char **argv)
             if (ret==-1) {
                 if (errno==EINTR)
                     continue;
-                printf("poll: %m\n");
+                perror("poll");
                 return 1;
             }
 
