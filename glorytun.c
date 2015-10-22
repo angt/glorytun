@@ -58,18 +58,50 @@ static void fd_set_congestion (int fd, const char *name)
         printf("setsockopt TCP_CONGESTION: %m\n");
 }
 
-static int gt_open_sock (struct addrinfo *res) // bad
+static int fd_listen (int fd, struct addrinfo *ai)
+{
+    fd_set_reuseaddr(fd);
+
+    int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
+
+    if (ret==-1) {
+        printf("bind: %m\n");
+        return -1;
+    }
+
+    ret = listen(fd, 1);
+
+    if (ret==-1) {
+        printf("listen: %m\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int fd_connect (int fd, struct addrinfo *ai)
+{
+    return connect(fd, ai->ai_addr, ai->ai_addrlen);
+}
+
+static int fd_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
 {
     for (struct addrinfo *ai=res; ai; ai=ai->ai_next) {
         int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (fd!=-1)
+
+        if (fd==-1)
+            continue;
+
+        if (func(fd, ai)!=-1)
             return fd;
+
+        close(fd);
     }
 
     return -1;
 }
 
-static int gt_open_tun (char *name)
+static int tun_create (char *name)
 {
     int fd = open("/dev/net/tun", O_RDWR);
 
@@ -226,7 +258,6 @@ int main (int argc, char **argv)
     int listener = 0;
     char *congestion = NULL;
 
-
     struct option opts[] = {
         { "dev",        &dev,        option_string },
         { "host",       &host,       option_string },
@@ -252,35 +283,12 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    int fd = -1;
-
-    if (listener) {
-        fd = gt_open_sock(ai);
-
-        if (fd==-1)
-            return 1;
-
-        fd_set_reuseaddr(fd);
-
-        int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
-
-        if (ret==-1) {
-            printf("bind: %m\n");
-            return 1;
-        }
-
-        ret = listen(fd, 1);
-
-        if (ret==-1) {
-            printf("listen: %m\n");
-            return 1;
-        }
-    }
+    int fd = listener?fd_create(ai, fd_listen):-1;
     
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
 
-    tun.fd = gt_open_tun(dev);
+    tun.fd = tun_create(dev);
 
     if (tun.fd==-1)
         return 1;
@@ -303,18 +311,10 @@ int main (int argc, char **argv)
                 return 1;
             }
         } else {
-            sock.fd = gt_open_sock(ai);
+            sock.fd = fd_create(ai, fd_connect);
 
             if (sock.fd==-1)
-                return 1;
-
-            int ret = connect(sock.fd, ai->ai_addr, ai->ai_addrlen);
-
-            if (ret==-1) { // check errno
-                close(sock.fd);
-                sock.fd = -1;
                 continue;
-            }
         }
 
         fd_set_nonblock(sock.fd);
