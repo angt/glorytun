@@ -18,60 +18,44 @@
 
 volatile sig_atomic_t running;
 
-static int gt_open_sock (char *host, char *port, int listener)
+static void fd_set_nonblock (int fd)
 {
-    struct addrinfo hints = {
-        .ai_family = AF_UNSPEC,
-        .ai_socktype = SOCK_STREAM,
-        .ai_protocol = IPPROTO_TCP,
-        .ai_flags = AI_PASSIVE,
-    };
+    int val, ret;
 
-    struct addrinfo *ai, *res = NULL;
+    do {
+        val = 1;
+        ret = ioctl(fd, FIONBIO, &val);
+    } while (ret==-1 && errno==EINTR);
 
-    if (getaddrinfo(host, port, &hints, &res)) {
-        printf("host not found\n");
-        return -1;
+    if (ret==-1)
+        printf("ioctl FIONBIO: %m\n");
+}
+
+static void fd_set_nodelay (int fd)
+{
+    int val = 1;
+
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY , &val, sizeof(val))==-1)
+        printf("setsockopt TCP_NODELAY: %m\n");
+}
+
+static void fd_set_reuseaddr (int fd)
+{
+    int val = 1;
+
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val))==-1)
+        printf("setsockopt SO_REUSEADDR: %m\n");
+}
+
+static int gt_open_sock (struct addrinfo *res) // bad
+{
+    for (struct addrinfo *ai=res; ai; ai=ai->ai_next) {
+        int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+        if (fd!=-1)
+            return fd;
     }
 
-    int fd = -1;
-
-    for (ai=res; ai; ai=ai->ai_next) {
-        fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-
-        if (fd==-1)
-            continue;
-
-        int ret;
-
-        if (listener) {
-            const int val = 1;
-
-            if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val))==-1)
-                printf("setsockopt: %m\n");
-
-            ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
-
-            if (!ret)
-                ret = listen(fd, 1);
-        } else {
-            ret = connect(fd, ai->ai_addr, ai->ai_addrlen);
-        }
-
-        if (!ret)
-            break;
-
-        if (errno)
-            printf("socket: %m\n");
-
-        close(fd);
-
-        fd = -1;
-    }
-
-    freeaddrinfo(res);
-
-    return fd;
+    return -1;
 }
 
 static int gt_open_tun (char *name)
@@ -240,18 +224,55 @@ int main (int argc, char **argv)
     if (option(argc, argv, COUNT(opts), opts))
         return 1;
 
+    struct addrinfo hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_protocol = IPPROTO_TCP,
+        .ai_flags = AI_PASSIVE,
+    };
+
+    struct addrinfo *ai = NULL;
+
+    if (getaddrinfo(host, port, &hints, &ai)) {
+        printf("host not found\n");
+        return 1;
+    }
+
+    int fd = -1;
+
+    if (listener) {
+        fd = gt_open_sock(ai);
+
+        if (fd==-1)
+            return 1;
+
+        fd_set_reuseaddr(fd);
+
+        int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
+
+        if (ret==-1) {
+            printf("bind: %m\n");
+            return 1;
+        }
+
+        ret = listen(fd, 1);
+
+        if (ret==-1) {
+            printf("listen: %m\n");
+            return 1;
+        }
+    }
+    
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
-
-    int fd = gt_open_sock(host, port, listener);
-
-    if (fd==-1)
-        return 1;
 
     tun.fd = gt_open_tun(dev);
 
     if (tun.fd==-1)
         return 1;
+
+    buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
+    buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
 
     while (running) {
 
@@ -267,17 +288,28 @@ int main (int argc, char **argv)
                 printf("accept: %m\n");
                 return 1;
             }
-
-            // setup socket
         } else {
-            // reconnect
-            sock.fd = fd;
+            sock.fd = gt_open_sock(ai);
+
+            if (sock.fd==-1)
+                return 1;
+
+            int ret = connect(sock.fd, ai->ai_addr, ai->ai_addrlen);
+
+            if (ret==-1) { // check errno
+                close(sock.fd);
+                sock.fd = -1;
+                continue;
+            }
         }
+
+        fd_set_nonblock(sock.fd);
+        fd_set_nodelay(sock.fd);
 
         printf("running...\n");
 
-        buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
-        buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
+        buffer_format(&tun.recv);
+        buffer_format(&sock.recv);
 
         while (running) {
 
@@ -348,9 +380,15 @@ int main (int argc, char **argv)
         }
 
     restart:
-        free(tun.recv.data);
-        free(sock.recv.data);
+        close(sock.fd);
+        sock.fd = -1;
     }
+
+    if (ai)
+        freeaddrinfo(ai);
+
+    free(tun.recv.data);
+    free(sock.recv.data);
 
     return 0;
 }
