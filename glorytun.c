@@ -92,7 +92,12 @@ static int sk_listen (int fd, struct addrinfo *ai)
 
 static int sk_connect (int fd, struct addrinfo *ai)
 {
-    return connect(fd, ai->ai_addr, ai->ai_addrlen);
+    int ret = connect(fd, ai->ai_addr, ai->ai_addrlen);
+
+    if (ret==-1 && errno==EINTR)
+        return 0;
+
+    return ret;
 }
 
 static int sk_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
@@ -110,6 +115,20 @@ static int sk_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
     }
 
     return -1;
+}
+
+static int sk_accept (int fd)
+{
+    struct sockaddr_storage addr_storage;
+    struct sockaddr *addr = (struct sockaddr *)&addr_storage;
+    socklen_t addr_size = sizeof(addr_storage);
+
+    int ret = accept(fd, addr, &addr_size);
+
+    if (ret==-1 && errno!=EINTR)
+        perror("accept");
+
+    return ret;
 }
 
 #ifdef __linux__
@@ -146,6 +165,7 @@ static int tun_create (char *name)
 
     for (unsigned dev_id = 0U; dev_id < 32U; dev_id++) {
         char dev_path[11U];
+
         snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
 
         int fd = open(dev_path, O_RDWR);
@@ -244,9 +264,11 @@ static int option (int argc, char **argv, int n, struct option *opt)
 {
     for (int i=1; i<argc; i++) {
         int found = 0;
+
         for (int k=0; k<n; k++) {
             if (str_cmp(opt[k].name, argv[i]))
                 continue;
+
             switch (opt[k].type) {
             case option_flag:
                 {
@@ -261,9 +283,11 @@ static int option (int argc, char **argv, int n, struct option *opt)
                     break;
                 }
             }
+
             found = 1;
             break;
         }
+
         if (!found) {
             printf("option `%s' is unknown\n", argv[i]);
             return 1;
@@ -316,8 +340,6 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    int fd = listener?sk_create(ai, sk_listen):-1;
-    
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
 
@@ -331,54 +353,40 @@ int main (int argc, char **argv)
     buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
     buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
 
+    int fd = -1;
+
+    if (listener) {
+        fd = sk_create(ai, sk_listen);
+
+        if (fd==-1)
+            return 1;
+    }
+
     while (running) {
+        sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
 
-        if (listener) {
-            printf("waiting for a client...\n");
-
-            struct sockaddr_storage addr_storage;
-            struct sockaddr *addr = (struct sockaddr *)&addr_storage;
-            socklen_t addr_size = sizeof(addr_storage);
-            sock.fd = accept(fd, addr, &addr_size);
-
-            if (sock.fd==-1) {
-                perror("accept");
-                return 1;
-            }
-        } else {
-            sock.fd = sk_create(ai, sk_connect);
-
-            if (sock.fd==-1)
-                continue;
-        }
+        if (sock.fd==-1)
+            continue;
 
         fd_set_nonblock(sock.fd);
         sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
-        printf("running...\n");
-
         buffer_format(&tun.recv);
         buffer_format(&sock.recv);
 
-        while (running) {
+        printf("running...\n");
 
+        while (running) {
             struct pollfd fds[] = {
                 { .fd = tun.fd,  .events = POLLIN },
                 { .fd = sock.fd, .events = POLLIN },
             };
 
-            int ret = poll(fds, COUNT(fds), -1);
-
-            if (ret==-1) {
-                if (errno==EINTR)
-                    continue;
+            if (poll(fds, COUNT(fds), -1)==-1 && errno!=EINTR) {
                 perror("poll");
                 return 1;
             }
-
-            if (ret==0)
-                continue;
 
             buffer_shift(&tun.recv);
 
@@ -386,8 +394,10 @@ int main (int argc, char **argv)
                 if (buffer_write_size(&tun.recv)) {
                     uint8_t *tmp = tun.recv.write;
                     int r = read_to_buffer(fds[0].fd, &tun.recv, buffer_write_size(&tun.recv));
+
                     if (!r)
                         return 2;
+
                     if (r>0 && r!=((tmp[2]<<8)|tmp[3]))
                         tun.recv.write = tmp;
                 }
@@ -398,8 +408,10 @@ int main (int argc, char **argv)
 
             if (buffer_read_size(&tun.recv)) {
                 int r = write_from_buffer(fds[1].fd, &tun.recv, buffer_read_size(&tun.recv));
+
                 if (!r)
                     goto restart;
+
                 if (r==-1)
                     fds[1].events = POLLIN|POLLOUT;
             }
@@ -408,6 +420,7 @@ int main (int argc, char **argv)
 
             if (fds[1].revents & POLLIN) {
                 int r = read_to_buffer(fds[1].fd, &sock.recv, buffer_write_size(&sock.recv));
+
                 if (!r)
                     goto restart;
             }
@@ -417,12 +430,16 @@ int main (int argc, char **argv)
 
             if (buffer_read_size(&sock.recv)>=20) {
                 if ((sock.recv.read[0]>>4)!=4)
-                    return 4;
+                    goto restart;
+
                 size_t ps = (sock.recv.read[2]<<8)|sock.recv.read[3];
+
                 if (buffer_read_size(&sock.recv)>=ps) {
                     int r = write_from_buffer(fds[0].fd, &sock.recv, ps);
+
                     if (!r)
                         return 2;
+
                     if (r==-1)
                         fds[0].events = POLLIN|POLLOUT;
                 }
