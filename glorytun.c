@@ -304,8 +304,10 @@ int main (int argc, char **argv)
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
         .ai_protocol = IPPROTO_TCP,
-        .ai_flags = AI_PASSIVE,
     };
+
+    if (listener)
+        hints.ai_flags = AI_PASSIVE;
 
     struct addrinfo *ai = NULL;
 
