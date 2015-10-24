@@ -61,10 +61,11 @@ static void fd_set_congestion (int fd, const char *name)
     if (!len)
         return;
 
-    (void) fd;
 #ifdef TCP_CONGESTION
     if (setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, name, len+1)==-1)
         perror("setsockopt TCP_CONGESTION");
+#else
+    (void) fd;
 #endif
 }
 
@@ -141,19 +142,19 @@ static int tun_create (char *name)
 #else
 static int tun_create (char *name)
 {
-    char dev_path[11U];
-    unsigned int dev_id;
-    int fd;
-
     (void) name;
-    for (dev_id = 0U; dev_id < 32U; dev_id++) {
-        snprintf(dev_path, sizeof dev_path, "/dev/tun%u", dev_id);
-        fd = open(dev_path, O_RDWR);
-        if (fd != -1) {
-            break;
-        }
+
+    for (unsigned dev_id = 0U; dev_id < 32U; dev_id++) {
+        char dev_path[11U];
+        snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
+
+        int fd = open(dev_path, O_RDWR);
+
+        if (fd!=-1)
+            return fd;
     }
-    return fd;
+
+    return -1;
 }
 #endif
 
@@ -170,7 +171,7 @@ static void gt_set_signal (void)
 {
     struct sigaction sa;
 
-    byte_set(&sa, 0, sizeof sa);
+    byte_set(&sa, 0, sizeof(sa));
     running = 1;
 
     sa.sa_handler = gt_sa_stop;
