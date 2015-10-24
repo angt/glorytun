@@ -68,15 +68,6 @@ static inline size_t str_len (const char *restrict str)
     return i;
 }
 
-typedef struct buffer buffer_t;
-
-struct buffer {
-    uint8_t *data;
-    uint8_t *read;
-    uint8_t *write;
-    uint8_t *end;
-};
-
 static inline void buffer_setup (buffer_t *buffer, void *data, size_t size)
 {
     if (!data)

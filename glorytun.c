@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common-static.h"
 
 #include <stdio.h>
 #include <signal.h>
