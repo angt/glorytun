@@ -22,15 +22,20 @@ volatile sig_atomic_t running;
 
 static void fd_set_nonblock (int fd)
 {
-    int val, ret;
+    int ret;
 
     do {
-        val = 1;
-        ret = ioctl(fd, FIONBIO, &val);
+        ret = fcntl(fd, F_GETFL, 0);
+    } while (ret==-1 && errno==EINTR);
+
+    int flags = (ret==-1)?0:ret;
+
+    do {
+        ret = fcntl(fd, F_SETFL, flags|O_NONBLOCK);
     } while (ret==-1 && errno==EINTR);
 
     if (ret==-1)
-        perror("ioctl FIONBIO");
+        perror("fcntl O_NONBLOCK");
 }
 
 static void fd_set_nodelay (int fd)
@@ -317,6 +322,8 @@ int main (int argc, char **argv)
 
     if (tun.fd==-1)
         return 1;
+
+    fd_set_nonblock(tun.fd);
 
     buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
     buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
