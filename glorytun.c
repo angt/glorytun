@@ -38,7 +38,7 @@ static void fd_set_nonblock (int fd)
         perror("fcntl O_NONBLOCK");
 }
 
-static void fd_set_nodelay (int fd)
+static void sk_set_nodelay (int fd)
 {
     int val = 1;
 
@@ -46,7 +46,7 @@ static void fd_set_nodelay (int fd)
         perror("setsockopt TCP_NODELAY");
 }
 
-static void fd_set_reuseaddr (int fd)
+static void sk_set_reuseaddr (int fd)
 {
     int val = 1;
 
@@ -54,7 +54,7 @@ static void fd_set_reuseaddr (int fd)
         perror("setsockopt SO_REUSEADDR");
 }
 
-static void fd_set_congestion (int fd, const char *name)
+static void sk_set_congestion (int fd, const char *name)
 {
     size_t len = str_len(name);
 
@@ -69,9 +69,9 @@ static void fd_set_congestion (int fd, const char *name)
 #endif
 }
 
-static int fd_listen (int fd, struct addrinfo *ai)
+static int sk_listen (int fd, struct addrinfo *ai)
 {
-    fd_set_reuseaddr(fd);
+    sk_set_reuseaddr(fd);
 
     int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
 
@@ -90,12 +90,12 @@ static int fd_listen (int fd, struct addrinfo *ai)
     return 0;
 }
 
-static int fd_connect (int fd, struct addrinfo *ai)
+static int sk_connect (int fd, struct addrinfo *ai)
 {
     return connect(fd, ai->ai_addr, ai->ai_addrlen);
 }
 
-static int fd_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
+static int sk_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
 {
     for (struct addrinfo *ai=res; ai; ai=ai->ai_next) {
         int fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
@@ -314,7 +314,7 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    int fd = listener?fd_create(ai, fd_listen):-1;
+    int fd = listener?sk_create(ai, sk_listen):-1;
     
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
@@ -344,15 +344,15 @@ int main (int argc, char **argv)
                 return 1;
             }
         } else {
-            sock.fd = fd_create(ai, fd_connect);
+            sock.fd = sk_create(ai, sk_connect);
 
             if (sock.fd==-1)
                 continue;
         }
 
         fd_set_nonblock(sock.fd);
-        fd_set_nodelay(sock.fd);
-        fd_set_congestion(sock.fd, congestion);
+        sk_set_nodelay(sock.fd);
+        sk_set_congestion(sock.fd, congestion);
 
         printf("running...\n");
 
