@@ -33,5 +33,7 @@ setcap:
 	setcap cap_net_admin+ep glorytun
 
 glorytun: glorytun.o
-glorytun.c: common-static.h
-common-static.h: common.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $@
+
+glorytun.o: glorytun.c common.h common-static.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
