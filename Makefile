@@ -1,6 +1,6 @@
 CC      := gcc
 LDFLAGS := -Wl,-O1,--sort-common,--as-needed
-CFLAGS  := -std=c99 -ffreestanding -Wall -Wextra
+CFLAGS  := -ffreestanding -Wall -Wextra
 
 prefix  := /usr/local
 
