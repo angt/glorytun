@@ -377,12 +377,12 @@ int main (int argc, char **argv)
 
         printf("running...\n");
 
-        while (running) {
-            struct pollfd fds[] = {
-                { .fd = tun.fd,  .events = POLLIN },
-                { .fd = sock.fd, .events = POLLIN },
-            };
+        struct pollfd fds[] = {
+            { .fd = tun.fd,  .events = POLLIN },
+            { .fd = sock.fd, .events = POLLIN },
+        };
 
+        while (running) {
             if (poll(fds, COUNT(fds), -1)==-1 && errno!=EINTR) {
                 perror("poll");
                 return 1;
