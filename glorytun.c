@@ -391,9 +391,6 @@ int main (int argc, char **argv)
         sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
-        buffer_format(&tun.recv);
-        buffer_format(&sock.recv);
-
         printf("running...\n");
 
         struct pollfd fds[] = {
