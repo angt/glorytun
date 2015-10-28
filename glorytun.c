@@ -456,7 +456,7 @@ int main (int argc, char **argv)
                 fds[0].events = POLLIN;
 
             struct iovec iov[16];
-            int count;
+            size_t count;
 
             uint8_t *data = sock.recv.read;
 
@@ -467,10 +467,7 @@ int main (int argc, char **argv)
                 if (!ip_size)
                     goto restart;
 
-                if (ip_size==-1)
-                    break;
-
-                if (ip_size>size)
+                if (ip_size<0 || (size_t)ip_size>size)
                     break;
 
                 iov[count].iov_base = data;
