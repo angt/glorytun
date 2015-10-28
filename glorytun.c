@@ -384,8 +384,10 @@ int main (int argc, char **argv)
     while (running) {
         sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
 
-        if (sock.fd==-1)
+        if (sock.fd==-1) {
+            usleep(100000);
             continue;
+        }
 
         fd_set_nonblock(sock.fd);
         sk_set_nodelay(sock.fd);
