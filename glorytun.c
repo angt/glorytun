@@ -416,10 +416,10 @@ int main (int argc, char **argv)
                     if (!r)
                         return 2;
 
-                    if (r==-1)
+                    if (r<0)
                         break;
 
-                    if (r>0 && r==get_ip_size(tun.recv.write, size))
+                    if (r==get_ip_size(tun.recv.write, size))
                         tun.recv.write += r;
                 }
             }
