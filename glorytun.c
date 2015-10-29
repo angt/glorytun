@@ -239,6 +239,7 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     return ret;
 }
 
+/*
 static ssize_t fd_writev (int fd, const struct iovec *iov, int count)
 {
     if (!count)
@@ -256,6 +257,7 @@ static ssize_t fd_writev (int fd, const struct iovec *iov, int count)
 
     return ret;
 }
+*/
 
 enum option_type {
     option_flag,
@@ -471,14 +473,9 @@ int main (int argc, char **argv)
             if (fds[0].revents & POLLOUT)
                 fds[0].events = POLLIN;
 
-            struct iovec iov[16];
-            size_t count;
-
-            uint8_t *data = sock.recv.read;
-
-            for (count=0; count<COUNT(iov); count++) {
-                size_t size = sock.recv.write-data;
-                ssize_t ip_size = get_ip_size(data, size);
+            while (1) {
+                size_t size = buffer_read_size(&sock.recv);
+                ssize_t ip_size = get_ip_size(sock.recv.read, size);
 
                 if (!ip_size)
                     goto restart;
@@ -486,14 +483,7 @@ int main (int argc, char **argv)
                 if (ip_size<0 || (size_t)ip_size>size)
                     break;
 
-                iov[count].iov_base = data;
-                iov[count].iov_len = ip_size;
-
-                data += ip_size;
-            }
-
-            if (count) {
-                ssize_t r = fd_writev(fds[0].fd, iov, count);
+                ssize_t r = fd_write(fds[0].fd, sock.recv.read, ip_size);
 
                 if (!r)
                     return 2;
@@ -501,8 +491,10 @@ int main (int argc, char **argv)
                 if (r==-1)
                     fds[0].events = POLLIN|POLLOUT;
 
-                if (r>0)
-                    sock.recv.read += r;
+                if (r<0)
+                    break;
+
+                sock.recv.read += r;
             }
         }
 
