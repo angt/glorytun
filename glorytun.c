@@ -305,6 +305,12 @@ static int option (int argc, char **argv, int n, struct option *opt)
     return 0;
 }
 
+static void set_ip_size (uint8_t *data, size_t size)
+{
+    data[2] = 0xFF&(size>>8);
+    data[3] = 0xFF&(size);
+}
+
 static ssize_t get_ip_size (const uint8_t *data, size_t size)
 {
     if (size<20)
@@ -419,8 +425,18 @@ int main (int argc, char **argv)
                     if (r<0)
                         break;
 
-                    if (r==get_ip_size(tun.recv.write, size))
-                        tun.recv.write += r;
+                    ssize_t ip_size = get_ip_size(tun.recv.write, size);
+
+                    if (ip_size<=0)
+                        break;
+
+                    if (r<ip_size)
+                        set_ip_size(tun.recv.write, r);
+
+                    if (r>ip_size)
+                        break;
+
+                    tun.recv.write += r;
                 }
             }
 
