@@ -14,6 +14,8 @@
 #define PALIGN(x)      ((void *)ALIGN((size_t)(x)))
 #define PALIGN_DOWN(x) ((void *)ALIGN_DOWN((size_t)(x)))
 
+#define _unused_       __attribute__((unused))
+
 typedef struct buffer buffer_t;
 
 struct buffer {

@@ -18,6 +18,18 @@
 
 #define GT_BUFFER_SIZE (32*1024)
 
+struct option {
+    char *name;
+    void *data;
+    int (*call) (void *, int, char **);
+};
+
+struct netio {
+    int fd;
+    buffer_t recv;
+    buffer_t send; // TODO
+};
+
 volatile sig_atomic_t running;
 
 static void fd_set_nonblock (int fd)
@@ -259,52 +271,86 @@ static ssize_t fd_writev (int fd, const struct iovec *iov, int count)
 }
 */
 
-enum option_type {
-    option_flag,
-    option_string,
-};
-
-struct option {
-    char *name;
-    void *data;
-    enum option_type type;
-};
-
-static int option (int argc, char **argv, int n, struct option *opt)
+static int option_flag (void *data, _unused_ int argc, _unused_ char **argv)
 {
+    const int one = 1;
+    byte_cpy(data, &one, sizeof(one));
+
+    return 0;
+}
+
+static int option_str (void *data, int argc, char **argv)
+{
+    if (argc<2 || !argv[1]) {
+        printf("option `%s' need a string argument\n", argv[0]);
+        return -1;
+    }
+
+    byte_cpy(data, &argv[1], sizeof(argv[1]));
+
+    return 1;
+}
+
+static int option_long (void *data, int argc, char **argv)
+{
+    if (argc<2 || !argv[1]) {
+        printf("option `%s' need an integer argument\n", argv[0]);
+        return -1;
+    }
+
+    errno = 0;
+    char *end;
+    long val = strtol(argv[1], &end, 0);
+
+    if (errno || argv[1]==end) {
+        printf("argument `%s' is not a valide integer\n", argv[1]);
+        return -1;
+    }
+
+    byte_cpy(data, &val, sizeof(val));
+
+    return 1;
+}
+
+static int option_option (void *data, int argc, char **argv)
+{
+    struct option *opt = (struct option *)data;
+
     for (int i=1; i<argc; i++) {
         int found = 0;
 
-        for (int k=0; k<n; k++) {
+        for (int k=0; opt[k].name; k++) {
             if (str_cmp(opt[k].name, argv[i]))
                 continue;
 
-            switch (opt[k].type) {
-            case option_flag:
-                {
-                    const int val = 1;
-                    byte_cpy(opt[k].data, &val, sizeof(val));
-                    break;
-                }
-            case option_string:
-                {
-                    const char *val = argv[++i];
-                    byte_cpy(opt[k].data, &val, sizeof(val));
-                    break;
-                }
-            }
+            int ret = opt[k].call(opt[k].data, argc-i, &argv[i]);
 
+            if (ret<0)
+                return -1;
+
+            i += ret;
             found = 1;
             break;
         }
 
-        if (!found) {
-            printf("option `%s' is unknown\n", argv[i]);
-            return 1;
-        }
+        if (!found)
+            return i-1;
     }
 
-    return 0;
+    return argc;
+}
+
+static int option (struct option *opts, int argc, char **argv)
+{
+    int ret = option_option(opts, argc, argv);
+
+    if (ret==argc)
+        return 0;
+
+    if (ret>=0)
+        printf("option `%s' is unknown\n", argv[ret+1]);
+
+    return 1;
 }
 
 static void set_ip_size (uint8_t *data, size_t size)
@@ -324,12 +370,6 @@ static ssize_t get_ip_size (const uint8_t *data, size_t size)
     return 0;
 }
 
-struct netio {
-    int fd;
-    buffer_t recv;
-    buffer_t send; // TODO
-};
-
 int main (int argc, char **argv)
 {
     gt_set_signal();
@@ -341,14 +381,15 @@ int main (int argc, char **argv)
     char *congestion = NULL;
 
     struct option opts[] = {
-        { "dev",        &dev,        option_string },
-        { "host",       &host,       option_string },
-        { "port",       &port,       option_string },
-        { "listener",   &listener,   option_flag   },
-        { "congestion", &congestion, option_string },
+        { "dev",        &dev,        option_str  },
+        { "host",       &host,       option_str  },
+        { "port",       &port,       option_str  },
+        { "listener",   &listener,   option_flag },
+        { "congestion", &congestion, option_str  },
+        { NULL },
     };
 
-    if (option(argc, argv, COUNT(opts), opts))
+    if (option(opts, argc, argv))
         return 1;
 
     struct addrinfo hints = {
