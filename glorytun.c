@@ -303,7 +303,7 @@ static int option_long (void *data, int argc, char **argv)
     long val = strtol(argv[1], &end, 0);
 
     if (errno || argv[1]==end) {
-        printf("argument `%s' is not a valide integer\n", argv[1]);
+        printf("argument `%s' is not a valid integer\n", argv[1]);
         return -1;
     }
 
