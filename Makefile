@@ -9,14 +9,18 @@ CFLAGS += -save-temps
 endif
 
 ifdef debug
-CFLAGS += -O0 -fno-omit-frame-pointer -g
+CFLAGS += -O0 -fno-omit-frame-pointer
+FLAGS  += -g
 else
 CFLAGS += -O3 -fomit-frame-pointer -DNDEBUG
 endif
 
 ifdef sanitize
-CFLAGS += -fsanitize=$(sanitize)
+FLAGS += -fsanitize=$(sanitize)
 endif
+
+CFLAGS  += $(FLAGS)
+LDFLAGS += $(FLAGS)
 
 .PHONY: default install clean setcap
 
@@ -32,8 +36,4 @@ clean:
 setcap:
 	setcap cap_net_admin+ep glorytun
 
-glorytun: glorytun.o
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $@
-
-glorytun.o: glorytun.c common.h common-static.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+glorytun.o: common.h common-static.h
