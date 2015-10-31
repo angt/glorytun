@@ -451,6 +451,8 @@ static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     unsigned char public_w[crypto_scalarmult_SCALARBYTES];
     unsigned char public_r[crypto_scalarmult_SCALARBYTES];
 
+    unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
+
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(public_w, secret);
 
@@ -463,13 +465,23 @@ static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
         fd_write_all(fd, public_w, sizeof(public_w));
 
     crypto_scalarmult(shared, secret, public_r);
-    crypto_aead_aes256gcm_beforenm(&ctx->state, shared);
+
+    crypto_generichash_state state;
+    crypto_generichash_init(&state, NULL, 0, sizeof(key));
+    crypto_generichash_update(&state, shared, sizeof(shared));
+    crypto_generichash_update(&state, listener?public_w:public_r, sizeof(public_w));
+    crypto_generichash_update(&state, listener?public_r:public_w, sizeof(public_w));
+    crypto_generichash_final(&state, key, sizeof(key));
+
+    crypto_aead_aes256gcm_beforenm(&ctx->state, key);
 
     sodium_memzero(secret, sizeof(secret));
     sodium_memzero(shared, sizeof(shared));
 
     sodium_memzero(public_w, sizeof(public_w));
     sodium_memzero(public_r, sizeof(public_r));
+
+    sodium_memzero(key, sizeof(key));
 
     randombytes_buf(ctx->nonce_w, sizeof(ctx->nonce_w));
 
