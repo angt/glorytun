@@ -16,7 +16,9 @@
 # include <linux/if_tun.h>
 #endif
 
-#define GT_BUFFER_SIZE (32*1024)
+#include <sodium.h>
+
+#define GT_BUFFER_SIZE (4*1024*1024)
 
 struct option {
     char *name;
@@ -28,6 +30,12 @@ struct netio {
     int fd;
     buffer_t recv;
     buffer_t send; // TODO
+};
+
+struct crypto_ctx {
+    crypto_aead_aes256gcm_state state;
+    uint8_t nonce_w[crypto_aead_aes256gcm_NPUBBYTES];
+    uint8_t nonce_r[crypto_aead_aes256gcm_NPUBBYTES];
 };
 
 volatile sig_atomic_t running;
@@ -251,25 +259,89 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     return ret;
 }
 
-/*
-static ssize_t fd_writev (int fd, const struct iovec *iov, int count)
+static ssize_t fd_read_all (int fd, void *data, size_t size)
 {
-    if (!count)
-        return -2;
+    size_t done = 0;
 
-    ssize_t ret = writev(fd, iov, count);
+    while (done<size) {
+        ssize_t ret = fd_read(fd, data+done, size-done);
 
-    if (ret==-1) {
-        if (errno==EAGAIN || errno==EINTR)
-            return -1;
-        if (errno)
-            perror("write");
-        return 0;
+        if (!ret)
+            break;
+
+        if (ret>0)
+            done += ret;
     }
 
-    return ret;
+    return done;
 }
-*/
+
+static ssize_t fd_write_all (int fd, const void *data, size_t size)
+{
+    size_t done = 0;
+
+    while (done<size) {
+        ssize_t ret = fd_write(fd, data+done, size-done);
+
+        if (!ret)
+            break;
+
+        if (ret>0)
+            done += ret;
+    }
+
+    return done;
+}
+
+static int encrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size, buffer_t *buffer)
+{
+    const size_t ws = size + crypto_aead_aes256gcm_ABYTES;
+
+    if (buffer_write_size(buffer) < ws)
+        return 1;
+
+    const int hs = 4;
+
+    byte_cpy(buffer->write, packet, size);
+
+    crypto_aead_aes256gcm_encrypt_afternm(
+            buffer->write + hs, NULL,
+            packet + hs, size - hs,
+            packet, hs,
+            NULL, ctx->nonce_w,
+            (const crypto_aead_aes256gcm_state *)&ctx->state);
+
+    sodium_increment(ctx->nonce_w, crypto_aead_aes256gcm_NPUBBYTES);
+    buffer->write += ws;
+
+    return 0;
+}
+
+static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size, buffer_t *buffer)
+{
+    const size_t rs = size + crypto_aead_aes256gcm_ABYTES;
+
+    if (buffer_read_size(buffer) < rs)
+        return 1;
+
+    const int hs = 4;
+
+    byte_cpy(packet, buffer->read, hs);
+
+    if (crypto_aead_aes256gcm_decrypt_afternm(
+                packet + hs, NULL,
+                NULL,
+                buffer->read + hs, rs - hs,
+                packet, hs,
+                ctx->nonce_r,
+                (const crypto_aead_aes256gcm_state *)&ctx->state))
+        return -1;
+
+    sodium_increment(ctx->nonce_r, crypto_aead_aes256gcm_NPUBBYTES);
+    buffer->read += rs;
+
+    return 0;
+}
 
 static int option_flag (void *data, _unused_ int argc, _unused_ char **argv)
 {
@@ -291,6 +363,7 @@ static int option_str (void *data, int argc, char **argv)
     return 1;
 }
 
+_unused_
 static int option_long (void *data, int argc, char **argv)
 {
     if (argc<2 || !argv[1]) {
@@ -370,9 +443,53 @@ static ssize_t get_ip_size (const uint8_t *data, size_t size)
     return 0;
 }
 
+static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
+{
+    unsigned char secret[crypto_scalarmult_SCALARBYTES];
+    unsigned char shared[crypto_scalarmult_BYTES];
+
+    unsigned char public_w[crypto_scalarmult_SCALARBYTES];
+    unsigned char public_r[crypto_scalarmult_SCALARBYTES];
+
+    randombytes_buf(secret, sizeof(secret));
+    crypto_scalarmult_base(public_w, secret);
+
+    if (!listener)
+        fd_write_all(fd, public_w, sizeof(public_w));
+
+    fd_read_all(fd, public_r, sizeof(public_r));
+
+    if (listener)
+        fd_write_all(fd, public_w, sizeof(public_w));
+
+    crypto_scalarmult(shared, secret, public_r);
+    crypto_aead_aes256gcm_beforenm(&ctx->state, shared);
+
+    sodium_memzero(secret, sizeof(secret));
+    sodium_memzero(shared, sizeof(shared));
+
+    sodium_memzero(public_w, sizeof(public_w));
+    sodium_memzero(public_r, sizeof(public_r));
+
+    randombytes_buf(ctx->nonce_w, sizeof(ctx->nonce_w));
+
+    fd_write_all(fd, ctx->nonce_w, sizeof(ctx->nonce_w));
+    fd_read_all(fd, ctx->nonce_r, sizeof(ctx->nonce_r));
+}
+
 int main (int argc, char **argv)
 {
     gt_set_signal();
+
+    if (sodium_init()==-1) {
+        printf("libsodium initialization has failed!\n");
+        return -1;
+    }
+
+    if (!crypto_aead_aes256gcm_is_available()) {
+        printf("AES-256-GCM is not available on your platform!\n");
+        return -1;
+    }
 
     char *host = NULL;
     char *port = "5000";
@@ -442,12 +559,23 @@ int main (int argc, char **argv)
         sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
+        struct crypto_ctx ctx;
+        gt_setup_crypto(&ctx, sock.fd, listener);
+
         printf("running...\n");
 
         struct pollfd fds[] = {
             { .fd = tun.fd,  .events = POLLIN },
             { .fd = sock.fd, .events = POLLIN },
         };
+
+        struct {
+            uint8_t buf[2048];
+            size_t size;
+        } tunr, tunw;
+
+        tunr.size = 0;
+        tunw.size = 0;
 
         while (running) {
             if (poll(fds, COUNT(fds), -1)==-1 && errno!=EINTR) {
@@ -459,8 +587,10 @@ int main (int argc, char **argv)
 
             if (fds[0].revents & POLLIN) {
                 while (1) {
-                    size_t size = buffer_write_size(&tun.recv);
-                    ssize_t r = fd_read(fds[0].fd, tun.recv.write, size);
+                    if (buffer_write_size(&tun.recv)<sizeof(tunr.buf)+16)
+                        break;
+
+                    ssize_t r = fd_read(fds[0].fd, tunr.buf, sizeof(tunr.buf));
 
                     if (!r)
                         return 2;
@@ -468,18 +598,18 @@ int main (int argc, char **argv)
                     if (r<0)
                         break;
 
-                    ssize_t ip_size = get_ip_size(tun.recv.write, size);
+                    ssize_t ip_size = get_ip_size(tunr.buf, sizeof(tunr.buf));
 
                     if (ip_size<=0)
-                        break;
+                        continue;
 
                     if (r<ip_size)
-                        set_ip_size(tun.recv.write, r);
+                        set_ip_size(tunr.buf, r);
 
                     if (r>ip_size)
-                        break;
+                        continue;
 
-                    tun.recv.write += r;
+                    encrypt_packet(&ctx, tunr.buf, r, &tun.recv);
                 }
             }
 
@@ -515,27 +645,35 @@ int main (int argc, char **argv)
                 fds[0].events = POLLIN;
 
             while (1) {
-                size_t size = buffer_read_size(&sock.recv);
-                ssize_t ip_size = get_ip_size(sock.recv.read, size);
+                if (!tunw.size) {
+                    size_t size = buffer_read_size(&sock.recv);
+                    ssize_t ip_size = get_ip_size(sock.recv.read, size);
 
-                if (!ip_size)
-                    goto restart;
+                    if (!ip_size)
+                        goto restart;
 
-                if (ip_size<0 || (size_t)ip_size>size)
-                    break;
+                    if (ip_size<0 || (size_t)ip_size+16>size)
+                        break;
 
-                ssize_t r = fd_write(fds[0].fd, sock.recv.read, ip_size);
+                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv))
+                        goto restart;
 
-                if (!r)
-                    return 2;
+                    tunw.size = ip_size;
+                }
+                if (tunw.size) {
+                    ssize_t r = fd_write(fds[0].fd, tunw.buf, tunw.size);
 
-                if (r==-1)
-                    fds[0].events = POLLIN|POLLOUT;
+                    if (!r)
+                        return 2;
 
-                if (r<0)
-                    break;
+                    if (r==-1)
+                        fds[0].events = POLLIN|POLLOUT;
 
-                sock.recv.read += r;
+                    if (r<0)
+                        break;
+
+                    tunw.size = 0;
+                }
             }
         }
 

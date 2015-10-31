@@ -1,6 +1,7 @@
 CC      := gcc
 LDFLAGS := -Wl,-O1,--sort-common,--as-needed
 CFLAGS  := -ffreestanding -Wall -Wextra
+LDLIBS  := -lsodium
 
 prefix  := /usr/local
 
