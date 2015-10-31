@@ -667,8 +667,10 @@ int main (int argc, char **argv)
                     if (ip_size<0 || (size_t)ip_size+16>size)
                         break;
 
-                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv))
+                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv)) {
+                        printf("message could not be verified!\n");
                         goto restart;
+                    }
 
                     tunw.size = ip_size;
                 }
