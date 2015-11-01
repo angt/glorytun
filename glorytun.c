@@ -626,14 +626,11 @@ int main (int argc, char **argv)
 
                     ssize_t ip_size = get_ip_size(tunr.buf, sizeof(tunr.buf));
 
-                    if (ip_size<=0)
+                    if (ip_size<=0 || r>ip_size)
                         continue;
 
                     if (r<ip_size)
                         set_ip_size(tunr.buf, r);
-
-                    if (r>ip_size)
-                        continue;
 
                     encrypt_packet(&ctx, tunr.buf, r, &tun.recv);
                 }
