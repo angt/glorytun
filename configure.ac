@@ -1,5 +1,8 @@
 AC_PREREQ([2.69])
-AC_INIT([glorytun], [0.0.1])
+AC_INIT([glorytun], [0.0.1],
+        [https://github.com/angt/glorytun/issues],
+        [glorytun],
+        [https://github.com/angt/glorytun])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([common.h])
