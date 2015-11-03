@@ -511,11 +511,12 @@ int main (int argc, char **argv)
 {
     gt_set_signal();
 
+    char *dev  = PACKAGE_NAME;
     char *host = NULL;
     char *port = "5000";
-    char *dev  = "glorytun";
     int listener = 0;
     char *congestion = NULL;
+    int version = 0;
 
     struct option opts[] = {
         { "dev",        &dev,        option_str  },
@@ -523,11 +524,17 @@ int main (int argc, char **argv)
         { "port",       &port,       option_str  },
         { "listener",   &listener,   option_flag },
         { "congestion", &congestion, option_str  },
+        { "version",    &version,    option_flag },
         { NULL },
     };
 
     if (option(opts, argc, argv))
         return 1;
+
+    if (version) {
+        printf(PACKAGE_STRING"\n");
+        return 0;
+    }
 
     if (sodium_init()==-1) {
         printf("libsodium initialization has failed!\n");
