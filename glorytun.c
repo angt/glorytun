@@ -511,16 +511,6 @@ int main (int argc, char **argv)
 {
     gt_set_signal();
 
-    if (sodium_init()==-1) {
-        printf("libsodium initialization has failed!\n");
-        return -1;
-    }
-
-    if (!crypto_aead_aes256gcm_is_available()) {
-        printf("AES-256-GCM is not available on your platform!\n");
-        return -1;
-    }
-
     char *host = NULL;
     char *port = "5000";
     char *dev  = "glorytun";
@@ -538,6 +528,16 @@ int main (int argc, char **argv)
 
     if (option(opts, argc, argv))
         return 1;
+
+    if (sodium_init()==-1) {
+        printf("libsodium initialization has failed!\n");
+        return -1;
+    }
+
+    if (!crypto_aead_aes256gcm_is_available()) {
+        printf("AES-256-GCM is not available on your platform!\n");
+        return -1;
+    }
 
     struct addrinfo hints = {
         .ai_family = AF_UNSPEC,
