@@ -151,6 +151,46 @@ static int sk_accept (int fd)
     return ret;
 }
 
+static struct addrinfo *ai_create (const char *host, const char *port, int listener)
+{
+    if (!port || !port[0]) {
+        fprintf(stderr, "port is not valid\n");
+        return NULL;
+    }
+
+    struct addrinfo hints = {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_protocol = IPPROTO_TCP,
+    };
+
+    if (listener)
+        hints.ai_flags = AI_PASSIVE;
+
+    struct addrinfo *ai = NULL;
+
+    int ret = getaddrinfo(host, port, &hints, &ai);
+
+    if (!ret)
+        return ai;
+
+    switch (ret) {
+    case EAI_MEMORY:
+        errno = ENOMEM;
+    case EAI_SYSTEM:
+        perror("getaddrinfo");
+        break;
+    case EAI_FAIL:
+    case EAI_AGAIN:
+        fprintf(stderr, "the name server returned a failure\n");
+        break;
+    default:
+        fprintf(stderr, "%s.%s is not valid\n", host?:"", port);
+    }
+
+    return NULL;
+}
+
 #ifdef __linux__
 static int tun_create (char *name)
 {
@@ -537,30 +577,19 @@ int main (int argc, char **argv)
     }
 
     if (sodium_init()==-1) {
-        printf("libsodium initialization has failed!\n");
-        return -1;
+        fprintf(stderr, "libsodium initialization has failed!\n");
+        return 1;
     }
 
     if (!crypto_aead_aes256gcm_is_available()) {
-        printf("AES-256-GCM is not available on your platform!\n");
-        return -1;
-    }
-
-    struct addrinfo hints = {
-        .ai_family = AF_UNSPEC,
-        .ai_socktype = SOCK_STREAM,
-        .ai_protocol = IPPROTO_TCP,
-    };
-
-    if (listener)
-        hints.ai_flags = AI_PASSIVE;
-
-    struct addrinfo *ai = NULL;
-
-    if (getaddrinfo(host, port, &hints, &ai)) {
-        printf("host not found\n");
+        fprintf(stderr, "AES-256-GCM is not available on your platform!\n");
         return 1;
     }
+
+    struct addrinfo *ai = ai_create(host, port, listener);
+
+    if (!ai)
+        return 1;
 
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
@@ -690,7 +719,7 @@ int main (int argc, char **argv)
                         break;
 
                     if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv)) {
-                        printf("message could not be verified!\n");
+                        fprintf(stderr, "message could not be verified!\n");
                         goto restart;
                     }
 
@@ -718,8 +747,7 @@ int main (int argc, char **argv)
         sock.fd = -1;
     }
 
-    if (ai)
-        freeaddrinfo(ai);
+    freeaddrinfo(ai);
 
     free(tun.recv.data);
     free(sock.recv.data);
