@@ -70,12 +70,12 @@ static inline size_t str_len (const char *restrict str)
 
 static inline char *str_cat (const char *const strs[], size_t count)
 {
-    size_t size = 0;
+    size_t size = 1;
 
     for (size_t i=0; i<count; i++)
         size += str_len(strs[i]);
 
-    char *str = malloc(size+1);
+    char *str = malloc(size);
 
     if (!str)
         return NULL;
