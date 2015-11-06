@@ -538,13 +538,14 @@ static ssize_t get_ip_size (const uint8_t *data, size_t size)
 
 static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
-    unsigned char secret[crypto_scalarmult_SCALARBYTES];
-    unsigned char shared[crypto_scalarmult_BYTES];
+    uint8_t secret[crypto_scalarmult_SCALARBYTES];
+    uint8_t shared[crypto_scalarmult_BYTES];
+    uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
 
-    unsigned char public_w[crypto_scalarmult_SCALARBYTES];
-    unsigned char public_r[crypto_scalarmult_SCALARBYTES];
-
-    unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
+    uint8_t public_r[crypto_scalarmult_SCALARBYTES];
+    uint8_t public_w[crypto_scalarmult_SCALARBYTES];
+    uint8_t public_x[crypto_scalarmult_SCALARBYTES];
+    uint8_t nonce_x[crypto_aead_aes256gcm_NPUBBYTES];
 
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(public_w, secret);
@@ -557,29 +558,31 @@ static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (listener)
         fd_write_all(fd, public_w, sizeof(public_w));
 
+    randombytes_buf(ctx->nonce_w, sizeof(ctx->nonce_w));
+
+    fd_write_all(fd, ctx->nonce_w, sizeof(ctx->nonce_w));
+    fd_read_all(fd, ctx->nonce_r, sizeof(ctx->nonce_r));
+
+    for (size_t i=0; i<sizeof(public_x); i++)
+        public_x[i] = public_r[i]^public_w[i];
+
+    for (size_t i=0; i<sizeof(nonce_x); i++)
+        nonce_x[i] = ctx->nonce_r[i]^ctx->nonce_w[i];
+
     crypto_scalarmult(shared, secret, public_r);
 
     crypto_generichash_state state;
     crypto_generichash_init(&state, NULL, 0, sizeof(key));
     crypto_generichash_update(&state, shared, sizeof(shared));
-    crypto_generichash_update(&state, listener?public_w:public_r, sizeof(public_w));
-    crypto_generichash_update(&state, listener?public_r:public_w, sizeof(public_w));
+    crypto_generichash_update(&state, public_x, sizeof(public_x));
+    crypto_generichash_update(&state, nonce_x, sizeof(nonce_x));
     crypto_generichash_final(&state, key, sizeof(key));
 
     crypto_aead_aes256gcm_beforenm(&ctx->state, key);
 
     sodium_memzero(secret, sizeof(secret));
     sodium_memzero(shared, sizeof(shared));
-
-    sodium_memzero(public_w, sizeof(public_w));
-    sodium_memzero(public_r, sizeof(public_r));
-
     sodium_memzero(key, sizeof(key));
-
-    randombytes_buf(ctx->nonce_w, sizeof(ctx->nonce_w));
-
-    fd_write_all(fd, ctx->nonce_w, sizeof(ctx->nonce_w));
-    fd_read_all(fd, ctx->nonce_r, sizeof(ctx->nonce_r));
 }
 
 int main (int argc, char **argv)
