@@ -68,6 +68,31 @@ static inline size_t str_len (const char *restrict str)
     return i;
 }
 
+static inline char *str_cat (const char *const strs[], size_t count)
+{
+    size_t size = 0;
+
+    for (size_t i=0; i<count; i++)
+        size += str_len(strs[i]);
+
+    char *str = malloc(size+1);
+
+    if (!str)
+        return NULL;
+
+    char *p = str;
+
+    for (size_t i=0; i<count; i++) {
+        size_t len = str_len(strs[i]);
+        byte_cpy(p, strs[i], len);
+        p += len;
+    }
+
+    p[0] = 0;
+
+    return str;
+}
+
 static inline void buffer_setup (buffer_t *buffer, void *data, size_t size)
 {
     if (!data)
