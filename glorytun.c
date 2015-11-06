@@ -28,8 +28,10 @@ struct option {
 
 struct netio {
     int fd;
-    buffer_t recv;
-    buffer_t send; // TODO
+    struct {
+        buffer_t buf;
+        ssize_t ret;
+    } write, read;
 };
 
 struct crypto_ctx {
@@ -634,8 +636,8 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun.fd);
 
-    buffer_setup(&tun.recv, NULL, GT_BUFFER_SIZE);
-    buffer_setup(&sock.recv, NULL, GT_BUFFER_SIZE);
+    buffer_setup(&sock.write.buf, NULL, GT_BUFFER_SIZE);
+    buffer_setup(&sock.read.buf, NULL, GT_BUFFER_SIZE);
 
     int fd = -1;
 
@@ -687,11 +689,11 @@ int main (int argc, char **argv)
                 return 1;
             }
 
-            buffer_shift(&tun.recv);
+            buffer_shift(&sock.write.buf);
 
             if (fds[0].revents & POLLIN) {
                 while (1) {
-                    if (buffer_write_size(&tun.recv)<sizeof(tunr.buf)+16)
+                    if (buffer_write_size(&sock.write.buf)<sizeof(tunr.buf)+16)
                         break;
 
                     ssize_t r = fd_read(fds[0].fd, tunr.buf, sizeof(tunr.buf));
@@ -710,36 +712,36 @@ int main (int argc, char **argv)
                     if (r<ip_size)
                         set_ip_size(tunr.buf, r);
 
-                    encrypt_packet(&ctx, tunr.buf, r, &tun.recv);
+                    encrypt_packet(&ctx, tunr.buf, r, &sock.write.buf);
                 }
             }
 
             if (fds[1].revents & POLLOUT)
                 fds[1].events = POLLIN;
 
-            if (buffer_read_size(&tun.recv)) {
-                ssize_t r = fd_write(fds[1].fd, tun.recv.read, buffer_read_size(&tun.recv));
+            if (buffer_read_size(&sock.write.buf)) {
+                sock.write.ret = fd_write(fds[1].fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
 
-                if (!r)
+                if (!sock.write.ret)
                     goto restart;
 
-                if (r==-1)
+                if (sock.write.ret==-1)
                     fds[1].events = POLLIN|POLLOUT;
 
-                if (r>0)
-                    tun.recv.read += r;
+                if (sock.write.ret>0)
+                    sock.write.buf.read += sock.write.ret;
             }
 
-            buffer_shift(&sock.recv);
+            buffer_shift(&sock.read.buf);
 
             if (fds[1].revents & POLLIN) {
-                ssize_t r = fd_read(fds[1].fd, sock.recv.write, buffer_write_size(&sock.recv));
+                sock.read.ret = fd_read(fds[1].fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
 
-                if (!r)
+                if (!sock.read.ret)
                     goto restart;
 
-                if (r>0)
-                    sock.recv.write += r;
+                if (sock.read.ret>0)
+                    sock.read.buf.write += sock.read.ret;
             }
 
             if (fds[0].revents & POLLOUT)
@@ -747,8 +749,8 @@ int main (int argc, char **argv)
 
             while (1) {
                 if (!tunw.size) {
-                    size_t size = buffer_read_size(&sock.recv);
-                    ssize_t ip_size = get_ip_size(sock.recv.read, size);
+                    size_t size = buffer_read_size(&sock.read.buf);
+                    ssize_t ip_size = get_ip_size(sock.read.buf.read, size);
 
                     if (!ip_size)
                         goto restart;
@@ -756,7 +758,7 @@ int main (int argc, char **argv)
                     if (ip_size<0 || (size_t)ip_size+16>size)
                         break;
 
-                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv)) {
+                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.read.buf)) {
                         fprintf(stderr, "%s: message could not be verified!\n", sockname);
                         goto restart;
                     }
@@ -792,8 +794,8 @@ int main (int argc, char **argv)
 
     freeaddrinfo(ai);
 
-    free(tun.recv.data);
-    free(sock.recv.data);
+    free(sock.write.buf.data);
+    free(sock.read.buf.data);
 
     return 0;
 }
