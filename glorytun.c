@@ -139,16 +139,50 @@ static int sk_create (struct addrinfo *res, int(*func)(int, struct addrinfo *))
 
 static int sk_accept (int fd)
 {
-    struct sockaddr_storage addr_storage;
-    struct sockaddr *addr = (struct sockaddr *)&addr_storage;
-    socklen_t addr_size = sizeof(addr_storage);
+    struct sockaddr_storage addr;
+    socklen_t addr_size = sizeof(addr);
 
-    int ret = accept(fd, addr, &addr_size);
+    int ret = accept(fd, (struct sockaddr *)&addr, &addr_size);
 
     if (ret==-1 && errno!=EINTR)
         perror("accept");
 
     return ret;
+}
+
+static char *sk_get_name (int fd)
+{
+    struct sockaddr_storage addr;
+    socklen_t addr_size = sizeof(addr);
+
+    if (getpeername(fd, (struct sockaddr *)&addr, &addr_size)==-1) {
+        perror("getpeername");
+        return NULL;
+    }
+
+    char host[64] = {0};
+    char port[32] = {0};
+
+    int ret = getnameinfo((struct sockaddr *)&addr, addr_size,
+            host, sizeof(host),
+            port, sizeof(port),
+            NI_NUMERICHOST|NI_NUMERICSERV);
+
+    switch (ret) {
+    case 0:
+        break;
+    case EAI_MEMORY:
+        errno = ENOMEM;
+    case EAI_SYSTEM:
+        perror("getnameinfo");
+        return NULL;
+    }
+
+    const char *const strs[] = {
+        host, ".", port
+    };
+
+    return str_cat(strs, COUNT(strs));
 }
 
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
@@ -171,10 +205,9 @@ static struct addrinfo *ai_create (const char *host, const char *port, int liste
 
     int ret = getaddrinfo(host, port, &hints, &ai);
 
-    if (!ret)
-        return ai;
-
     switch (ret) {
+    case 0:
+        return ai;
     case EAI_MEMORY:
         errno = ENOMEM;
     case EAI_SYSTEM:
@@ -621,14 +654,19 @@ int main (int argc, char **argv)
             continue;
         }
 
+        char *sockname = sk_get_name(sock.fd);
+
+        if (!sockname)
+            goto restart;
+
+        fprintf(stderr, "%s: connected\n", sockname);
+
         fd_set_nonblock(sock.fd);
         sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
         struct crypto_ctx ctx;
         gt_setup_crypto(&ctx, sock.fd, listener);
-
-        printf("running...\n");
 
         struct pollfd fds[] = {
             { .fd = tun.fd,  .events = POLLIN },
@@ -719,7 +757,7 @@ int main (int argc, char **argv)
                         break;
 
                     if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.recv)) {
-                        fprintf(stderr, "message could not be verified!\n");
+                        fprintf(stderr, "%s: message could not be verified!\n", sockname);
                         goto restart;
                     }
 
@@ -743,6 +781,11 @@ int main (int argc, char **argv)
         }
 
     restart:
+        if (sockname) {
+            free(sockname);
+            sockname = NULL;
+        }
+
         close(sock.fd);
         sock.fd = -1;
     }
