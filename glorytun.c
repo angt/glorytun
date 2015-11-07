@@ -19,8 +19,8 @@
 
 #include <sodium.h>
 
-#ifndef CLOCK_MONOTONIC_COARSE
-#define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
+#if !defined(CLOCK_MONOTONIC_COARSE) && defined(CLOCK_MONOTONIC)
+# define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
 #endif
 
 #define GT_BUFFER_SIZE (4*1024*1024)
@@ -199,6 +199,7 @@ static char *sk_get_name (int fd)
     return str_cat(strs, COUNT(strs));
 }
 
+#ifdef TCP_INFO
 static socklen_t sk_get_info (int fd, struct tcp_info *ti)
 {
     socklen_t len = sizeof(struct tcp_info);
@@ -227,6 +228,7 @@ static void print_tcp_info (struct tcp_info *ti)
             ti->tcpi_rttvar,   ti->tcpi_snd_ssthresh,  ti->tcpi_snd_cwnd,
             ti->tcpi_advmss,   ti->tcpi_reordering);
 }
+#endif
 
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
 {
@@ -637,10 +639,12 @@ int main (int argc, char **argv)
     char *congestion = NULL;
     int version = 0;
 
+#ifdef TCP_INFO
     struct {
         struct timespec time;
         struct tcp_info info;
     } tcpinfo = {0};
+#endif
 
     struct option opts[] = {
         { "dev",        &dev,        option_str  },
@@ -738,6 +742,7 @@ int main (int argc, char **argv)
                 return 1;
             }
 
+#if defined(CLOCK_MONOTONIC_COARSE) && defined(TCP_INFO)
             struct timespec now;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &now);
 
@@ -746,6 +751,7 @@ int main (int argc, char **argv)
                 if (sk_get_info(sock.fd, &tcpinfo.info))
                     print_tcp_info(&tcpinfo.info);
             }
+#endif
 
             buffer_shift(&sock.write.buf);
 
