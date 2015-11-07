@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <poll.h>
+#include <time.h>
 
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
@@ -17,6 +18,10 @@
 #endif
 
 #include <sodium.h>
+
+#ifndef CLOCK_MONOTONIC_COARSE
+#define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
+#endif
 
 #define GT_BUFFER_SIZE (4*1024*1024)
 
@@ -41,6 +46,13 @@ struct crypto_ctx {
 };
 
 volatile sig_atomic_t running;
+
+static int64_t dt_ms (struct timespec *ta, struct timespec *tb)
+{
+    const int64_t s = ta->tv_sec-tb->tv_sec;
+    const int64_t n = ta->tv_nsec-tb->tv_nsec;
+    return s*1000LL+n/1000000LL;
+}
 
 static void fd_set_nonblock (int fd)
 {
@@ -185,6 +197,35 @@ static char *sk_get_name (int fd)
     };
 
     return str_cat(strs, COUNT(strs));
+}
+
+static socklen_t sk_get_info (int fd, struct tcp_info *ti)
+{
+    socklen_t len = sizeof(struct tcp_info);
+
+    if (getsockopt(fd, SOL_TCP, TCP_INFO, ti, &len)==-1) {
+        perror("getsockopt TCP_INFO");
+        return 0;
+    }
+
+    return len;
+}
+
+static void print_tcp_info (struct tcp_info *ti)
+{
+    fprintf(stderr, "tcpinfo"
+            " rto:%llu"        " ato:%llu"             " snd_mss:%llu"
+            " rcv_mss:%llu"    " unacked:%llu"         " sacked:%llu"
+            " lost:%llu"       " retrans:%llu"         " fackets:%llu"
+            " pmtu:%llu"       " rcv_ssthresh:%llu"    " rtt:%llu"
+            " rttvar:%llu"     " snd_ssthresh:%llu"    " snd_cwnd:%llu"
+            " advmss:%llu"     " reordering:%llu"      "\n",
+            ti->tcpi_rto,      ti->tcpi_ato,           ti->tcpi_snd_mss,
+            ti->tcpi_rcv_mss,  ti->tcpi_unacked,       ti->tcpi_sacked,
+            ti->tcpi_lost,     ti->tcpi_retrans,       ti->tcpi_fackets,
+            ti->tcpi_pmtu,     ti->tcpi_rcv_ssthresh,  ti->tcpi_rtt,
+            ti->tcpi_rttvar,   ti->tcpi_snd_ssthresh,  ti->tcpi_snd_cwnd,
+            ti->tcpi_advmss,   ti->tcpi_reordering);
 }
 
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
@@ -596,6 +637,11 @@ int main (int argc, char **argv)
     char *congestion = NULL;
     int version = 0;
 
+    struct {
+        struct timespec time;
+        struct tcp_info info;
+    } tcpinfo = {0};
+
     struct option opts[] = {
         { "dev",        &dev,        option_str  },
         { "host",       &host,       option_str  },
@@ -690,6 +736,15 @@ int main (int argc, char **argv)
             if (poll(fds, COUNT(fds), -1)==-1 && errno!=EINTR) {
                 perror("poll");
                 return 1;
+            }
+
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &now);
+
+            if (dt_ms(&now, &tcpinfo.time)>1000LL) {
+                tcpinfo.time = now;
+                if (sk_get_info(sock.fd, &tcpinfo.info))
+                    print_tcp_info(&tcpinfo.info);
             }
 
             buffer_shift(&sock.write.buf);
