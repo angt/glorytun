@@ -523,16 +523,16 @@ static int option_long (void *data, int argc, char **argv)
 
 static int option_option (void *data, int argc, char **argv)
 {
-    struct option *opt = (struct option *)data;
+    struct option *opts = (struct option *)data;
 
     for (int i=1; i<argc; i++) {
         int found = 0;
 
-        for (int k=0; opt[k].name; k++) {
-            if (str_cmp(opt[k].name, argv[i]))
+        for (int k=0; opts[k].name; k++) {
+            if (str_cmp(opts[k].name, argv[i]))
                 continue;
 
-            int ret = opt[k].call(opt[k].data, argc-i, &argv[i]);
+            int ret = opts[k].call(opts[k].data, argc-i, &argv[i]);
 
             if (ret<0)
                 return -1;
@@ -549,6 +549,32 @@ static int option_option (void *data, int argc, char **argv)
     return argc;
 }
 
+static void option_usage (struct option *opts, char *name)
+{
+    char *usage = "usage: ";
+    size_t slen = str_len(usage)+str_len(name);
+    size_t len = slen;
+
+    printf("%s%s", usage, name);
+
+    if (slen>40)
+        slen = 12;
+
+    for (int k=0; opts[k].name; k++) {
+        int isflag = opts[k].call==option_flag;
+        size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
+
+        if (len+inc>60) {
+            printf("\n%*s", slen, "");
+            len = 0;
+        }
+        printf(" [%s%s]", opts[k].name, isflag?"":" ARG");
+        len += inc;
+    }
+
+    printf("\n");
+}
+
 static int option (struct option *opts, int argc, char **argv)
 {
     int ret = option_option(opts, argc, argv);
@@ -556,8 +582,11 @@ static int option (struct option *opts, int argc, char **argv)
     if (ret==argc)
         return 0;
 
-    if (ret>=0)
-        printf("option `%s' is unknown\n", argv[ret+1]);
+    if (ret<0 || ret+1>=argc)
+        return 1;
+
+    printf("option `%s' is unknown\n", argv[ret+1]);
+    option_usage(opts, argv[0]);
 
     return 1;
 }
@@ -647,10 +676,10 @@ int main (int argc, char **argv)
 #endif
 
     struct option opts[] = {
-        { "dev",        &dev,        option_str  },
+        { "listener",   &listener,   option_flag },
         { "host",       &host,       option_str  },
         { "port",       &port,       option_str  },
-        { "listener",   &listener,   option_flag },
+        { "dev",        &dev,        option_str  },
         { "congestion", &congestion, option_str  },
         { "version",    &version,    option_flag },
         { NULL },
