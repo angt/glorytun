@@ -1,4 +1,4 @@
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 AC_INIT([glorytun], [0.0.1],
         [https://github.com/angt/glorytun/issues],
         [glorytun],
