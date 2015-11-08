@@ -1,2 +1,15 @@
 *.o
+*.log
+*.scan
+*.m4
+*.cache
+*.status
+Makefile
+Makefile.in
+compile
+configure
+depcomp
+install-sh
+missing
+.deps
 glorytun
