@@ -38,8 +38,8 @@ struct netio {
 
 struct crypto_ctx {
     crypto_aead_aes256gcm_state state;
-    uint8_t nonce_w[crypto_aead_aes256gcm_NPUBBYTES];
     uint8_t nonce_r[crypto_aead_aes256gcm_NPUBBYTES];
+    uint8_t nonce_w[crypto_aead_aes256gcm_NPUBBYTES];
     uint8_t skey[crypto_generichash_KEYBYTES];
 };
 
@@ -537,48 +537,51 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
     return 0;
 }
 
-static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
+static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
-    // TODO: hash public data with skey to check unencrypted msg
+    const size_t nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
+    const size_t public_size = crypto_scalarmult_SCALARBYTES;
+    const size_t hkey_size = crypto_generichash_BYTES;
+    const size_t size = nonce_size + public_size + hkey_size;
 
     uint8_t secret[crypto_scalarmult_SCALARBYTES];
     uint8_t shared[crypto_scalarmult_BYTES];
     uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
 
-    uint8_t public_r[crypto_scalarmult_SCALARBYTES];
-    uint8_t public_w[crypto_scalarmult_SCALARBYTES];
-    uint8_t public_x[crypto_scalarmult_SCALARBYTES];
-    uint8_t nonce_x[crypto_aead_aes256gcm_NPUBBYTES];
+    uint8_t data_r[size], data_w[size], data_x[size];
+    uint8_t hkey_c[hkey_size];
 
+    randombytes_buf(data_w, nonce_size);
     randombytes_buf(secret, sizeof(secret));
-    crypto_scalarmult_base(public_w, secret);
+    crypto_scalarmult_base(&data_w[nonce_size], secret);
 
-    if (!listener)
-        fd_write_all(fd, public_w, sizeof(public_w));
+    crypto_generichash(&data_w[size-hkey_size], hkey_size,
+            data_w, size-hkey_size, ctx->skey, sizeof(ctx->skey));
 
-    fd_read_all(fd, public_r, sizeof(public_r));
+    if (!listener && fd_write_all(fd, data_w, size)!=size)
+        return -1;
 
-    if (listener)
-        fd_write_all(fd, public_w, sizeof(public_w));
+    if (fd_read_all(fd, data_r, size)!=size)
+        return -1;
 
-    randombytes_buf(ctx->nonce_w, sizeof(ctx->nonce_w));
+    crypto_generichash(hkey_c, hkey_size,
+            data_r, size-hkey_size, ctx->skey, sizeof(ctx->skey));
 
-    fd_write_all(fd, ctx->nonce_w, sizeof(ctx->nonce_w));
-    fd_read_all(fd, ctx->nonce_r, sizeof(ctx->nonce_r));
+    if (sodium_memcmp(&data_r[size-hkey_size], hkey_c, hkey_size))
+        return -2;
 
-    for (size_t i=0; i<sizeof(public_x); i++)
-        public_x[i] = public_r[i]^public_w[i];
+    if (listener && fd_write_all(fd, data_w, size)!=size)
+        return -1;
 
-    for (size_t i=0; i<sizeof(nonce_x); i++)
-        nonce_x[i] = ctx->nonce_r[i]^ctx->nonce_w[i];
+    for (size_t i=0; i<size; i++)
+        data_x[i] = data_r[i]^data_w[i];
 
-    crypto_scalarmult(shared, secret, public_r);
+    crypto_scalarmult(shared, secret, &data_r[nonce_size]);
 
     crypto_generichash_state state;
     crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
     crypto_generichash_update(&state, shared, sizeof(shared));
-    crypto_generichash_update(&state, public_x, sizeof(public_x));
-    crypto_generichash_update(&state, nonce_x, sizeof(nonce_x));
+    crypto_generichash_update(&state, data_x, size);
     crypto_generichash_final(&state, key, sizeof(key));
 
     crypto_aead_aes256gcm_beforenm(&ctx->state, key);
@@ -586,6 +589,11 @@ static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     sodium_memzero(secret, sizeof(secret));
     sodium_memzero(shared, sizeof(shared));
     sodium_memzero(key, sizeof(key));
+
+    byte_cpy(ctx->nonce_r, data_r, nonce_size);
+    byte_cpy(ctx->nonce_w, data_w, nonce_size);
+
+    return 0;
 }
 
 int main (int argc, char **argv)
@@ -693,7 +701,11 @@ int main (int argc, char **argv)
         fd_set_nonblock(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
-        gt_setup_crypto(&ctx, sock.fd, listener);
+        switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
+            case -2: fprintf(stderr, "%s: key exchange could not be verified!\n", sockname);
+            case -1: goto restart;
+            default: break;
+        }
 
         struct pollfd fds[] = {
             { .fd = tun.fd,  .events = POLLIN },
