@@ -1,6 +1,8 @@
 #include "common-static.h"
 
+#include <inttypes.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <signal.h>
 #include <poll.h>
 #include <time.h>
@@ -215,12 +217,12 @@ static socklen_t sk_get_info (int fd, struct tcp_info *ti)
 static void print_tcp_info (struct tcp_info *ti)
 {
     fprintf(stderr, "tcpinfo"
-            " rto:%llu"        " ato:%llu"             " snd_mss:%llu"
-            " rcv_mss:%llu"    " unacked:%llu"         " sacked:%llu"
-            " lost:%llu"       " retrans:%llu"         " fackets:%llu"
-            " pmtu:%llu"       " rcv_ssthresh:%llu"    " rtt:%llu"
-            " rttvar:%llu"     " snd_ssthresh:%llu"    " snd_cwnd:%llu"
-            " advmss:%llu"     " reordering:%llu"      "\n",
+            " rto:%" PRIu32     " ato:%" PRIu32          " snd_mss:%" PRIu32
+            " rcv_mss:%" PRIu32 " unacked:%" PRIu32      " sacked:%" PRIu32
+            " lost:%" PRIu32    " retrans:%" PRIu32      " fackets:%" PRIu32
+            " pmtu:%" PRIu32    " rcv_ssthresh:%" PRIu32 " rtt:%" PRIu32
+            " rttvar:%" PRIu32  " snd_ssthresh:%" PRIu32 " snd_cwnd:%" PRIu32
+            " advmss:%" PRIu32  " reordering:%" PRIu32   "\n",
             ti->tcpi_rto,      ti->tcpi_ato,           ti->tcpi_snd_mss,
             ti->tcpi_rcv_mss,  ti->tcpi_unacked,       ti->tcpi_sacked,
             ti->tcpi_lost,     ti->tcpi_retrans,       ti->tcpi_fackets,
@@ -565,7 +567,7 @@ static void option_usage (struct option *opts, char *name)
         size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
 
         if (len+inc>60) {
-            printf("\n%*s", slen, "");
+            printf("\n%*s", (int) slen, "");
             len = 0;
         }
         printf(" [%s%s]", opts[k].name, isflag?"":" ARG");

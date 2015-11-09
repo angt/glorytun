@@ -1,21 +1,19 @@
-AC_PREREQ([2.68])
+AC_PREREQ([2.65])
 AC_INIT([glorytun], [0.0.1],
         [https://github.com/angt/glorytun/issues],
         [glorytun],
         [https://github.com/angt/glorytun])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar])
+AM_DEP_TRACK
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([common.h])
 AC_PROG_CC_C99
-AC_CHECK_HEADERS([arpa/inet.h netdb.h stdint.h stdlib.h sys/ioctl.h sys/socket.h unistd.h])
-AC_C_INLINE
-AC_C_RESTRICT
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-AC_TYPE_UINT8_T
-AC_TYPE_INT64_T
-AC_FUNC_MALLOC
-AC_CHECK_FUNCS([clock_gettime socket strtol])
-PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4])
+AC_USE_SYSTEM_EXTENSIONS
+AC_SEARCH_LIBS([clock_gettime], [rt],
+  [AC_DEFINE(HAVE_CLOCK_GETTIME,[1],[define if you have clock_gettime()])])
+AC_SEARCH_LIBS([getaddrinfo], [resolv nsl])
+AC_SEARCH_LIBS([socket], [socket])
+PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4],
+  [CFLAGS="$CFLAGS $libsodium_CFLAGS"], [echo "not found"])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
