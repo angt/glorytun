@@ -3,7 +3,8 @@ AC_INIT([glorytun], [0.0.1],
         [https://github.com/angt/glorytun/issues],
         [glorytun],
         [https://github.com/angt/glorytun])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar])
+AM_DEP_TRACK
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([common.h])
 AC_PROG_CC_C99
