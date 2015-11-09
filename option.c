@@ -50,6 +50,9 @@ int option_option (void *data, int argc, char **argv)
 {
     struct option *opts = (struct option *)data;
 
+    for (int k=0; opts[k].name; k++)
+        opts[k].set = 0;
+
     for (int i=1; i<argc; i++) {
         int found = 0;
 
@@ -57,10 +60,17 @@ int option_option (void *data, int argc, char **argv)
             if (str_cmp(opts[k].name, argv[i]))
                 continue;
 
+            if (opts[k].set) {
+                printf("option `%s' is already set\n", opts[k].name);
+                return -1;
+            }
+
             int ret = opts[k].call(opts[k].data, argc-i, &argv[i]);
 
             if (ret<0)
                 return -1;
+
+            opts[k].set = 1;
 
             i += ret;
             found = 1;

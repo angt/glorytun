@@ -4,6 +4,7 @@ struct option {
     char *name;
     void *data;
     int (*call) (void *, int, char **);
+    int set;
 };
 
 int option_flag   (void *, int, char **);
