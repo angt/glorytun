@@ -20,6 +20,10 @@
 # include <linux/if_tun.h>
 #endif
 
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+
 #include <sodium.h>
 
 #define GT_BUFFER_SIZE (4*1024*1024)
@@ -36,6 +40,7 @@ struct crypto_ctx {
     crypto_aead_aes256gcm_state state;
     uint8_t nonce_w[crypto_aead_aes256gcm_NPUBBYTES];
     uint8_t nonce_r[crypto_aead_aes256gcm_NPUBBYTES];
+    uint8_t skey[crypto_generichash_KEYBYTES];
 };
 
 volatile sig_atomic_t running;
@@ -489,8 +494,39 @@ static ssize_t get_ip_size (const uint8_t *data, size_t size)
     return 0;
 }
 
+static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
+{
+    size_t size = sizeof(ctx->skey);
+
+    byte_set(ctx->skey, 1, size);
+
+    if (!keyfile)
+        return 0;
+
+    int fd = open(keyfile, O_RDONLY|O_CLOEXEC);
+
+    if (fd<0) {
+        perror("open keyfile");
+        return -1;
+    }
+
+    if (fd_read_all(fd, ctx->skey, size)!=size) {
+        fprintf(stderr, "unable to read secret key in `%s'\n", keyfile);
+        close(fd);
+        return -1;
+    }
+
+    // TODO: check key
+
+    close(fd);
+
+    return 0;
+}
+
 static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
+    // TODO: hash public data with skey to check unencrypted msg
+
     uint8_t secret[crypto_scalarmult_SCALARBYTES];
     uint8_t shared[crypto_scalarmult_BYTES];
     uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
@@ -525,7 +561,7 @@ static void gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     crypto_scalarmult(shared, secret, public_r);
 
     crypto_generichash_state state;
-    crypto_generichash_init(&state, NULL, 0, sizeof(key));
+    crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
     crypto_generichash_update(&state, shared, sizeof(shared));
     crypto_generichash_update(&state, public_x, sizeof(public_x));
     crypto_generichash_update(&state, nonce_x, sizeof(nonce_x));
@@ -542,10 +578,11 @@ int main (int argc, char **argv)
 {
     gt_set_signal();
 
-    char *dev  = PACKAGE_NAME;
+    int listener = 0;
     char *host = NULL;
     char *port = "5000";
-    int listener = 0;
+    char *dev = PACKAGE_NAME;
+    char *keyfile = NULL;
     char *congestion = NULL;
     int version = 0;
 
@@ -561,6 +598,7 @@ int main (int argc, char **argv)
         { "host",       &host,       option_str  },
         { "port",       &port,       option_str  },
         { "dev",        &dev,        option_str  },
+        { "keyfile",    &keyfile,    option_str  },
         { "congestion", &congestion, option_str  },
         { "version",    &version,    option_flag },
         { NULL },
@@ -583,6 +621,11 @@ int main (int argc, char **argv)
         fprintf(stderr, "AES-256-GCM is not available on your platform!\n");
         return 1;
     }
+
+    struct crypto_ctx ctx;
+
+    if (gt_setup_secretkey(&ctx, keyfile))
+        return 1;
 
     struct addrinfo *ai = ai_create(host, port, listener);
 
@@ -630,7 +673,6 @@ int main (int argc, char **argv)
         sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
-        struct crypto_ctx ctx;
         gt_setup_crypto(&ctx, sock.fd, listener);
 
         struct pollfd fds[] = {
