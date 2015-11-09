@@ -567,7 +567,7 @@ static void option_usage (struct option *opts, char *name)
         size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
 
         if (len+inc>60) {
-            printf("\n%*s", slen, "");
+            printf("\n%*s", (int) slen, "");
             len = 0;
         }
         printf(" [%s%s]", opts[k].name, isflag?"":" ARG");
