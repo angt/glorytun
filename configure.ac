@@ -7,15 +7,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR([common.h])
 AC_PROG_CC_C99
-AC_CHECK_HEADERS([arpa/inet.h netdb.h stdint.h stdlib.h sys/ioctl.h sys/socket.h unistd.h])
-AC_C_INLINE
-AC_C_RESTRICT
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-AC_TYPE_UINT8_T
-AC_TYPE_INT64_T
-AC_FUNC_MALLOC
-AC_CHECK_FUNCS([socket strtol])
+AC_USE_SYSTEM_EXTENSIONS
 AC_SEARCH_LIBS(clock_gettime, [rt],
   [AC_DEFINE(HAVE_CLOCK_GETTIME,[1],[define if you have clock_gettime()])])
 PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4],
