@@ -584,6 +584,7 @@ int main (int argc, char **argv)
     char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
+    int nodelay = 0;
     int version = 0;
 
 #ifdef TCP_INFO
@@ -600,6 +601,7 @@ int main (int argc, char **argv)
         { "dev",        &dev,        option_str  },
         { "keyfile",    &keyfile,    option_str  },
         { "congestion", &congestion, option_str  },
+        { "nodelay",    &nodelay,    option_flag },
         { "version",    &version,    option_flag },
         { NULL },
     };
@@ -669,8 +671,10 @@ int main (int argc, char **argv)
 
         fprintf(stderr, "%s: connected\n", sockname);
 
+        if (nodelay)
+            sk_set_nodelay(sock.fd);
+
         fd_set_nonblock(sock.fd);
-        sk_set_nodelay(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
         gt_setup_crypto(&ctx, sock.fd, listener);
