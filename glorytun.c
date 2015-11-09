@@ -1,6 +1,7 @@
 #include "common-static.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <signal.h>
 #include <poll.h>
 #include <time.h>
