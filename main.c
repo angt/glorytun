@@ -86,6 +86,7 @@ static void sk_set_reuseaddr (int fd)
         perror("setsockopt SO_REUSEADDR");
 }
 
+#ifdef TCP_CONGESTION
 static void sk_set_congestion (int fd, const char *name)
 {
     size_t len = str_len(name);
@@ -93,13 +94,15 @@ static void sk_set_congestion (int fd, const char *name)
     if (!len)
         return;
 
-#ifdef TCP_CONGESTION
     if (setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, name, len+1)==-1)
         perror("setsockopt TCP_CONGESTION");
-#else
-    (void) fd;
-#endif
 }
+#else
+static void sk_set_congestion (_unused_ int fd, _unused_ const char *name)
+{
+    fprintf(stderr, "TCP_CONGESTION is not available on your platform!\n");
+}
+#endif
 
 static int sk_listen (int fd, struct addrinfo *ai)
 {
