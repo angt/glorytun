@@ -15,7 +15,10 @@ AC_TYPE_SSIZE_T
 AC_TYPE_UINT8_T
 AC_TYPE_INT64_T
 AC_FUNC_MALLOC
-AC_CHECK_FUNCS([clock_gettime socket strtol])
-PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4])
+AC_CHECK_FUNCS([socket strtol])
+AC_SEARCH_LIBS(clock_gettime, [rt],
+  [AC_DEFINE(HAVE_CLOCK_GETTIME,[1],[define if you have clock_gettime()])])
+PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4],
+  [CFLAGS="$CFLAGS $libsodium_CFLAGS"], [echo "not found"])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

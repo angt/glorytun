@@ -1,7 +1,20 @@
+sudo: false
+
 language: c
 
+os:
+    - linux
+    - osx
+
+compiler:
+    - clang
+    - gcc
+
 before_script:
-    - ./autogen.sh
+    - export PKG_CONFIG_PATH=/tmp/lib/pkgconfig
+    - git clone https://github.com/jedisct1/libsodium.git --branch=stable
+    - cd libsodium && ./autogen.sh && ./configure --enable-minimal --disable-dependency-tracking --prefix=/tmp && make install && cd -
+    - ./autogen.sh    
 
 script:
-    - ./configure && make
+    - ./configure --disable-dependency-tracking && make distcheck
