@@ -1,4 +1,5 @@
 #include "common-static.h"
+#include "option.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -26,12 +27,6 @@
 #endif
 
 #define GT_BUFFER_SIZE (4*1024*1024)
-
-struct option {
-    char *name;
-    void *data;
-    int (*call) (void *, int, char **);
-};
 
 struct netio {
     int fd;
@@ -217,18 +212,18 @@ static socklen_t sk_get_info (int fd, struct tcp_info *ti)
 static void print_tcp_info (struct tcp_info *ti)
 {
     fprintf(stderr, "tcpinfo"
-            " rto:%" PRIu32     " ato:%" PRIu32          " snd_mss:%" PRIu32
-            " rcv_mss:%" PRIu32 " unacked:%" PRIu32      " sacked:%" PRIu32
-            " lost:%" PRIu32    " retrans:%" PRIu32      " fackets:%" PRIu32
-            " pmtu:%" PRIu32    " rcv_ssthresh:%" PRIu32 " rtt:%" PRIu32
-            " rttvar:%" PRIu32  " snd_ssthresh:%" PRIu32 " snd_cwnd:%" PRIu32
-            " advmss:%" PRIu32  " reordering:%" PRIu32   "\n",
-            ti->tcpi_rto,      ti->tcpi_ato,           ti->tcpi_snd_mss,
-            ti->tcpi_rcv_mss,  ti->tcpi_unacked,       ti->tcpi_sacked,
-            ti->tcpi_lost,     ti->tcpi_retrans,       ti->tcpi_fackets,
-            ti->tcpi_pmtu,     ti->tcpi_rcv_ssthresh,  ti->tcpi_rtt,
-            ti->tcpi_rttvar,   ti->tcpi_snd_ssthresh,  ti->tcpi_snd_cwnd,
-            ti->tcpi_advmss,   ti->tcpi_reordering);
+            " rto:%"     PRIu32 " ato:%"          PRIu32 " snd_mss:%"  PRIu32
+            " rcv_mss:%" PRIu32 " unacked:%"      PRIu32 " sacked:%"   PRIu32
+            " lost:%"    PRIu32 " retrans:%"      PRIu32 " fackets:%"  PRIu32
+            " pmtu:%"    PRIu32 " rcv_ssthresh:%" PRIu32 " rtt:%"      PRIu32
+            " rttvar:%"  PRIu32 " snd_ssthresh:%" PRIu32 " snd_cwnd:%" PRIu32
+            " advmss:%"  PRIu32 " reordering:%"   PRIu32 "\n",
+            ti->tcpi_rto,       ti->tcpi_ato,            ti->tcpi_snd_mss,
+            ti->tcpi_rcv_mss,   ti->tcpi_unacked,        ti->tcpi_sacked,
+            ti->tcpi_lost,      ti->tcpi_retrans,        ti->tcpi_fackets,
+            ti->tcpi_pmtu,      ti->tcpi_rcv_ssthresh,   ti->tcpi_rtt,
+            ti->tcpi_rttvar,    ti->tcpi_snd_ssthresh,   ti->tcpi_snd_cwnd,
+            ti->tcpi_advmss,    ti->tcpi_reordering);
 }
 #endif
 
@@ -479,118 +474,6 @@ static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size,
     buffer->read += rs;
 
     return 0;
-}
-
-static int option_flag (void *data, _unused_ int argc, _unused_ char **argv)
-{
-    const int one = 1;
-    byte_cpy(data, &one, sizeof(one));
-
-    return 0;
-}
-
-static int option_str (void *data, int argc, char **argv)
-{
-    if (argc<2 || !argv[1]) {
-        printf("option `%s' need a string argument\n", argv[0]);
-        return -1;
-    }
-
-    byte_cpy(data, &argv[1], sizeof(argv[1]));
-
-    return 1;
-}
-
-_unused_
-static int option_long (void *data, int argc, char **argv)
-{
-    if (argc<2 || !argv[1]) {
-        printf("option `%s' need an integer argument\n", argv[0]);
-        return -1;
-    }
-
-    errno = 0;
-    char *end;
-    long val = strtol(argv[1], &end, 0);
-
-    if (errno || argv[1]==end) {
-        printf("argument `%s' is not a valid integer\n", argv[1]);
-        return -1;
-    }
-
-    byte_cpy(data, &val, sizeof(val));
-
-    return 1;
-}
-
-static int option_option (void *data, int argc, char **argv)
-{
-    struct option *opts = (struct option *)data;
-
-    for (int i=1; i<argc; i++) {
-        int found = 0;
-
-        for (int k=0; opts[k].name; k++) {
-            if (str_cmp(opts[k].name, argv[i]))
-                continue;
-
-            int ret = opts[k].call(opts[k].data, argc-i, &argv[i]);
-
-            if (ret<0)
-                return -1;
-
-            i += ret;
-            found = 1;
-            break;
-        }
-
-        if (!found)
-            return i-1;
-    }
-
-    return argc;
-}
-
-static void option_usage (struct option *opts, char *name)
-{
-    char *usage = "usage: ";
-    size_t slen = str_len(usage)+str_len(name);
-    size_t len = slen;
-
-    printf("%s%s", usage, name);
-
-    if (slen>40)
-        slen = 12;
-
-    for (int k=0; opts[k].name; k++) {
-        int isflag = opts[k].call==option_flag;
-        size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
-
-        if (len+inc>60) {
-            printf("\n%*s", (int) slen, "");
-            len = 0;
-        }
-        printf(" [%s%s]", opts[k].name, isflag?"":" ARG");
-        len += inc;
-    }
-
-    printf("\n");
-}
-
-static int option (struct option *opts, int argc, char **argv)
-{
-    int ret = option_option(opts, argc, argv);
-
-    if (ret==argc)
-        return 0;
-
-    if (ret<0 || ret+1>=argc)
-        return 1;
-
-    printf("option `%s' is unknown\n", argv[ret+1]);
-    option_usage(opts, argv[0]);
-
-    return 1;
 }
 
 static void set_ip_size (uint8_t *data, size_t size)
