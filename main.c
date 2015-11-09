@@ -268,7 +268,7 @@ static struct addrinfo *ai_create (const char *host, const char *port, int liste
 }
 
 #ifdef __linux__
-static int tun_create (char *name)
+static int tun_create (char *name, int multiqueue)
 {
     int fd = open("/dev/net/tun", O_RDWR);
 
@@ -280,6 +280,9 @@ static int tun_create (char *name)
     struct ifreq ifr = {
         .ifr_flags = IFF_TUN|IFF_NO_PI,
     };
+
+    if (multiqueue)
+        ifr.ifr_flags |= IFF_MULTI_QUEUE;
 
     str_cpy(ifr.ifr_name, name, IFNAMSIZ-1);
 
@@ -295,10 +298,8 @@ static int tun_create (char *name)
     return fd;
 }
 #else
-static int tun_create (char *name)
+static int tun_create (_unused_ char *name, _unused_ int mq)
 {
-    (void) name;
-
     for (unsigned dev_id = 0U; dev_id < 32U; dev_id++) {
         char dev_path[11U];
 
@@ -585,6 +586,7 @@ int main (int argc, char **argv)
     char *keyfile = NULL;
     char *congestion = NULL;
     int nodelay = 0;
+    int multiqueue = 0;
     int version = 0;
 
 #ifdef TCP_INFO
@@ -602,6 +604,7 @@ int main (int argc, char **argv)
         { "keyfile",    &keyfile,    option_str  },
         { "congestion", &congestion, option_str  },
         { "nodelay",    &nodelay,    option_flag },
+        { "multiqueue", &multiqueue, option_flag },
         { "version",    &version,    option_flag },
         { NULL },
     };
@@ -637,7 +640,7 @@ int main (int argc, char **argv)
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
 
-    tun.fd = tun_create(dev);
+    tun.fd = tun_create(dev, multiqueue);
 
     if (tun.fd==-1)
         return 1;
