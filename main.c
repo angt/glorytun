@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <signal.h>
 #include <poll.h>
-#include <time.h>
 
+#include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
@@ -21,10 +21,6 @@
 #endif
 
 #include <sodium.h>
-
-#if !defined(CLOCK_MONOTONIC_COARSE) && defined(CLOCK_MONOTONIC)
-# define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
-#endif
 
 #define GT_BUFFER_SIZE (4*1024*1024)
 
@@ -44,11 +40,11 @@ struct crypto_ctx {
 
 volatile sig_atomic_t running;
 
-static int64_t dt_ms (struct timespec *ta, struct timespec *tb)
+static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
     const int64_t s = ta->tv_sec-tb->tv_sec;
-    const int64_t n = ta->tv_nsec-tb->tv_nsec;
-    return s*1000LL+n/1000000LL;
+    const int64_t n = ta->tv_usec-tb->tv_usec;
+    return s*1000LL+n/1000LL;
 }
 
 static void fd_set_nonblock (int fd)
@@ -555,7 +551,7 @@ int main (int argc, char **argv)
 
 #ifdef TCP_INFO
     struct {
-        struct timespec time;
+        struct timeval time;
         struct tcp_info info;
     } tcpinfo = {0};
 #endif
@@ -656,9 +652,9 @@ int main (int argc, char **argv)
                 return 1;
             }
 
-#if defined(CLOCK_MONOTONIC_COARSE) && defined(TCP_INFO)
-            struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &now);
+#ifdef TCP_INFO
+            struct timeval now;
+            gettimeofday(&now, NULL);
 
             if (dt_ms(&now, &tcpinfo.time)>1000LL) {
                 tcpinfo.time = now;
