@@ -20,11 +20,11 @@
 # include <linux/if_tun.h>
 #endif
 
+#include <sodium.h>
+
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
-
-#include <sodium.h>
 
 #define GT_BUFFER_SIZE (4*1024*1024)
 
@@ -44,6 +44,11 @@ struct crypto_ctx {
 };
 
 volatile sig_atomic_t running;
+
+static void gt_not_available (const char *name)
+{
+    fprintf(stderr, "%s is not available on your platform!\n", name);
+}
 
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
@@ -100,7 +105,7 @@ static void sk_set_congestion (int fd, const char *name)
 #else
 static void sk_set_congestion (_unused_ int fd, _unused_ const char *name)
 {
-    fprintf(stderr, "TCP_CONGESTION is not available on your platform!\n");
+    gt_not_available("TCP_CONGESTION");
 }
 #endif
 
@@ -284,8 +289,13 @@ static int tun_create (char *name, int multiqueue)
         .ifr_flags = IFF_TUN|IFF_NO_PI,
     };
 
-    if (multiqueue)
+    if (multiqueue) {
+#ifdef IFF_MULTI_QUEUE
         ifr.ifr_flags |= IFF_MULTI_QUEUE;
+#else
+        gt_not_available("IFF_MULTI_QUEUE");
+#endif
+    }
 
     str_cpy(ifr.ifr_name, name, IFNAMSIZ-1);
 
@@ -626,7 +636,7 @@ int main (int argc, char **argv)
     }
 
     if (!crypto_aead_aes256gcm_is_available()) {
-        fprintf(stderr, "AES-256-GCM is not available on your platform!\n");
+        gt_not_available("AES-256-GCM");
         return 1;
     }
 
