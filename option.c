@@ -99,9 +99,9 @@ static void option_usage (struct option *opts, char *name)
         int isflag = opts[k].call==option_flag;
         size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
 
-        if (len+inc>60) {
+        if (len+inc>72) {
             printf("\n%*s", (int)slen, "");
-            len = 0;
+            len = slen;
         }
         printf(" [%s%s]", opts[k].name, isflag?"":" ARG");
         len += inc;
