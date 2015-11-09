@@ -13,7 +13,6 @@ AC_SEARCH_LIBS([clock_gettime], [rt],
   [AC_DEFINE(HAVE_CLOCK_GETTIME,[1],[define if you have clock_gettime()])])
 AC_SEARCH_LIBS([getaddrinfo], [resolv nsl])
 AC_SEARCH_LIBS([socket], [socket])
-PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4],
-  [CFLAGS="$CFLAGS $libsodium_CFLAGS"], [echo "not found"])
+PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
