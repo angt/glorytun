@@ -493,15 +493,18 @@ static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size,
 
 static void dump_ip_header (uint8_t *data, size_t size)
 {
-    const char tbl[] = "0123456789ABCDEF";
-    size_t hex_size = (size<20)?size:20;
-    char hex[(20<<1)+1];
+    if (size<20)
+        return;
 
-    for (size_t i=0; i<hex_size; i++) {
+    const char tbl[] = "0123456789ABCDEF";
+    char hex[41];
+
+    for (size_t i=0; i<20; i++) {
         hex[(i<<1)+0] = tbl[0xF&(data[i]>>4)];
-        hex[(i<<1)+1] = tbl[0xF&data[i]];
+        hex[(i<<1)+1] = tbl[0xF&(data[i])];
     }
-    hex[20<<1] = 0;
+
+    hex[40] = 0;
 
     fprintf(stderr, "DUMP(%zu): %s\n", size, hex);
 }
