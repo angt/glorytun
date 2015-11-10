@@ -491,6 +491,21 @@ static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size,
     return 0;
 }
 
+static void dump_ip_header (uint8_t *data, size_t size)
+{
+    const char tbl[] = "0123456789ABCDEF";
+    size_t hex_size = (size<20)?size:20;
+    char hex[(20<<1)+1];
+
+    for (size_t i=0; i<hex_size; i++) {
+        hex[(i<<1)+0] = tbl[0xF&(data[i]>>4)];
+        hex[(i<<1)+1] = tbl[0xF&data[i]];
+    }
+    hex[20<<1] = 0;
+
+    fprintf(stderr, "DUMP(%zu): %s\n", size, hex);
+}
+
 static void set_ip_size (uint8_t *data, size_t size)
 {
     data[2] = 0xFF&(size>>8);
@@ -754,11 +769,18 @@ int main (int argc, char **argv)
 
                     ssize_t ip_size = get_ip_size(tunr.buf, sizeof(tunr.buf));
 
-                    if (ip_size<=0 || r>ip_size)
+                    if (ip_size<=0)
                         continue;
 
-                    if (r<ip_size)
-                        set_ip_size(tunr.buf, r);
+                    if (ip_size!=r) {
+                        dump_ip_header(tunr.buf, r);
+
+                        if (r<ip_size) {
+                            set_ip_size(tunr.buf, r);
+                        } else {
+                            continue;
+                        }
+                    }
 
                     encrypt_packet(&ctx, tunr.buf, r, &sock.write.buf);
                 }
