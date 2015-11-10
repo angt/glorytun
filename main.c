@@ -363,8 +363,10 @@ static ssize_t fd_read (int fd, void *data, size_t size)
     if (ret==-1) {
         if (errno==EAGAIN || errno==EINTR)
             return -1;
+
         if (errno)
             perror("read");
+
         return 0;
     }
 
@@ -381,8 +383,10 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     if (ret==-1) {
         if (errno==EAGAIN || errno==EINTR)
             return -1;
+
         if (errno)
             perror("write");
+
         return 0;
     }
 
