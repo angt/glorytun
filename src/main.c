@@ -27,6 +27,7 @@
 #endif
 
 #define GT_BUFFER_SIZE (4*1024*1024)
+#define GT_TIMEOUT     (1000)
 
 struct netio {
     int fd;
@@ -409,7 +410,8 @@ static ssize_t fd_read_all (int fd, void *data, size_t size)
             break;
 
         if (ret<0) {
-            poll(&pollfd, 1, -1);
+            if (!poll(&pollfd, 1, GT_TIMEOUT))
+                break;
             continue;
         }
 
@@ -435,7 +437,8 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
             break;
 
         if (ret<0) {
-            poll(&pollfd, 1, -1);
+            if (!poll(&pollfd, 1, GT_TIMEOUT))
+                break;
             continue;
         }
 
