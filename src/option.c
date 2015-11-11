@@ -96,14 +96,15 @@ static void option_usage (struct option *opts, char *name)
         slen = 12;
 
     for (int k=0; opts[k].name; k++) {
-        int isflag = opts[k].call==option_flag;
-        size_t inc = str_len(opts[k].name)+(isflag?0:4)+4;
+        char *arg = (opts[k].call==option_flag)?"":" ARG";
+        size_t inc = str_len(opts[k].name)+str_len(arg)+3;
 
         if (len+inc>72) {
             printf("\n%*s", (int)slen, "");
             len = slen;
         }
-        printf(" [%s%s]", opts[k].name, isflag?"":" ARG");
+
+        printf(" [%s%s]", opts[k].name, arg);
         len += inc;
     }
 
