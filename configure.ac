@@ -1,12 +1,11 @@
 AC_PREREQ([2.65])
-AC_INIT([glorytun], [0.0.1],
-        [https://github.com/angt/glorytun/issues],
-        [glorytun],
-        [https://github.com/angt/glorytun])
+AC_INIT([glorytun], [0.0.1], [https://github.com/angt/glorytun/issues],
+        [glorytun], [https://github.com/angt/glorytun])
+AC_CONFIG_SRCDIR([src/common.h])
+AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar subdir-objects])
 AM_DEP_TRACK
 AM_SILENT_RULES([yes])
-AC_CONFIG_SRCDIR([src/common.h])
 AC_PROG_CC_C99
 AC_USE_SYSTEM_EXTENSIONS
 AC_SEARCH_LIBS([getaddrinfo], [resolv nsl])
