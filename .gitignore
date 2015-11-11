@@ -6,10 +6,8 @@
 *.status
 Makefile
 Makefile.in
-compile
 configure
-depcomp
-install-sh
-missing
+build-aux
 .deps
+.dirstamp
 glorytun
