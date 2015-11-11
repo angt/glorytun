@@ -628,7 +628,7 @@ int main (int argc, char **argv)
     char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
-    int nodelay = 0;
+    int delay = 0;
     int multiqueue = 0;
     int version = 0;
 
@@ -646,7 +646,7 @@ int main (int argc, char **argv)
         { "dev",        &dev,        option_str  },
         { "keyfile",    &keyfile,    option_str  },
         { "congestion", &congestion, option_str  },
-        { "nodelay",    &nodelay,    option_flag },
+        { "delay",      &delay,      option_flag },
         { "multiqueue", &multiqueue, option_flag },
         { "version",    &version,    option_flag },
         { NULL },
@@ -717,7 +717,7 @@ int main (int argc, char **argv)
 
         fprintf(stderr, "%s: connected\n", sockname);
 
-        if (nodelay)
+        if (!delay)
             sk_set_nodelay(sock.fd);
 
         fd_set_nonblock(sock.fd);
