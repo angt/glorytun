@@ -1,5 +1,7 @@
 # glorytun
 
+**Work In Progress:** Do not touch!
+
 glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4
 and needs an AES-NI capable CPU.
 
@@ -15,4 +17,4 @@ To build and install the latest version:
 To create and use a new secret key:
 
     $ dd if=/dev/random iflag=fullblock of=glorytun.key bs=32 count=1
-    $ glorytun keyfile glorytun.key [...]
+    # glorytun keyfile glorytun.key [...]
