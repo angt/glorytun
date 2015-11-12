@@ -11,3 +11,8 @@ To build and install the latest version:
     $ ./configure
     $ make
     # make install
+
+To create and use a new secret key:
+
+    $ dd if=/dev/random iflag=fullblock of=glorytun.key bs=32 count=1
+    $ glorytun keyfile glorytun.key [...]
