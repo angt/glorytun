@@ -219,15 +219,17 @@ static socklen_t sk_get_info (int fd, struct tcp_info *ti)
     return len;
 }
 
-static void print_tcp_info (struct tcp_info *ti)
+static void print_tcp_info (const char *name, struct tcp_info *ti)
 {
-    fprintf(stderr, "tcpinfo"
+    fprintf(stderr,
+            "%s: tcpinfo"
             " rto:%"     PRIu32 " ato:%"          PRIu32 " snd_mss:%"  PRIu32
             " rcv_mss:%" PRIu32 " unacked:%"      PRIu32 " sacked:%"   PRIu32
             " lost:%"    PRIu32 " retrans:%"      PRIu32 " fackets:%"  PRIu32
             " pmtu:%"    PRIu32 " rcv_ssthresh:%" PRIu32 " rtt:%"      PRIu32
             " rttvar:%"  PRIu32 " snd_ssthresh:%" PRIu32 " snd_cwnd:%" PRIu32
             " advmss:%"  PRIu32 " reordering:%"   PRIu32 "\n",
+            name,
             ti->tcpi_rto,       ti->tcpi_ato,            ti->tcpi_snd_mss,
             ti->tcpi_rcv_mss,   ti->tcpi_unacked,        ti->tcpi_sacked,
             ti->tcpi_lost,      ti->tcpi_retrans,        ti->tcpi_fackets,
@@ -634,6 +636,7 @@ int main (int argc, char **argv)
     int delay = 0;
     int multiqueue = 0;
     int version = 0;
+    int debug = 0;
 
 #ifdef TCP_INFO
     struct {
@@ -651,6 +654,7 @@ int main (int argc, char **argv)
         { "congestion", &congestion, option_str  },
         { "delay",      &delay,      option_flag },
         { "multiqueue", &multiqueue, option_flag },
+        { "debug",      &debug,      option_flag },
         { "version",    &version,    option_flag },
         { NULL },
     };
@@ -755,10 +759,10 @@ int main (int argc, char **argv)
             struct timeval now;
             gettimeofday(&now, NULL);
 
-            if (dt_ms(&now, &tcpinfo.time)>1000LL) {
+            if (debug && dt_ms(&now, &tcpinfo.time)>1000LL) {
                 tcpinfo.time = now;
                 if (sk_get_info(sock.fd, &tcpinfo.info))
-                    print_tcp_info(&tcpinfo.info);
+                    print_tcp_info(sockname, &tcpinfo.info);
             }
 #endif
 
