@@ -750,7 +750,6 @@ int main (int argc, char **argv)
         tunw.size = 0;
 
         fd_set rfds, wfds;
-
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
 
@@ -758,7 +757,7 @@ int main (int argc, char **argv)
             FD_SET(tun.fd, &rfds);
             FD_SET(sock.fd, &rfds);
 
-            if (select(2, &rfds, &wfds, NULL, NULL)==-1 && errno!=EINTR) {
+            if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1 && errno!=EINTR) {
                 perror("select");
                 return 1;
             }
