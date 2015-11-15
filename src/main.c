@@ -29,6 +29,10 @@
 #define GT_BUFFER_SIZE (4*1024*1024)
 #define GT_TIMEOUT     (1000)
 
+#if defined(__APPLE__) || defined(__OpenBSD__)
+# define BSD_TUN 1
+#endif
+
 struct netio {
     int fd;
     struct {
@@ -357,6 +361,31 @@ static void gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
+static int get_ip_version (const uint8_t *data, size_t size)
+{
+    if (size<20)
+        return -1;
+
+    return data[0]>>4;
+}
+
+static void set_ip_size (uint8_t *data, size_t size)
+{
+    data[2] = 0xFF&(size>>8);
+    data[3] = 0xFF&(size);
+}
+
+static ssize_t get_ip_size (const uint8_t *data, size_t size)
+{
+    switch (get_ip_version(data, size)) {
+    case 4:
+        return (data[2]<<8)|data[3];
+    case -1:
+        return -1;
+    }
+    return 0;
+}
+
 static ssize_t fd_read (int fd, void *data, size_t size)
 {
     if (!size)
@@ -451,6 +480,83 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
     return done;
 }
 
+static ssize_t fd_read_tun (int fd, void *data, size_t size)
+{
+#ifndef BSD_TUN
+    return fd_read(fd, data, size);
+#else
+    if (!size)
+        return -2;
+
+    uint32_t family;
+    struct iovec iov[2] = {
+        { .iov_base = &family, .iov_len = sizeof family },
+        { .iov_base = data, .iov_len = size }
+    };
+
+    ssize_t ret = readv(fd, iov, 2);
+
+    if (ret==-1) {
+        if (errno==EAGAIN || errno==EINTR)
+            return -1;
+
+        if (errno)
+            perror("readv");
+
+        return 0;
+    }
+    if (ret < (ssize_t) sizeof family)
+        return 0;
+
+    return ret - sizeof family;
+#endif
+}
+
+static size_t fd_write_tun (int fd, const void *data, size_t size)
+{
+#ifndef BSD_TUN
+    return fd_write(fd, data, size);
+#else
+    if (!size)
+        return -2;
+
+    uint32_t family;
+
+    switch (get_ip_version(data, size)) {
+    case 4:
+        family = htonl(AF_INET);
+        break;
+    case 6:
+        family = htonl(AF_INET6);
+        break;
+    default:
+        return -1;
+    }
+
+    struct iovec iov[2] = {
+        { .iov_base = &family, .iov_len = sizeof family },
+        { .iov_base = (void *) data, .iov_len = size },
+    };
+
+    ssize_t ret = writev(fd, iov, 2);
+
+    if (ret==-1) {
+        if (errno==EAGAIN || errno==EINTR)
+            return -1;
+
+        if (errno)
+            perror("writev");
+
+        return 0;
+    }
+
+    if (ret < (ssize_t) sizeof family)
+        return 0;
+
+    return ret - sizeof family;
+#endif
+}
+
 static int encrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size, buffer_t *buffer)
 {
     const size_t ws = size + crypto_aead_aes256gcm_ABYTES;
@@ -517,23 +623,6 @@ static void dump_ip_header (uint8_t *data, size_t size)
     hex[40] = 0;
 
     fprintf(stderr, "DUMP(%zu): %s\n", size, hex);
-}
-
-static void set_ip_size (uint8_t *data, size_t size)
-{
-    data[2] = 0xFF&(size>>8);
-    data[3] = 0xFF&(size);
-}
-
-static ssize_t get_ip_size (const uint8_t *data, size_t size)
-{
-    if (size<20)
-        return -1;
-
-    if ((data[0]>>4)==4)
-        return (data[2]<<8)|data[3];
-
-    return 0;
 }
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
@@ -780,7 +869,7 @@ int main (int argc, char **argv)
                     if (buffer_write_size(&sock.write.buf)<sizeof(tunr.buf)+16)
                         break;
 
-                    ssize_t r = fd_read(tun.fd, tunr.buf, sizeof(tunr.buf));
+                    ssize_t r = fd_read_tun(tun.fd, tunr.buf, sizeof(tunr.buf));
 
                     if (!r)
                         return 2;
@@ -857,7 +946,7 @@ int main (int argc, char **argv)
                     tunw.size = ip_size;
                 }
                 if (tunw.size) {
-                    ssize_t r = fd_write(tun.fd, tunw.buf, tunw.size);
+                    ssize_t r = fd_write_tun(tun.fd, tunw.buf, tunw.size);
 
                     if (!r)
                         return 2;
