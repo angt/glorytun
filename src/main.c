@@ -569,22 +569,22 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
     const size_t nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
     const size_t public_size = crypto_scalarmult_SCALARBYTES;
-    const size_t hkey_size = crypto_generichash_BYTES;
-    const size_t size = nonce_size + public_size + hkey_size;
+    const size_t hash_size = crypto_generichash_BYTES;
+    const size_t size = nonce_size + public_size + hash_size;
 
     uint8_t secret[crypto_scalarmult_SCALARBYTES];
     uint8_t shared[crypto_scalarmult_BYTES];
     uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
 
     uint8_t data_r[size], data_w[size];
-    uint8_t hkey_c[hkey_size];
+    uint8_t hash[hash_size];
 
     randombytes_buf(data_w, nonce_size);
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(&data_w[nonce_size], secret);
 
-    crypto_generichash(&data_w[size-hkey_size], hkey_size,
-            data_w, size-hkey_size, ctx->skey, sizeof(ctx->skey));
+    crypto_generichash(&data_w[size-hash_size], hash_size,
+            data_w, size-hash_size, ctx->skey, sizeof(ctx->skey));
 
     if (!listener && fd_write_all(fd, data_w, size)!=size)
         return -1;
@@ -592,10 +592,10 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (fd_read_all(fd, data_r, size)!=size)
         return -1;
 
-    crypto_generichash(hkey_c, hkey_size,
-            data_r, size-hkey_size, ctx->skey, sizeof(ctx->skey));
+    crypto_generichash(hash, hash_size,
+            data_r, size-hash_size, ctx->skey, sizeof(ctx->skey));
 
-    if (sodium_memcmp(&data_r[size-hkey_size], hkey_c, hkey_size))
+    if (sodium_memcmp(&data_r[size-hash_size], hash, hash_size))
         return -2;
 
     if (listener && fd_write_all(fd, data_w, size)!=size)
