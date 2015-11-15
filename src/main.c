@@ -38,10 +38,10 @@ struct netio {
 };
 
 struct crypto_ctx {
-    crypto_aead_aes256gcm_state state_r;
-    crypto_aead_aes256gcm_state state_w;
-    uint8_t nonce_r[crypto_aead_aes256gcm_NPUBBYTES];
-    uint8_t nonce_w[crypto_aead_aes256gcm_NPUBBYTES];
+    struct {
+        crypto_aead_aes256gcm_state state;
+        uint8_t nonce[crypto_aead_aes256gcm_NPUBBYTES];
+    } write, read;
     uint8_t skey[crypto_generichash_KEYBYTES];
 };
 
@@ -466,10 +466,10 @@ static int encrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size,
             buffer->write + hs, NULL,
             packet + hs, size - hs,
             packet, hs,
-            NULL, ctx->nonce_w,
-            (const crypto_aead_aes256gcm_state *)&ctx->state_w);
+            NULL, ctx->write.nonce,
+            (const crypto_aead_aes256gcm_state *)&ctx->write.state);
 
-    sodium_increment(ctx->nonce_w, crypto_aead_aes256gcm_NPUBBYTES);
+    sodium_increment(ctx->write.nonce, crypto_aead_aes256gcm_NPUBBYTES);
     buffer->write += ws;
 
     return 0;
@@ -491,11 +491,11 @@ static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size,
                 NULL,
                 buffer->read + hs, rs - hs,
                 packet, hs,
-                ctx->nonce_r,
-                (const crypto_aead_aes256gcm_state *)&ctx->state_r))
+                ctx->read.nonce,
+                (const crypto_aead_aes256gcm_state *)&ctx->read.state))
         return -1;
 
-    sodium_increment(ctx->nonce_r, crypto_aead_aes256gcm_NPUBBYTES);
+    sodium_increment(ctx->read.nonce, crypto_aead_aes256gcm_NPUBBYTES);
     buffer->read += rs;
 
     return 0;
@@ -609,21 +609,21 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     crypto_generichash_update(&state, data_r, size);
     crypto_generichash_update(&state, data_w, size);
     crypto_generichash_final(&state, key, sizeof(key));
-    crypto_aead_aes256gcm_beforenm(&ctx->state_r, key);
+    crypto_aead_aes256gcm_beforenm(&ctx->read.state, key);
 
     crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
     crypto_generichash_update(&state, shared, sizeof(shared));
     crypto_generichash_update(&state, data_w, size);
     crypto_generichash_update(&state, data_r, size);
     crypto_generichash_final(&state, key, sizeof(key));
-    crypto_aead_aes256gcm_beforenm(&ctx->state_w, key);
+    crypto_aead_aes256gcm_beforenm(&ctx->write.state, key);
 
     sodium_memzero(secret, sizeof(secret));
     sodium_memzero(shared, sizeof(shared));
     sodium_memzero(key, sizeof(key));
 
-    byte_cpy(ctx->nonce_r, data_r, nonce_size);
-    byte_cpy(ctx->nonce_w, data_w, nonce_size);
+    byte_cpy(ctx->read.nonce, data_r, nonce_size);
+    byte_cpy(ctx->write.nonce, data_w, nonce_size);
 
     return 0;
 }
