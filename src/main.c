@@ -741,11 +741,6 @@ int main (int argc, char **argv)
             default: break;
         }
 
-        struct pollfd fds[] = {
-            { .fd = tun.fd,  .events = POLLIN },
-            { .fd = sock.fd, .events = POLLIN },
-        };
-
         struct {
             uint8_t buf[2048];
             size_t size;
@@ -754,9 +749,17 @@ int main (int argc, char **argv)
         tunr.size = 0;
         tunw.size = 0;
 
+        fd_set rfds, wfds;
+
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+
         while (running) {
-            if (poll(fds, COUNT(fds), -1)==-1 && errno!=EINTR) {
-                perror("poll");
+            FD_SET(tun.fd, &rfds);
+            FD_SET(sock.fd, &rfds);
+
+            if (select(2, &rfds, &wfds, NULL, NULL)==-1 && errno!=EINTR) {
+                perror("select");
                 return 1;
             }
 
@@ -773,12 +776,12 @@ int main (int argc, char **argv)
 
             buffer_shift(&sock.write.buf);
 
-            if (fds[0].revents & POLLIN) {
+            if (FD_ISSET(tun.fd, &rfds)) {
                 while (1) {
                     if (buffer_write_size(&sock.write.buf)<sizeof(tunr.buf)+16)
                         break;
 
-                    ssize_t r = fd_read(fds[0].fd, tunr.buf, sizeof(tunr.buf));
+                    ssize_t r = fd_read(tun.fd, tunr.buf, sizeof(tunr.buf));
 
                     if (!r)
                         return 2;
@@ -805,17 +808,17 @@ int main (int argc, char **argv)
                 }
             }
 
-            if (fds[1].revents & POLLOUT)
-                fds[1].events = POLLIN;
+            if (FD_ISSET(sock.fd, &wfds))
+                FD_CLR(sock.fd, &wfds);
 
             if (buffer_read_size(&sock.write.buf)) {
-                sock.write.ret = fd_write(fds[1].fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
+                sock.write.ret = fd_write(sock.fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
 
                 if (!sock.write.ret)
                     goto restart;
 
                 if (sock.write.ret==-1)
-                    fds[1].events = POLLIN|POLLOUT;
+                    FD_SET(sock.fd, &wfds);
 
                 if (sock.write.ret>0)
                     sock.write.buf.read += sock.write.ret;
@@ -823,8 +826,8 @@ int main (int argc, char **argv)
 
             buffer_shift(&sock.read.buf);
 
-            if (fds[1].revents & POLLIN) {
-                sock.read.ret = fd_read(fds[1].fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
+            if (FD_ISSET(sock.fd, &rfds)) {
+                sock.read.ret = fd_read(sock.fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
 
                 if (!sock.read.ret)
                     goto restart;
@@ -833,8 +836,8 @@ int main (int argc, char **argv)
                     sock.read.buf.write += sock.read.ret;
             }
 
-            if (fds[0].revents & POLLOUT)
-                fds[0].events = POLLIN;
+            if (FD_ISSET(tun.fd, &wfds))
+                FD_CLR(tun.fd, &wfds);
 
             while (1) {
                 if (!tunw.size) {
@@ -855,13 +858,13 @@ int main (int argc, char **argv)
                     tunw.size = ip_size;
                 }
                 if (tunw.size) {
-                    ssize_t r = fd_write(fds[0].fd, tunw.buf, tunw.size);
+                    ssize_t r = fd_write(tun.fd, tunw.buf, tunw.size);
 
                     if (!r)
                         return 2;
 
                     if (r==-1)
-                        fds[0].events = POLLIN|POLLOUT;
+                        FD_SET(tun.fd, &wfds);
 
                     if (r<0)
                         break;
