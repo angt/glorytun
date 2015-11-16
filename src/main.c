@@ -528,7 +528,7 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
     return done;
 }
 
-static ssize_t fd_read_tun (int fd, void *data, size_t size)
+static ssize_t tun_read (int fd, void *data, size_t size)
 {
 #ifndef BSD_TUN
     return fd_read(fd, data, size);
@@ -560,7 +560,7 @@ static ssize_t fd_read_tun (int fd, void *data, size_t size)
 #endif
 }
 
-static size_t fd_write_tun (int fd, const void *data, size_t size)
+static size_t tun_write (int fd, const void *data, size_t size)
 {
 #ifndef BSD_TUN
     return fd_write(fd, data, size);
@@ -918,7 +918,7 @@ int main (int argc, char **argv)
                     if (buffer_write_size(&sock.write.buf)<sizeof(tunr.buf)+16)
                         break;
 
-                    ssize_t r = fd_read_tun(tun.fd, tunr.buf, sizeof(tunr.buf));
+                    ssize_t r = tun_read(tun.fd, tunr.buf, sizeof(tunr.buf));
 
                     if (!r)
                         return 2;
@@ -995,7 +995,7 @@ int main (int argc, char **argv)
                     tunw.size = ip_size;
                 }
                 if (tunw.size) {
-                    ssize_t r = fd_write_tun(tun.fd, tunw.buf, tunw.size);
+                    ssize_t r = tun_write(tun.fd, tunw.buf, tunw.size);
 
                     if (!r)
                         return 2;
