@@ -20,6 +20,12 @@
 # include <linux/if_tun.h>
 #endif
 
+#ifdef __APPLE__
+# include <sys/sys_domain.h>
+# include <sys/kern_control.h>
+# include <net/if_utun.h>
+#endif
+
 #include <sodium.h>
 
 #ifndef O_CLOEXEC
@@ -318,18 +324,52 @@ static int tun_create (char *name, int multiqueue)
 
     return fd;
 }
+#elif defined(__APPLE__)
+static int tun_create (_unused_ char *name, _unused_ int mq)
+{
+    struct ctl_info ctlInfo;
+    struct sockaddr_ctl sc;
+    int fd;
+
+    for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
+        byte_set(&ctlInfo, 0, sizeof(ctlInfo));
+        str_cpy(ctlInfo.ctl_name, UTUN_CONTROL_NAME, sizeof(ctlInfo.ctl_name));
+        fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
+        if (fd==-1)
+            return -1;
+        if (ioctl(fd, CTLIOCGINFO, &ctlInfo)==-1) {
+            close(fd);
+            continue;
+        }
+        sc.sc_id = ctlInfo.ctl_id;
+        sc.sc_len = sizeof(sc);
+        sc.sc_family = AF_SYSTEM;
+        sc.ss_sysaddr = AF_SYS_CONTROL;
+        sc.sc_unit = dev_id+1;
+        if (connect(fd, (struct sockaddr *) &sc, sizeof(sc))==-1) {
+            close(fd);
+            continue;
+        }
+        printf("tun name: /dev/utun%u\n", dev_id);
+
+        return fd;
+    }
+    return -1;
+}
 #else
 static int tun_create (_unused_ char *name, _unused_ int mq)
 {
-    for (unsigned dev_id = 0U; dev_id < 32U; dev_id++) {
+    for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
         char dev_path[11U];
 
         snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
 
         int fd = open(dev_path, O_RDWR);
 
-        if (fd!=-1)
+        if (fd!=-1) {
+            printf("tun name: /dev/tun%u\n", dev_id);
             return fd;
+        }
     }
 
     return -1;
@@ -490,7 +530,7 @@ static ssize_t fd_read_tun (int fd, void *data, size_t size)
 
     uint32_t family;
     struct iovec iov[2] = {
-        { .iov_base = &family, .iov_len = sizeof family },
+        { .iov_base = &family, .iov_len = sizeof(family) },
         { .iov_base = data, .iov_len = size }
     };
 
@@ -505,10 +545,10 @@ static ssize_t fd_read_tun (int fd, void *data, size_t size)
 
         return 0;
     }
-    if (ret < (ssize_t) sizeof family)
+    if (ret<(ssize_t) sizeof(family))
         return 0;
 
-    return ret - sizeof family;
+    return ret-sizeof(family);
 #endif
 }
 
@@ -534,7 +574,7 @@ static size_t fd_write_tun (int fd, const void *data, size_t size)
     }
 
     struct iovec iov[2] = {
-        { .iov_base = &family, .iov_len = sizeof family },
+        { .iov_base = &family, .iov_len = sizeof(family) },
         { .iov_base = (void *) data, .iov_len = size },
     };
 
@@ -550,10 +590,10 @@ static size_t fd_write_tun (int fd, const void *data, size_t size)
         return 0;
     }
 
-    if (ret < (ssize_t) sizeof family)
+    if (ret<(ssize_t) sizeof(family))
         return 0;
 
-    return ret - sizeof family;
+    return ret-sizeof(family);
 #endif
 }
 
