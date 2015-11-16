@@ -487,8 +487,6 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
         return -1;
     }
 
-    // TODO: check key
-
     close(fd);
 
     return 0;
@@ -506,6 +504,7 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
 
     uint8_t data_r[size], data_w[size];
+    uint8_t auth_r[hash_size], auth_w[hash_size];
     uint8_t hash[hash_size];
 
     randombytes_buf(data_w, nonce_size);
@@ -529,6 +528,21 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 
     if (listener && fd_write_all(fd, data_w, size)!=size)
         return -1;
+
+    crypto_generichash(auth_w, hash_size,
+            data_r, size, ctx->skey, sizeof(ctx->skey));
+
+    if (fd_write_all(fd, auth_w, hash_size)!=hash_size)
+        return -1;
+
+    if (fd_read_all(fd, auth_r, hash_size)!=hash_size)
+        return -1;
+
+    crypto_generichash(hash, hash_size,
+            data_w, size, ctx->skey, sizeof(ctx->skey));
+
+    if (sodium_memcmp(auth_r, hash, hash_size))
+        return -2;
 
     crypto_scalarmult(shared, secret, &data_r[nonce_size]);
 
