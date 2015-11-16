@@ -1,4 +1,6 @@
 #include "common-static.h"
+#include "ip-static.h"
+
 #include "tun.h"
 
 #include <stdio.h>
