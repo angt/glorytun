@@ -93,6 +93,14 @@ static void sk_set_reuseaddr (int fd)
         perror("setsockopt SO_REUSEADDR");
 }
 
+static void sk_set_keepalive (int fd)
+{
+    int val = 1;
+
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val))==-1)
+        perror("setsockopt SO_KEEPALIVE");
+}
+
 #ifdef TCP_CONGESTION
 static void sk_set_congestion (int fd, const char *name)
 {
@@ -733,6 +741,7 @@ int main (int argc, char **argv)
             sk_set_nodelay(sock.fd);
 
         fd_set_nonblock(sock.fd);
+        sk_set_keepalive(sock.fd);
         sk_set_congestion(sock.fd, congestion);
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
