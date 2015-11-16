@@ -43,11 +43,6 @@ struct crypto_ctx {
 
 volatile sig_atomic_t running;
 
-static void gt_not_available (const char *name)
-{
-    fprintf(stderr, "%s is not available on your platform!\n", name);
-}
-
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
     const int64_t s = ta->tv_sec-tb->tv_sec;

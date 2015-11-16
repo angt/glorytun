@@ -24,3 +24,5 @@ struct buffer {
     uint8_t *write;
     uint8_t *end;
 };
+
+void gt_not_available (const char *);
