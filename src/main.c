@@ -777,6 +777,7 @@ int main (int argc, char **argv)
     char *congestion = NULL;
     int delay = 0;
     int multiqueue = 0;
+    int keepalive = 0;
     int version = 0;
     int debug = 0;
 
@@ -796,6 +797,7 @@ int main (int argc, char **argv)
         { "congestion", &congestion, option_str  },
         { "delay",      &delay,      option_flag },
         { "multiqueue", &multiqueue, option_flag },
+        { "keepalive",  &keepalive,  option_flag },
         { "debug",      &debug,      option_flag },
         { "version",    &version,    option_flag },
         { NULL },
@@ -870,7 +872,10 @@ int main (int argc, char **argv)
             sk_set_nodelay(sock.fd);
 
         fd_set_nonblock(sock.fd);
-        sk_set_keepalive(sock.fd);
+
+        if (keepalive)
+            sk_set_keepalive(sock.fd);
+
         sk_set_congestion(sock.fd, congestion);
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
