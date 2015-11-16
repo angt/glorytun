@@ -7,4 +7,6 @@ glorytun_SOURCES = \
     src/ip-static.h \
     src/main.c \
     src/option.c \
-    src/option.h
+    src/option.h \
+    src/tun.c \
+    src/tun.h
