@@ -1,9 +1,5 @@
-#include "common-static.h"
-#include "option.h"
-
 #include <inttypes.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <signal.h>
 #include <poll.h>
 
@@ -27,6 +23,10 @@
 #endif
 
 #include <sodium.h>
+
+#include "common-static.h"
+#include "ip-static.h"
+#include "option.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
@@ -409,31 +409,6 @@ static void gt_set_signal (void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-static int get_ip_version (const uint8_t *data, size_t size)
-{
-    if (size<20)
-        return -1;
-
-    return data[0]>>4;
-}
-
-static void set_ip_size (uint8_t *data, size_t size)
-{
-    data[2] = 0xFF&(size>>8);
-    data[3] = 0xFF&(size);
-}
-
-static ssize_t get_ip_size (const uint8_t *data, size_t size)
-{
-    switch (get_ip_version(data, size)) {
-    case 4:
-        return (data[2]<<8)|data[3];
-    case -1:
-        return -1;
-    }
-    return 0;
-}
-
 static ssize_t fd_read (int fd, void *data, size_t size)
 {
     if (!size)
@@ -570,7 +545,7 @@ static size_t tun_write (int fd, const void *data, size_t size)
 
     uint32_t family;
 
-    switch (get_ip_version(data, size)) {
+    switch (ip_get_version(data, size)) {
     case 4:
         family = htonl(AF_INET);
         break;
@@ -931,7 +906,7 @@ int main (int argc, char **argv)
                     if (r<0)
                         break;
 
-                    ssize_t ip_size = get_ip_size(tunr.buf, sizeof(tunr.buf));
+                    ssize_t ip_size = ip_get_size(tunr.buf, sizeof(tunr.buf));
 
                     if (ip_size<=0)
                         continue;
@@ -940,7 +915,7 @@ int main (int argc, char **argv)
                         dump_ip_header(tunr.buf, r);
 
                         if (r<ip_size) {
-                            set_ip_size(tunr.buf, r);
+                            ip_set_size(tunr.buf, r);
                         } else {
                             continue;
                         }
@@ -984,7 +959,7 @@ int main (int argc, char **argv)
             while (1) {
                 if (!tunw.size) {
                     size_t size = buffer_read_size(&sock.read.buf);
-                    ssize_t ip_size = get_ip_size(sock.read.buf.read, size);
+                    ssize_t ip_size = ip_get_size(sock.read.buf.read, size);
 
                     if (!ip_size)
                         goto restart;
