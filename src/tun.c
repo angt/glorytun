@@ -8,6 +8,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 
 #ifdef __linux__
 # include <linux/if.h>
