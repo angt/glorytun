@@ -1,8 +1,8 @@
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <signal.h>
 #include <poll.h>
-
 #include <sys/time.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
@@ -90,6 +90,45 @@ static void sk_set_keepalive (int fd)
     if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val))==-1)
         perror("setsockopt SO_KEEPALIVE");
 }
+
+#ifdef TCP_KEEPCNT
+static void sk_set_keepcnt (int fd, int val)
+{
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val))==-1)
+        perror("setsockopt TCP_KEEPCNT");
+}
+#else
+static void sk_set_keepcnt (_unused_ int fd, _unused_ int val)
+{
+    gt_na("TCP_KEEPCNT");
+}
+#endif
+
+#ifdef TCP_KEEPIDLE
+static void sk_set_keepidle (int fd, int val)
+{
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &val, sizeof(val))==-1)
+        perror("setsockopt TCP_KEEPIDLE");
+}
+#else
+static void sk_set_keepidle (_unused_ int fd, _unused_ int val)
+{
+    gt_na("TCP_KEEPIDLE");
+}
+#endif
+
+#ifdef TCP_KEEPINTVL
+static void sk_set_keepintvl (int fd, int val)
+{
+    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &val, sizeof(val))==-1)
+        perror("setsockopt TCP_KEEPINTVL");
+}
+#else
+static void sk_set_keepintvl (_unused_ int fd, _unused_ int val)
+{
+    gt_na("TCP_KEEPINTVL");
+}
+#endif
 
 #ifdef TCP_CONGESTION
 static void sk_set_congestion (int fd, const char *name)
@@ -588,6 +627,9 @@ int main (int argc, char **argv)
     int delay = 0;
     int multiqueue = 0;
     int keepalive = 0;
+    long ka_count = -1;
+    long ka_idle = -1;
+    long ka_interval = -1;
     int version = 0;
     int debug = 0;
 
@@ -608,6 +650,9 @@ int main (int argc, char **argv)
         { "delay",       &delay,       option_flag },
         { "multiqueue",  &multiqueue,  option_flag },
         { "keepalive",   &keepalive,   option_flag },
+        { "ka-count",    &ka_count,    option_long },
+        { "ka-idle",     &ka_idle,     option_long },
+        { "ka-interval", &ka_interval, option_long },
         { "buffer-size", &buffer_size, option_long },
         { "debug",       &debug,       option_flag },
         { "version",     &version,     option_flag },
@@ -689,8 +734,18 @@ int main (int argc, char **argv)
 
         fd_set_nonblock(sock.fd);
 
-        if (keepalive)
+        if (keepalive) {
             sk_set_keepalive(sock.fd);
+
+            if (ka_count>=0 && ka_count<=INT_MAX)
+                sk_set_keepcnt(sock.fd, ka_count);
+
+            if (ka_idle>=0 && ka_idle<=INT_MAX)
+                sk_set_keepidle(sock.fd, ka_idle);
+
+            if (ka_interval>=0 && ka_interval<=INT_MAX)
+                sk_set_keepintvl(sock.fd, ka_interval);
+        }
 
         sk_set_congestion(sock.fd, congestion);
 
