@@ -663,7 +663,7 @@ int main (int argc, char **argv)
         return 1;
 
     if (version) {
-        printf(PACKAGE_STRING"\n");
+        gt_print(PACKAGE_STRING"\n");
         return 0;
     }
 

@@ -27,6 +27,7 @@ struct buffer {
     uint8_t *end;
 };
 
+int  gt_print (const char *, ...) _printf_(1,2);
 void gt_log   (const char *, ...) _printf_(1,2);
 void gt_fatal (const char *, ...) _printf_(1,2) _noreturn_;
 void gt_na    (const char *);

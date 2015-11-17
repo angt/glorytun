@@ -16,7 +16,7 @@ int option_flag (void *data, _unused_ int argc, _unused_ char **argv)
 int option_str (void *data, int argc, char **argv)
 {
     if (argc<2 || !argv[1]) {
-        printf("option `%s' need a string argument\n", argv[0]);
+        gt_print("option `%s' need a string argument\n", argv[0]);
         return -1;
     }
 
@@ -28,7 +28,7 @@ int option_str (void *data, int argc, char **argv)
 int option_long (void *data, int argc, char **argv)
 {
     if (argc<2 || !argv[1]) {
-        printf("option `%s' need an integer argument\n", argv[0]);
+        gt_print("option `%s' need an integer argument\n", argv[0]);
         return -1;
     }
 
@@ -37,7 +37,7 @@ int option_long (void *data, int argc, char **argv)
     long val = strtol(argv[1], &end, 0);
 
     if (errno || argv[1]==end) {
-        printf("argument `%s' is not a valid integer\n", argv[1]);
+        gt_print("argument `%s' is not a valid integer\n", argv[1]);
         return -1;
     }
 
@@ -61,7 +61,7 @@ int option_option (void *data, int argc, char **argv)
                 continue;
 
             if (opts[k].set) {
-                printf("option `%s' is already set\n", opts[k].name);
+                gt_print("option `%s' is already set\n", opts[k].name);
                 return -1;
             }
 
@@ -90,7 +90,7 @@ static void option_usage (struct option *opts, char *name)
     size_t slen = str_len(usage)+str_len(name);
     size_t len = slen;
 
-    printf("%s%s", usage, name);
+    gt_print("%s%s", usage, name);
 
     if (slen>40)
         slen = 12;
@@ -100,15 +100,15 @@ static void option_usage (struct option *opts, char *name)
         size_t inc = str_len(opts[k].name)+str_len(arg)+3;
 
         if (len+inc>72) {
-            printf("\n%*s", (int)slen, "");
+            gt_print("\n%*s", (int)slen, "");
             len = slen;
         }
 
-        printf(" [%s%s]", opts[k].name, arg);
+        gt_print(" [%s%s]", opts[k].name, arg);
         len += inc;
     }
 
-    printf("\n");
+    gt_print("\n");
 }
 
 int option (struct option *opts, int argc, char **argv)
@@ -121,7 +121,7 @@ int option (struct option *opts, int argc, char **argv)
     if (ret<0 || ret+1>=argc)
         return 1;
 
-    printf("option `%s' is unknown\n", argv[ret+1]);
+    gt_print("option `%s' is unknown\n", argv[ret+1]);
     option_usage(opts, argv[0]);
 
     return 1;

@@ -56,7 +56,7 @@ int tun_create (char *name, int multiqueue)
         return -1;
     }
 
-    printf("tun name: %s\n", ifr.ifr_name);
+    gt_print("tun name: %s\n", ifr.ifr_name);
 
     return fd;
 }
@@ -91,7 +91,7 @@ int tun_create (_unused_ char *name, _unused_ int mq)
             continue;
         }
 
-        printf("tun name: /dev/utun%u\n", dev_id);
+        gt_print("tun name: /dev/utun%u\n", dev_id);
 
         return fd;
     }
@@ -104,12 +104,12 @@ int tun_create (_unused_ char *name, _unused_ int mq)
     for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
         char dev_path[11U];
 
-        snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
+        sngt_print(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
 
         int fd = open(dev_path, O_RDWR);
 
         if (fd!=-1) {
-            printf("tun name: /dev/tun%u\n", dev_id);
+            gt_print("tun name: /dev/tun%u\n", dev_id);
             return fd;
         }
     }
