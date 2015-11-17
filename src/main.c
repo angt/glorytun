@@ -580,6 +580,7 @@ int main (int argc, char **argv)
     char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
+    long buffer_size = GT_BUFFER_SIZE;
     int delay = 0;
     int multiqueue = 0;
     int keepalive = 0;
@@ -594,17 +595,18 @@ int main (int argc, char **argv)
 #endif
 
     struct option opts[] = {
-        { "listener",   &listener,   option_flag },
-        { "host",       &host,       option_str  },
-        { "port",       &port,       option_str  },
-        { "dev",        &dev,        option_str  },
-        { "keyfile",    &keyfile,    option_str  },
-        { "congestion", &congestion, option_str  },
-        { "delay",      &delay,      option_flag },
-        { "multiqueue", &multiqueue, option_flag },
-        { "keepalive",  &keepalive,  option_flag },
-        { "debug",      &debug,      option_flag },
-        { "version",    &version,    option_flag },
+        { "listener",    &listener,    option_flag },
+        { "host",        &host,        option_str  },
+        { "port",        &port,        option_str  },
+        { "dev",         &dev,         option_str  },
+        { "keyfile",     &keyfile,     option_str  },
+        { "congestion",  &congestion,  option_str  },
+        { "delay",       &delay,       option_flag },
+        { "multiqueue",  &multiqueue,  option_flag },
+        { "keepalive",   &keepalive,   option_flag },
+        { "buffer-size", &buffer_size, option_long },
+        { "debug",       &debug,       option_flag },
+        { "version",     &version,     option_flag },
         { NULL },
     };
 
@@ -614,6 +616,11 @@ int main (int argc, char **argv)
     if (version) {
         printf(PACKAGE_STRING"\n");
         return 0;
+    }
+
+    if (buffer_size < 2048) {
+        buffer_size = 2048;
+        gt_log("buffer size must be greater than 2048!\n");
     }
 
     if (sodium_init()==-1) {
@@ -646,8 +653,8 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun.fd);
 
-    buffer_setup(&sock.write.buf, NULL, GT_BUFFER_SIZE);
-    buffer_setup(&sock.read.buf, NULL, GT_BUFFER_SIZE);
+    buffer_setup(&sock.write.buf, NULL, buffer_size);
+    buffer_setup(&sock.read.buf, NULL, buffer_size);
 
     int fd = -1;
 
