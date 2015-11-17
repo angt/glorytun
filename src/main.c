@@ -352,7 +352,7 @@ static ssize_t fd_read_all (int fd, void *data, size_t size)
     };
 
     while (done<size) {
-        ssize_t ret = fd_read(fd, data+done, size-done);
+        ssize_t ret = fd_read(fd, (uint8_t *)data+done, size-done);
 
         if (!ret)
             break;
@@ -379,7 +379,7 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
     };
 
     while (done<size) {
-        ssize_t ret = fd_write(fd, data+done, size-done);
+        ssize_t ret = fd_write(fd, (const uint8_t *)data+done, size-done);
 
         if (!ret)
             break;
