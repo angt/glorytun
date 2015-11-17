@@ -43,7 +43,7 @@ int tun_create (char *name, int multiqueue)
 #ifdef IFF_MULTI_QUEUE
         ifr.ifr_flags |= IFF_MULTI_QUEUE;
 #else
-        gt_not_available("IFF_MULTI_QUEUE");
+        gt_na("IFF_MULTI_QUEUE");
 #endif
     }
 

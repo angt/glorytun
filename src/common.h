@@ -14,6 +14,8 @@
 #define PALIGN(x)      ((void *)ALIGN((size_t)(x)))
 #define PALIGN_DOWN(x) ((void *)ALIGN_DOWN((size_t)(x)))
 
+#define _printf_(A,B)  __attribute__((format(printf,A,B)))
+#define _noreturn_     __attribute__((noreturn))
 #define _unused_       __attribute__((unused))
 
 typedef struct buffer buffer_t;
@@ -25,4 +27,6 @@ struct buffer {
     uint8_t *end;
 };
 
-void gt_not_available (const char *);
+void gt_log   (const char *, ...) _printf_(1,2);
+void gt_fatal (const char *, ...) _printf_(1,2) _noreturn_;
+void gt_na    (const char *);

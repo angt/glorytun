@@ -106,7 +106,7 @@ static void sk_set_congestion (int fd, const char *name)
 #else
 static void sk_set_congestion (_unused_ int fd, _unused_ const char *name)
 {
-    gt_not_available("TCP_CONGESTION");
+    gt_na("TCP_CONGESTION");
 }
 #endif
 
@@ -221,8 +221,7 @@ static socklen_t sk_get_info (int fd, struct tcp_info *ti)
 
 static void print_tcp_info (const char *name, struct tcp_info *ti)
 {
-    fprintf(stderr,
-            "%s: tcpinfo"
+    gt_log("%s: tcpinfo"
             " rto:%"     PRIu32 " ato:%"          PRIu32 " snd_mss:%"  PRIu32
             " rcv_mss:%" PRIu32 " unacked:%"      PRIu32 " sacked:%"   PRIu32
             " lost:%"    PRIu32 " retrans:%"      PRIu32 " fackets:%"  PRIu32
@@ -242,7 +241,7 @@ static void print_tcp_info (const char *name, struct tcp_info *ti)
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
 {
     if (!port || !port[0]) {
-        fprintf(stderr, "port is not valid\n");
+        gt_log("port is not valid\n");
         return NULL;
     }
 
@@ -269,10 +268,10 @@ static struct addrinfo *ai_create (const char *host, const char *port, int liste
         break;
     case EAI_FAIL:
     case EAI_AGAIN:
-        fprintf(stderr, "the name server returned a failure\n");
+        gt_log("the name server returned a failure\n");
         break;
     default:
-        fprintf(stderr, "%s.%s is not valid\n", host?:"", port);
+        gt_log("%s.%s is not valid\n", host?:"", port);
     }
 
     return NULL;
@@ -462,7 +461,7 @@ static void dump_ip_header (uint8_t *data, size_t size)
 
     hex[40] = 0;
 
-    fprintf(stderr, "DUMP(%zu): %s\n", size, hex);
+    gt_log("DUMP(%zu): %s\n", size, hex);
 }
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
@@ -482,7 +481,7 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
     }
 
     if (fd_read_all(fd, ctx->skey, size)!=size) {
-        fprintf(stderr, "unable to read secret key in `%s'\n", keyfile);
+        gt_log("unable to read secret key in `%s'\n", keyfile);
         close(fd);
         return -1;
     }
@@ -506,6 +505,8 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     uint8_t data_r[size], data_w[size];
     uint8_t auth_r[hash_size], auth_w[hash_size];
     uint8_t hash[hash_size];
+
+    crypto_generichash_state state;
 
     randombytes_buf(data_w, nonce_size);
     randombytes_buf(secret, sizeof(secret));
@@ -544,10 +545,9 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (sodium_memcmp(auth_r, hash, hash_size))
         return -2;
 
-    if (crypto_scalarmult(shared, secret, &data_r[nonce_size]) != 0)
+    if (crypto_scalarmult(shared, secret, &data_r[nonce_size]))
         return -2;
 
-    crypto_generichash_state state;
     crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
     crypto_generichash_update(&state, shared, sizeof(shared));
     crypto_generichash_update(&state, data_r, size);
@@ -619,12 +619,12 @@ int main (int argc, char **argv)
     }
 
     if (sodium_init()==-1) {
-        fprintf(stderr, "libsodium initialization has failed!\n");
+        gt_log("libsodium initialization has failed!\n");
         return 1;
     }
 
     if (!crypto_aead_aes256gcm_is_available()) {
-        gt_not_available("AES-256-GCM");
+        gt_na("AES-256-GCM");
         return 1;
     }
 
@@ -673,7 +673,7 @@ int main (int argc, char **argv)
         if (!sockname)
             goto restart;
 
-        fprintf(stderr, "%s: connected\n", sockname);
+        gt_log("%s: connected\n", sockname);
 
         if (!delay)
             sk_set_nodelay(sock.fd);
@@ -686,7 +686,7 @@ int main (int argc, char **argv)
         sk_set_congestion(sock.fd, congestion);
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
-            case -2: fprintf(stderr, "%s: key exchange could not be verified!\n", sockname);
+            case -2: gt_log("%s: key exchange could not be verified!\n", sockname);
             case -1: goto restart;
             default: break;
         }
@@ -800,7 +800,7 @@ int main (int argc, char **argv)
                         break;
 
                     if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.read.buf)) {
-                        fprintf(stderr, "%s: message could not be verified!\n", sockname);
+                        gt_log("%s: message could not be verified!\n", sockname);
                         goto restart;
                     }
 
