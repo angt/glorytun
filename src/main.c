@@ -471,9 +471,13 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
     if (!keyfile)
         return 0;
 
-    int fd = open(keyfile, O_RDONLY|O_CLOEXEC);
+    int fd;
 
-    if (fd<0) {
+    do {
+        fd = open(keyfile, O_RDONLY|O_CLOEXEC);
+    } while (fd==-1 && errno==EINTR);
+
+    if (fd==-1) {
         perror("open keyfile");
         return -1;
     }
