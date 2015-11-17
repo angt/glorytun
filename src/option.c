@@ -46,6 +46,18 @@ int option_long (void *data, int argc, char **argv)
     return 1;
 }
 
+int option_is_set (struct option *opts, const char *name)
+{
+    for (int k=0; opts[k].name; k++) {
+        if (str_cmp(opts[k].name, name))
+            continue;
+
+        return opts[k].set;
+    }
+
+    return 0;
+}
+
 int option_option (void *data, int argc, char **argv)
 {
     struct option *opts = (struct option *)data;

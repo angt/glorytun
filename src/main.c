@@ -626,7 +626,6 @@ int main (int argc, char **argv)
     long buffer_size = GT_BUFFER_SIZE;
     int delay = 0;
     int multiqueue = 0;
-    int keepalive = 0;
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
@@ -640,22 +639,26 @@ int main (int argc, char **argv)
     } tcpinfo = {0};
 #endif
 
+    struct option ka_opts[] = {
+        { "count",    &ka_count,    option_long },
+        { "idle",     &ka_idle,     option_long },
+        { "interval", &ka_interval, option_long },
+        { NULL },
+    };
+
     struct option opts[] = {
-        { "listener",    &listener,    option_flag },
-        { "host",        &host,        option_str  },
-        { "port",        &port,        option_str  },
-        { "dev",         &dev,         option_str  },
-        { "keyfile",     &keyfile,     option_str  },
-        { "congestion",  &congestion,  option_str  },
-        { "delay",       &delay,       option_flag },
-        { "multiqueue",  &multiqueue,  option_flag },
-        { "keepalive",   &keepalive,   option_flag },
-        { "ka-count",    &ka_count,    option_long },
-        { "ka-idle",     &ka_idle,     option_long },
-        { "ka-interval", &ka_interval, option_long },
-        { "buffer-size", &buffer_size, option_long },
-        { "debug",       &debug,       option_flag },
-        { "version",     &version,     option_flag },
+        { "listener",    &listener,    option_flag   },
+        { "host",        &host,        option_str    },
+        { "port",        &port,        option_str    },
+        { "dev",         &dev,         option_str    },
+        { "keyfile",     &keyfile,     option_str    },
+        { "congestion",  &congestion,  option_str    },
+        { "delay",       &delay,       option_flag   },
+        { "multiqueue",  &multiqueue,  option_flag   },
+        { "keepalive",   ka_opts,      option_option },
+        { "buffer-size", &buffer_size, option_long   },
+        { "debug",       &debug,       option_flag   },
+        { "version",     &version,     option_flag   },
         { NULL },
     };
 
@@ -666,6 +669,8 @@ int main (int argc, char **argv)
         gt_print(PACKAGE_STRING"\n");
         return 0;
     }
+
+    int keepalive = option_is_set(opts, "keepalive");
 
     if (buffer_size < 2048) {
         buffer_size = 2048;

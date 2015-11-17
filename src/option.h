@@ -12,4 +12,5 @@ int option_str    (void *, int, char **);
 int option_long   (void *, int, char **);
 int option_option (void *, int, char **);
 
-int option (struct option *, int, char **);
+int option_is_set (struct option *, const char *);
+int option        (struct option *, int, char **);
