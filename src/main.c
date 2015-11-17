@@ -658,7 +658,7 @@ int main (int argc, char **argv)
             return 1;
     }
 
-    while (1) {
+    while (!gt_close) {
         sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
 
         if (sock.fd==-1) {
@@ -703,14 +703,16 @@ int main (int argc, char **argv)
 
         int stop_loop = 0;
 
+        buffer_format(&sock.write.buf);
+        buffer_format(&sock.read.buf);
+
         while (1) {
             if (gt_close)
                 stop_loop = 1;
 
             if (stop_loop) {
-                if (((stop_loop>>1)==3) &&
-                    (buffer_read_size(&sock.write.buf)==0) &&
-                    (buffer_read_size(&sock.read.buf)==0))
+                if (((stop_loop&(1<<2)) || !buffer_read_size(&sock.write.buf)) &&
+                    ((stop_loop&(1<<1)) || !buffer_read_size(&sock.read.buf)))
                     goto restart;
                 FD_CLR(tun.fd, &rfds);
             } else {
@@ -719,7 +721,9 @@ int main (int argc, char **argv)
 
             FD_SET(sock.fd, &rfds);
 
-            if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1 && errno!=EINTR) {
+            if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
+                if (errno==EINTR)
+                    continue;
                 perror("select");
                 return 1;
             }
@@ -773,29 +777,27 @@ int main (int argc, char **argv)
                 FD_CLR(sock.fd, &wfds);
 
             if (buffer_read_size(&sock.write.buf)) {
-                ssize_t r = fd_write(sock.fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
+                ssize_t r = fd_write(sock.fd, sock.write.buf.read,
+                                     buffer_read_size(&sock.write.buf));
 
                 if (r==-1)
                     FD_SET(sock.fd, &wfds);
 
-                if (!r) {
+                if (!r)
                     stop_loop |= (1<<2);
-                    buffer_format(&sock.write.buf);
-                }
 
                 if (r>0)
                     sock.write.buf.read += r;
             } else {
-                if (stop_loop) {
-                    stop_loop |= (1<<2);
+                if (stop_loop)
                     shutdown(sock.fd, SHUT_WR);
-                }
             }
 
             buffer_shift(&sock.read.buf);
 
             if (FD_ISSET(sock.fd, &rfds)) {
-                ssize_t r = fd_read(sock.fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
+                ssize_t r = fd_read(sock.fd, sock.read.buf.write,
+                                    buffer_write_size(&sock.read.buf));
 
                 if (!r)
                     stop_loop |= (1<<1);
@@ -815,11 +817,8 @@ int main (int argc, char **argv)
                     if (!ip_size)
                         goto restart;
 
-                    if (ip_size<0 || (size_t)ip_size+16>size) {
-                        if (stop_loop&(1<<1))
-                            buffer_format(&sock.read.buf);
+                    if (ip_size<0 || (size_t)ip_size+16>size)
                         break;
-                    }
 
                     if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.read.buf)) {
                         gt_log("%s: message could not be verified!\n", sockname);
@@ -855,9 +854,6 @@ int main (int argc, char **argv)
             close(sock.fd);
             sock.fd = -1;
         }
-
-        if (gt_close)
-            break;
     }
 
     freeaddrinfo(ai);
