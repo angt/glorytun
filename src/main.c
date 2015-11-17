@@ -29,7 +29,6 @@ struct netio {
     int fd;
     struct {
         buffer_t buf;
-        ssize_t ret;
     } write, read;
 };
 
@@ -41,7 +40,7 @@ struct crypto_ctx {
     uint8_t skey[crypto_generichash_KEYBYTES];
 };
 
-volatile sig_atomic_t running;
+volatile sig_atomic_t gt_close = 0;
 
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
@@ -282,7 +281,7 @@ static void gt_sa_stop (int sig)
     switch (sig) {
     case SIGINT:
     case SIGTERM:
-        running = 0;
+        gt_close = 1;
     }
 }
 
@@ -291,7 +290,6 @@ static void gt_set_signal (void)
     struct sigaction sa;
 
     byte_set(&sa, 0, sizeof(sa));
-    running = 1;
 
     sa.sa_handler = gt_sa_stop;
     sigaction(SIGINT,  &sa, NULL);
@@ -660,12 +658,12 @@ int main (int argc, char **argv)
             return 1;
     }
 
-    while (running) {
+    while (1) {
         sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
 
         if (sock.fd==-1) {
             usleep(100000);
-            continue;
+            goto restart;
         }
 
         char *sockname = sk_get_name(sock.fd);
@@ -703,8 +701,22 @@ int main (int argc, char **argv)
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
 
-        while (running) {
-            FD_SET(tun.fd, &rfds);
+        int stop_loop = 0;
+
+        while (1) {
+            if (gt_close)
+                stop_loop = 1;
+
+            if (stop_loop) {
+                if (((stop_loop>>1)==3) &&
+                    (buffer_read_size(&sock.write.buf)==0) &&
+                    (buffer_read_size(&sock.read.buf)==0))
+                    goto restart;
+                FD_CLR(tun.fd, &rfds);
+            } else {
+                FD_SET(tun.fd, &rfds);
+            }
+
             FD_SET(sock.fd, &rfds);
 
             if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1 && errno!=EINTR) {
@@ -761,28 +773,35 @@ int main (int argc, char **argv)
                 FD_CLR(sock.fd, &wfds);
 
             if (buffer_read_size(&sock.write.buf)) {
-                sock.write.ret = fd_write(sock.fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
+                ssize_t r = fd_write(sock.fd, sock.write.buf.read, buffer_read_size(&sock.write.buf));
 
-                if (!sock.write.ret)
-                    goto restart;
-
-                if (sock.write.ret==-1)
+                if (r==-1)
                     FD_SET(sock.fd, &wfds);
 
-                if (sock.write.ret>0)
-                    sock.write.buf.read += sock.write.ret;
+                if (!r) {
+                    stop_loop |= (1<<2);
+                    buffer_format(&sock.write.buf);
+                }
+
+                if (r>0)
+                    sock.write.buf.read += r;
+            } else {
+                if (stop_loop) {
+                    stop_loop |= (1<<2);
+                    shutdown(sock.fd, SHUT_WR);
+                }
             }
 
             buffer_shift(&sock.read.buf);
 
             if (FD_ISSET(sock.fd, &rfds)) {
-                sock.read.ret = fd_read(sock.fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
+                ssize_t r = fd_read(sock.fd, sock.read.buf.write, buffer_write_size(&sock.read.buf));
 
-                if (!sock.read.ret)
-                    goto restart;
+                if (!r)
+                    stop_loop |= (1<<1);
 
-                if (sock.read.ret>0)
-                    sock.read.buf.write += sock.read.ret;
+                if (r>0)
+                    sock.read.buf.write += r;
             }
 
             if (FD_ISSET(tun.fd, &wfds))
@@ -796,8 +815,11 @@ int main (int argc, char **argv)
                     if (!ip_size)
                         goto restart;
 
-                    if (ip_size<0 || (size_t)ip_size+16>size)
+                    if (ip_size<0 || (size_t)ip_size+16>size) {
+                        if (stop_loop&(1<<1))
+                            buffer_format(&sock.read.buf);
                         break;
+                    }
 
                     if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.read.buf)) {
                         gt_log("%s: message could not be verified!\n", sockname);
@@ -829,8 +851,13 @@ int main (int argc, char **argv)
             sockname = NULL;
         }
 
-        close(sock.fd);
-        sock.fd = -1;
+        if (sock.fd!=-1) {
+            close(sock.fd);
+            sock.fd = -1;
+        }
+
+        if (gt_close)
+            break;
     }
 
     freeaddrinfo(ai);
