@@ -84,31 +84,30 @@ int option_option (void *data, int argc, char **argv)
     return argc;
 }
 
-static void option_usage (struct option *opts, char *name)
+static int option_usage (struct option *opts, int slen)
 {
-    char *usage = "usage: ";
-    size_t slen = str_len(usage)+str_len(name);
-    size_t len = slen;
-
-    gt_print("%s%s", usage, name);
-
-    if (slen>40)
-        slen = 12;
+    int len = slen;
 
     for (int k=0; opts[k].name; k++) {
-        char *arg = (opts[k].call==option_flag)?"":" ARG";
-        size_t inc = str_len(opts[k].name)+str_len(arg)+3;
-
-        if (len+inc>72) {
+        if (len>60) {
             gt_print("\n%*s", (int)slen, "");
             len = slen;
         }
 
-        gt_print(" [%s%s]", opts[k].name, arg);
-        len += inc;
+        len += gt_print(" [%s", opts[k].name);
+
+        if (opts[k].call!=option_flag) {
+            if (opts[k].call==option_option) {
+                len += option_usage((struct option *)opts[k].data, len);
+            } else {
+                len += gt_print(" ARG");
+            }
+        }
+
+        len += gt_print("]");
     }
 
-    gt_print("\n");
+    return len;
 }
 
 int option (struct option *opts, int argc, char **argv)
@@ -122,7 +121,15 @@ int option (struct option *opts, int argc, char **argv)
         return 1;
 
     gt_print("option `%s' is unknown\n", argv[ret+1]);
-    option_usage(opts, argv[0]);
+
+    int slen = gt_print("usage: %s", argv[0]);
+
+    if (slen>40)
+        slen = 12;
+
+    option_usage(opts, slen);
+
+    printf("\n");
 
     return 1;
 }
