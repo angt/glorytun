@@ -544,7 +544,8 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (sodium_memcmp(auth_r, hash, hash_size))
         return -2;
 
-    crypto_scalarmult(shared, secret, &data_r[nonce_size]);
+    if (crypto_scalarmult(shared, secret, &data_r[nonce_size]) != 0)
+        return -2;
 
     crypto_generichash_state state;
     crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
