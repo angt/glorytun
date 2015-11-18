@@ -63,30 +63,30 @@ int tun_create (char *name, int multiqueue)
 #elif defined(__APPLE__)
 int tun_create (_unused_ char *name, _unused_ int mq)
 {
-    struct ctl_info ctlInfo;
-    struct sockaddr_ctl sc;
-    int fd;
-
     for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
-        byte_set(&ctlInfo, 0, sizeof(ctlInfo));
-        str_cpy(ctlInfo.ctl_name, UTUN_CONTROL_NAME, sizeof(ctlInfo.ctl_name));
-        fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
+        struct ctl_info ci;
+        byte_set(&ci, 0, sizeof(ci));
+        str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
+
+        int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
 
         if (fd==-1)
             return -1;
 
-        if (ioctl(fd, CTLIOCGINFO, &ctlInfo)==-1) {
+        if (ioctl(fd, CTLIOCGINFO, &ci)==-1) {
             close(fd);
             continue;
         }
 
-        sc.sc_id = ctlInfo.ctl_id;
-        sc.sc_len = sizeof(sc);
-        sc.sc_family = AF_SYSTEM;
-        sc.ss_sysaddr = AF_SYS_CONTROL;
-        sc.sc_unit = dev_id+1;
+        struct sockaddr_ctl sc = {
+            .sc_id = ci.ctl_id,
+            .sc_len = sizeof(sc),
+            .sc_family = AF_SYSTEM,
+            .ss_sysaddr = AF_SYS_CONTROL,
+            .sc_unit = dev_id+1,
+        };
 
-        if (connect(fd, (struct sockaddr *) &sc, sizeof(sc))==-1) {
+        if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))==-1) {
             close(fd);
             continue;
         }
