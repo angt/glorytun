@@ -1,5 +1,5 @@
 AC_PREREQ([2.65])
-AC_INIT([glorytun], [0.0.3], [https://github.com/angt/glorytun/issues],
+AC_INIT([glorytun], [0.0.4], [https://github.com/angt/glorytun/issues],
         [glorytun], [https://github.com/angt/glorytun])
 AC_CONFIG_SRCDIR([src/common.h])
 AC_CONFIG_AUX_DIR([build-aux])
