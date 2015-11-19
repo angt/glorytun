@@ -581,20 +581,15 @@ int main (int argc, char **argv)
 {
     gt_set_signal();
 
-    int listener = 0;
     char *host = NULL;
     char *port = "5000";
     char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
     long buffer_size = GT_BUFFER_SIZE;
-    int delay = 0;
-    int multiqueue = 0;
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
-    int version = 0;
-    int debug = 0;
 
 #ifdef TCP_INFO
     struct {
@@ -611,29 +606,32 @@ int main (int argc, char **argv)
     };
 
     struct option opts[] = {
-        { "listener",    &listener,    option_flag   },
+        { "listener",    NULL,         option_option },
         { "host",        &host,        option_str    },
         { "port",        &port,        option_str    },
         { "dev",         &dev,         option_str    },
         { "keyfile",     &keyfile,     option_str    },
         { "congestion",  &congestion,  option_str    },
-        { "delay",       &delay,       option_flag   },
-        { "multiqueue",  &multiqueue,  option_flag   },
+        { "delay",       NULL,         option_option },
+        { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
-        { "debug",       &debug,       option_flag   },
-        { "version",     &version,     option_flag   },
+        { "debug",       NULL,         option_option },
+        { "version",     NULL,         option_option },
         { NULL },
     };
 
     if (option(opts, argc, argv))
         return 1;
 
-    if (version) {
+    if (option_is_set(opts, "version")) {
         gt_print(PACKAGE_STRING"\n");
         return 0;
     }
 
+    int listener = option_is_set(opts, "listener");
+    int delay = option_is_set(opts, "delay");
+    int debug = option_is_set(opts, "debug");
     int keepalive = option_is_set(opts, "keepalive");
 
     if (buffer_size < 2048) {
@@ -664,7 +662,7 @@ int main (int argc, char **argv)
     struct netio tun  = { .fd = -1 };
     struct netio sock = { .fd = -1 };
 
-    tun.fd = tun_create(dev, multiqueue);
+    tun.fd = tun_create(dev, option_is_set(opts, "multiqueue"));
 
     if (tun.fd==-1)
         return 1;

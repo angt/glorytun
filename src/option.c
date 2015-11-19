@@ -5,14 +5,6 @@
 
 #include "option.h"
 
-int option_flag (void *data, _unused_ int argc, _unused_ char **argv)
-{
-    const int one = 1;
-    byte_cpy(data, &one, sizeof(one));
-
-    return 0;
-}
-
 int option_str (void *data, int argc, char **argv)
 {
     if (argc<2 || !argv[1]) {
@@ -58,6 +50,9 @@ int option_is_set (struct option *opts, const char *name)
 
 int option_option (void *data, int argc, char **argv)
 {
+    if (!data)
+        return 0;
+
     struct option *opts = (struct option *)data;
 
     for (int k=0; opts[k].name; k++)
@@ -96,6 +91,9 @@ int option_option (void *data, int argc, char **argv)
 
 static int option_usage (struct option *opts, int slen)
 {
+    if (!opts)
+        return 0;
+
     int len = slen;
 
     for (int k=0; opts[k].name; k++) {
@@ -106,12 +104,10 @@ static int option_usage (struct option *opts, int slen)
 
         len += gt_print(" [%s", opts[k].name);
 
-        if (opts[k].call!=option_flag) {
-            if (opts[k].call==option_option) {
-                len += option_usage((struct option *)opts[k].data, len);
-            } else {
-                len += gt_print(" ARG");
-            }
+        if (opts[k].call==option_option) {
+            len += option_usage((struct option *)opts[k].data, len);
+        } else {
+            len += gt_print(" ARG");
         }
 
         len += gt_print("]");
