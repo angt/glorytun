@@ -126,7 +126,7 @@ static int sk_listen (int fd, struct addrinfo *ai)
         return -1;
     }
 
-    ret = listen(fd, 1);
+    ret = listen(fd, 8);
 
     if (ret==-1) {
         perror("listen");
