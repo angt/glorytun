@@ -92,6 +92,9 @@ static void sk_set (int fd, const char *name, const void *val, socklen_t len)
 #ifdef TCP_CONGESTION
         { "TCP_CONGESTION", IPPROTO_TCP, TCP_CONGESTION },
 #endif
+#ifdef TCP_DEFER_ACCEPT
+        { "TCP_DEFER_ACCEPT", IPPROTO_TCP, TCP_DEFER_ACCEPT },
+#endif
     };
 
     for (int k=0; k<COUNT(ops); k++) {
@@ -129,6 +132,8 @@ static int sk_listen (int fd, struct addrinfo *ai)
         perror("listen");
         return -1;
     }
+
+    sk_set_int(fd, "TCP_DEFER_ACCEPT", GT_TIMEOUT/1000);
 
     return 0;
 }
