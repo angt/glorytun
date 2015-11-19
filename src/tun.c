@@ -56,15 +56,16 @@ int tun_create (char *name, int multiqueue)
         return -1;
     }
 
-    gt_print("tun name: %s\n", ifr.ifr_name);
+    gt_log("tun name: %s\n", ifr.ifr_name);
 
     return fd;
 }
 #elif defined(__APPLE__)
 int tun_create (_unused_ char *name, _unused_ int mq)
 {
-    for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
+    for (unsigned dev_id = 0; dev_id < 32; dev_id++) {
         struct ctl_info ci;
+
         byte_set(&ci, 0, sizeof(ci));
         str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
 
@@ -91,7 +92,7 @@ int tun_create (_unused_ char *name, _unused_ int mq)
             continue;
         }
 
-        gt_print("tun name: /dev/utun%u\n", dev_id);
+        gt_log("tun name: /dev/utun%u\n", dev_id);
 
         return fd;
     }
@@ -101,17 +102,19 @@ int tun_create (_unused_ char *name, _unused_ int mq)
 #else
 int tun_create (_unused_ char *name, _unused_ int mq)
 {
-    for (unsigned dev_id = 0U; dev_id<32U; dev_id++) {
-        char dev_path[11U];
+    for (unsigned dev_id = 0; dev_id < 32; dev_id++) {
+        char dev_path[11];
 
-        sngt_print(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
+        snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
 
         int fd = open(dev_path, O_RDWR);
 
-        if (fd!=-1) {
-            gt_print("tun name: /dev/tun%u\n", dev_id);
-            return fd;
-        }
+        if (fd==-1)
+            continue;
+
+        gt_log("tun name: %s\n", dev_path);
+
+        return fd;
     }
 
     return -1;
@@ -125,6 +128,7 @@ ssize_t tun_read (int fd, void *data, size_t size)
 
 #ifdef GT_BSD_TUN
     uint32_t family;
+
     struct iovec iov[2] = {
         { .iov_base = &family, .iov_len = sizeof(family) },
         { .iov_base = data, .iov_len = size }
@@ -140,7 +144,7 @@ ssize_t tun_read (int fd, void *data, size_t size)
             return -1;
 
         if (errno)
-            perror("readv");
+            perror("tun read");
 
         return 0;
     }
@@ -189,7 +193,7 @@ ssize_t tun_write (int fd, const void *data, size_t size)
             return -1;
 
         if (errno)
-            perror("write");
+            perror("tun write");
 
         return 0;
     }

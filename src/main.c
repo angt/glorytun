@@ -25,7 +25,7 @@
 #define GT_BUFFER_SIZE (4*1024*1024)
 #define GT_TIMEOUT     (1000)
 
-struct netio {
+struct fdbuf {
     int fd;
     buffer_t read;
     buffer_t write;
@@ -680,8 +680,8 @@ int main (int argc, char **argv)
     if (!ai)
         return 1;
 
-    struct netio tun  = { .fd = -1 };
-    struct netio sock = { .fd = -1 };
+    struct fdbuf tun  = { .fd = -1 };
+    struct fdbuf sock = { .fd = -1 };
 
     tun.fd = tun_create(dev, option_is_set(opts, "multiqueue"));
 
@@ -846,8 +846,10 @@ int main (int argc, char **argv)
                 if (r>0)
                     sock.write.read += r;
             } else {
-                if (stop_loop)
+                if (stop_loop) {
+                    gt_log("%s: shutdown\n", sockname);
                     shutdown(sock.fd, SHUT_WR);
+                }
             }
 
             buffer_shift(&sock.write);
@@ -876,8 +878,10 @@ int main (int argc, char **argv)
                 size_t size = buffer_read_size(&tun.write);
                 ssize_t ip_size = ip_get_size(tun.write.read, size);
 
-                if (!ip_size)
+                if (!ip_size) {
+                    gt_log("%s: bad packet!\n", sockname);
                     goto restart;
+                }
 
                 if (ip_size<0 || (size_t)ip_size>size)
                     break;
