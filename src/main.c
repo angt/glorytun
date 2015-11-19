@@ -27,9 +27,8 @@
 
 struct netio {
     int fd;
-    struct {
-        buffer_t buf;
-    } write, read;
+    buffer_t read;
+    buffer_t write;
 };
 
 struct crypto_ctx {
@@ -402,52 +401,69 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
     return done;
 }
 
-static int encrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size, buffer_t *buffer)
+static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 {
-    const size_t ws = size + crypto_aead_aes256gcm_ABYTES;
+    size_t rs = buffer_read_size(src);
+    size_t ws = buffer_write_size(dst);
 
-    if (buffer_write_size(buffer) < ws)
-        return 1;
+    if (!rs || !ws)
+        return 0;
 
-    const int hs = 4;
+    size_t size = rs+crypto_aead_aes256gcm_ABYTES;
 
-    byte_cpy(buffer->write, packet, size);
+    if (size+2>ws)
+        return 0;
+
+    dst->write[0] = 0xFF&(size>>8);
+    dst->write[1] = 0xFF&(size);
 
     crypto_aead_aes256gcm_encrypt_afternm(
-            buffer->write + hs, NULL,
-            packet + hs, size - hs,
-            packet, hs,
+            dst->write+2, NULL,
+            src->read, rs,
+            dst->write, 2,
             NULL, ctx->write.nonce,
             (const crypto_aead_aes256gcm_state *)&ctx->write.state);
 
     sodium_increment(ctx->write.nonce, crypto_aead_aes256gcm_NPUBBYTES);
-    buffer->write += ws;
+
+    src->read += rs;
+    dst->write += size+2;
 
     return 0;
 }
 
-static int decrypt_packet (struct crypto_ctx *ctx, uint8_t *packet, size_t size, buffer_t *buffer)
+static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 {
-    const size_t rs = size + crypto_aead_aes256gcm_ABYTES;
+    size_t rs = buffer_read_size(src);
+    size_t ws = buffer_write_size(dst);
 
-    if (buffer_read_size(buffer) < rs)
-        return 1;
+    if (!rs || !ws)
+        return 0;
 
-    const int hs = 4;
+    if (rs<=2+16)
+        return 0;
 
-    byte_cpy(packet, buffer->read, hs);
+    size_t size = (src->read[0]<<8)|src->read[1];
+
+    if (size-crypto_aead_aes256gcm_ABYTES>ws)
+        return 0;
+
+    if (size+2>rs)
+        return 0;
 
     if (crypto_aead_aes256gcm_decrypt_afternm(
-                packet + hs, NULL,
+                dst->write, NULL,
                 NULL,
-                buffer->read + hs, rs - hs,
-                packet, hs,
+                src->read+2, size,
+                src->read, 2,
                 ctx->read.nonce,
                 (const crypto_aead_aes256gcm_state *)&ctx->read.state))
         return -1;
 
     sodium_increment(ctx->read.nonce, crypto_aead_aes256gcm_NPUBBYTES);
-    buffer->read += rs;
+
+    src->read += size+2;
+    dst->write += size-crypto_aead_aes256gcm_ABYTES;
 
     return 0;
 }
@@ -674,8 +690,11 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun.fd);
 
-    buffer_setup(&sock.write.buf, NULL, buffer_size);
-    buffer_setup(&sock.read.buf, NULL, buffer_size);
+    buffer_setup(&tun.write, NULL, 32*1024);
+    buffer_setup(&tun.read, NULL, 32*1024);
+
+    buffer_setup(&sock.write, NULL, buffer_size);
+    buffer_setup(&sock.read, NULL, buffer_size);
 
     int fd = -1;
 
@@ -725,30 +744,22 @@ int main (int argc, char **argv)
             default: break;
         }
 
-        struct {
-            uint8_t buf[2048];
-            size_t size;
-        } tunr, tunw;
-
-        tunr.size = 0;
-        tunw.size = 0;
-
         fd_set rfds, wfds;
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
 
         int stop_loop = 0;
 
-        buffer_format(&sock.write.buf);
-        buffer_format(&sock.read.buf);
+        buffer_format(&sock.write);
+        buffer_format(&sock.read);
 
         while (1) {
             if (gt_close)
                 stop_loop = 1;
 
             if (stop_loop) {
-                if (((stop_loop&(1<<2)) || !buffer_read_size(&sock.write.buf)) &&
-                    ((stop_loop&(1<<1)) || !buffer_read_size(&sock.read.buf)))
+                if (((stop_loop&(1<<2)) || !buffer_read_size(&sock.write)) &&
+                    ((stop_loop&(1<<1)) || !buffer_read_size(&sock.read)))
                     goto restart;
                 FD_CLR(tun.fd, &rfds);
             } else {
@@ -756,6 +767,12 @@ int main (int argc, char **argv)
             }
 
             FD_SET(sock.fd, &rfds);
+
+            if (buffer_read_size(&tun.read))
+                FD_SET(sock.fd, &wfds);
+
+            if (buffer_read_size(&sock.read))
+                FD_SET(tun.fd, &wfds);
 
             if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
                 if (errno==EINTR)
@@ -775,14 +792,16 @@ int main (int argc, char **argv)
             }
 #endif
 
-            buffer_shift(&sock.write.buf);
+            buffer_shift(&tun.read);
 
             if (FD_ISSET(tun.fd, &rfds)) {
                 while (1) {
-                    if (buffer_write_size(&sock.write.buf)<sizeof(tunr.buf)+16)
+                    size_t size = buffer_write_size(&tun.read);
+
+                    if (size<1500)
                         break;
 
-                    ssize_t r = tun_read(tun.fd, tunr.buf, sizeof(tunr.buf));
+                    ssize_t r = tun_read(tun.fd, tun.read.write, size);
 
                     if (!r)
                         return 2;
@@ -790,31 +809,33 @@ int main (int argc, char **argv)
                     if (r<0)
                         break;
 
-                    ssize_t ip_size = ip_get_size(tunr.buf, sizeof(tunr.buf));
+                    ssize_t ip_size = ip_get_size(tun.read.write, size);
 
                     if (ip_size<=0)
                         continue;
 
                     if (ip_size!=r) {
-                        dump_ip_header(tunr.buf, r);
+                        dump_ip_header(tun.read.write, r);
 
                         if (r<ip_size) {
-                            ip_set_size(tunr.buf, r);
+                            ip_set_size(tun.read.write, r);
                         } else {
                             continue;
                         }
                     }
 
-                    encrypt_packet(&ctx, tunr.buf, r, &sock.write.buf);
+                    tun.read.write += r;
                 }
             }
+
+            gt_encrypt(&ctx, &sock.write, &tun.read);
 
             if (FD_ISSET(sock.fd, &wfds))
                 FD_CLR(sock.fd, &wfds);
 
-            if (buffer_read_size(&sock.write.buf)) {
-                ssize_t r = fd_write(sock.fd, sock.write.buf.read,
-                                     buffer_read_size(&sock.write.buf));
+            if (buffer_read_size(&sock.write)) {
+                ssize_t r = fd_write(sock.fd, sock.write.read,
+                                     buffer_read_size(&sock.write));
 
                 if (r==-1)
                     FD_SET(sock.fd, &wfds);
@@ -823,61 +844,57 @@ int main (int argc, char **argv)
                     stop_loop |= (1<<2);
 
                 if (r>0)
-                    sock.write.buf.read += r;
+                    sock.write.read += r;
             } else {
                 if (stop_loop)
                     shutdown(sock.fd, SHUT_WR);
             }
 
-            buffer_shift(&sock.read.buf);
+            buffer_shift(&sock.write);
+            buffer_shift(&sock.read);
 
             if (FD_ISSET(sock.fd, &rfds)) {
-                ssize_t r = fd_read(sock.fd, sock.read.buf.write,
-                                    buffer_write_size(&sock.read.buf));
+                ssize_t r = fd_read(sock.fd, sock.read.write,
+                                    buffer_write_size(&sock.read));
 
                 if (!r)
                     stop_loop |= (1<<1);
 
                 if (r>0)
-                    sock.read.buf.write += r;
+                    sock.read.write += r;
+            }
+
+            if (gt_decrypt(&ctx, &tun.write, &sock.read)) {
+                gt_log("%s: message could not be verified!\n", sockname);
+                goto restart;
             }
 
             if (FD_ISSET(tun.fd, &wfds))
                 FD_CLR(tun.fd, &wfds);
 
             while (1) {
-                if (!tunw.size) {
-                    size_t size = buffer_read_size(&sock.read.buf);
-                    ssize_t ip_size = ip_get_size(sock.read.buf.read, size);
+                size_t size = buffer_read_size(&tun.write);
+                ssize_t ip_size = ip_get_size(tun.write.read, size);
 
-                    if (!ip_size)
-                        goto restart;
+                if (!ip_size)
+                    goto restart;
 
-                    if (ip_size<0 || (size_t)ip_size+16>size)
-                        break;
+                if (ip_size<0 || (size_t)ip_size>size)
+                    break;
 
-                    if (decrypt_packet(&ctx, tunw.buf, ip_size, &sock.read.buf)) {
-                        gt_log("%s: message could not be verified!\n", sockname);
-                        goto restart;
-                    }
+                ssize_t r = tun_write(tun.fd, tun.write.read, ip_size);
 
-                    tunw.size = ip_size;
-                }
-                if (tunw.size) {
-                    ssize_t r = tun_write(tun.fd, tunw.buf, tunw.size);
+                if (!r)
+                    return 2;
 
-                    if (!r)
-                        return 2;
+                if (r==-1)
+                    FD_SET(tun.fd, &wfds);
 
-                    if (r==-1)
-                        FD_SET(tun.fd, &wfds);
-
-                    if (r<0)
-                        break;
-
-                    tunw.size = 0;
-                }
+                if (r>0)
+                    tun.write.read += r;
             }
+
+            buffer_shift(&tun.write);
         }
 
     restart:
@@ -894,8 +911,8 @@ int main (int argc, char **argv)
 
     freeaddrinfo(ai);
 
-    free(sock.write.buf.data);
-    free(sock.read.buf.data);
+    free(sock.write.data);
+    free(sock.read.data);
 
     return 0;
 }
