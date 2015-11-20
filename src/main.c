@@ -66,57 +66,75 @@ static void fd_set_nonblock (int fd)
         perror("fcntl O_NONBLOCK");
 }
 
-static void sk_set (int fd, const char *name, const void *val, socklen_t len)
+enum sk_opt {
+    sk_nodelay,
+    sk_reuseaddr,
+    sk_keepalive,
+    sk_keepcnt,
+    sk_keepidle,
+    sk_keepintvl,
+    sk_congestion,
+    sk_defer_accept,
+};
+
+static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
 {
-    if (!name || !val || len<=0)
+    if (!val || len<=0)
         return;
 
     struct {
         const char *name;
+        const int present;
         const int level;
         const int option;
-    } ops[] = {
-        { "TCP_NODELAY",    IPPROTO_TCP, TCP_NODELAY    },
-        { "SO_REUSEADDR",   SOL_SOCKET,  SO_REUSEADDR   },
-        { "SO_KEEPALIVE",   SOL_SOCKET,  SO_KEEPALIVE   },
+    } opts[] = {
+        [sk_nodelay] = { "TCP_NODELAY", 1, IPPROTO_TCP, TCP_NODELAY, },
+        [sk_reuseaddr] = { "SO_REUSEADDR", 1, SOL_SOCKET, SO_REUSEADDR, },
+        [sk_keepalive] = { "SO_KEEPALIVE", 1, SOL_SOCKET, SO_KEEPALIVE, },
+        [sk_keepcnt] = { "TCP_KEEPCNT",
 #ifdef TCP_KEEPCNT
-        { "TCP_KEEPCNT",    IPPROTO_TCP, TCP_KEEPCNT    },
+            1, IPPROTO_TCP, TCP_KEEPCNT,
 #endif
+        },
+        [sk_keepidle] = { "TCP_KEEPIDLE",
 #ifdef TCP_KEEPIDLE
-        { "TCP_KEEPIDLE",   IPPROTO_TCP, TCP_KEEPIDLE   },
+            1, IPPROTO_TCP, TCP_KEEPIDLE,
 #endif
+        },
+        [sk_keepintvl] = { "TCP_KEEPINTVL",
 #ifdef TCP_KEEPINTVL
-        { "TCP_KEEPINTVL",  IPPROTO_TCP, TCP_KEEPINTVL  },
+            1, IPPROTO_TCP, TCP_KEEPINTVL,
 #endif
+        },
+        [sk_congestion] = { "TCP_CONGESTION",
 #ifdef TCP_CONGESTION
-        { "TCP_CONGESTION", IPPROTO_TCP, TCP_CONGESTION },
+            1, IPPROTO_TCP, TCP_CONGESTION,
 #endif
+        },
+        [sk_defer_accept] = { "TCP_DEFER_ACCEPT",
 #ifdef TCP_DEFER_ACCEPT
-        { "TCP_DEFER_ACCEPT", IPPROTO_TCP, TCP_DEFER_ACCEPT },
+            1, IPPROTO_TCP, TCP_DEFER_ACCEPT,
 #endif
+        },
     };
 
-    for (int k=0; k<COUNT(ops); k++) {
-        if (str_cmp(ops[k].name, name))
-            continue;
-
-        if (setsockopt(fd, ops[k].level, ops[k].option, val, len)==-1)
-            gt_log("couldn't set socket option `%s'\n", name);
-
+    if (!opts[opt].present) {
+        gt_na(opts[opt].name);
         return;
     }
 
-    gt_na(name);
+    if (setsockopt(fd, opts[opt].level, opts[opt].option, val, len)==-1)
+        gt_log("couldn't set socket option `%s'\n", opts[opt].name);
 }
 
-static void sk_set_int (int fd, const char *name, int val)
+static void sk_set_int (int fd, enum sk_opt opt, int val)
 {
-    return sk_set(fd, name, &val, sizeof(val));
+    return sk_set(fd, opt, &val, sizeof(val));
 }
 
 static int sk_listen (int fd, struct addrinfo *ai)
 {
-    sk_set_int(fd, "SO_REUSEADDR", 1);
+    sk_set_int(fd, sk_reuseaddr, 1);
 
     int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
 
@@ -132,7 +150,7 @@ static int sk_listen (int fd, struct addrinfo *ai)
         return -1;
     }
 
-    sk_set_int(fd, "TCP_DEFER_ACCEPT", GT_TIMEOUT/1000);
+    sk_set_int(fd, sk_defer_accept, GT_TIMEOUT/1000);
 
     return 0;
 }
@@ -722,21 +740,21 @@ int main (int argc, char **argv)
 
         fd_set_nonblock(sock.fd);
 
-        sk_set_int(sock.fd, "TCP_NODELAY", !delay);
-        sk_set_int(sock.fd, "SO_KEEPALIVE", keepalive);
+        sk_set_int(sock.fd, sk_nodelay, !delay);
+        sk_set_int(sock.fd, sk_keepalive, keepalive);
 
         if (keepalive) {
             if (ka_count>=0 && ka_count<=INT_MAX)
-                sk_set_int(sock.fd, "TCP_KEEPCNT", ka_count);
+                sk_set_int(sock.fd, sk_keepcnt, ka_count);
 
             if (ka_idle>=0 && ka_idle<=INT_MAX)
-                sk_set_int(sock.fd, "TCP_KEEPIDLE", ka_idle);
+                sk_set_int(sock.fd, sk_keepidle, ka_idle);
 
             if (ka_interval>=0 && ka_interval<=INT_MAX)
-                sk_set_int(sock.fd, "TCP_KEEPINTVL", ka_interval);
+                sk_set_int(sock.fd, sk_keepintvl, ka_interval);
         }
 
-        sk_set(sock.fd, "TCP_CONGESTION", congestion, str_len(congestion));
+        sk_set(sock.fd, sk_congestion, congestion, str_len(congestion));
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
             case -2: gt_log("%s: key exchange could not be verified!\n", sockname);
