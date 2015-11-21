@@ -773,7 +773,7 @@ int main (int argc, char **argv)
 
         while (1) {
             if (gt_close)
-                stop_loop = 1;
+                stop_loop |= 1;
 
             if (stop_loop) {
                 if (((stop_loop&(1<<2)) || !buffer_read_size(&sock.write)) &&
@@ -798,6 +798,9 @@ int main (int argc, char **argv)
                 perror("select");
                 return 1;
             }
+
+            FD_CLR(sock.fd, &wfds);
+            FD_CLR(tun.fd, &wfds);
 
 #ifdef TCP_INFO
             struct timeval now;
@@ -848,9 +851,6 @@ int main (int argc, char **argv)
 
             gt_encrypt(&ctx, &sock.write, &tun.read);
 
-            if (FD_ISSET(sock.fd, &wfds))
-                FD_CLR(sock.fd, &wfds);
-
             if (buffer_read_size(&sock.write)) {
                 ssize_t r = fd_write(sock.fd, sock.write.read,
                                      buffer_read_size(&sock.write));
@@ -888,9 +888,6 @@ int main (int argc, char **argv)
                 gt_log("%s: message could not be verified!\n", sockname);
                 goto restart;
             }
-
-            if (FD_ISSET(tun.fd, &wfds))
-                FD_CLR(tun.fd, &wfds);
 
             while (1) {
                 size_t size = buffer_read_size(&tun.write);
