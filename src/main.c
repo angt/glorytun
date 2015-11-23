@@ -655,6 +655,7 @@ int main (int argc, char **argv)
         { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
+        { "daemon",      NULL,         option_option },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
@@ -721,6 +722,20 @@ int main (int argc, char **argv)
 
         if (fd==-1)
             return 1;
+    }
+
+    if (option_is_set(opts, "daemon")) {
+        switch (fork()) {
+        case -1:
+            perror("fork");
+            return 1;
+        case 0:
+            if (setsid()==-1)
+                perror("setsid");
+            break;
+        default:
+            _exit(0);
+        }
     }
 
     while (!gt_close) {
