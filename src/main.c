@@ -1009,8 +1009,13 @@ int main (int argc, char **argv)
 
     freeaddrinfo(ai);
 
+    free(blks);
+
     free(sock.write.data);
     free(sock.read.data);
+
+    free(tun.write.data);
+    free(tun.read.data);
 
     return 0;
 }
