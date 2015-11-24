@@ -97,7 +97,7 @@ static int option_usage (struct option *opts, int slen)
     int len = slen;
 
     for (int k=0; opts[k].name; k++) {
-        if (len>60) {
+        if (len>slen+40) {
             gt_print("\n%*s", (int)slen, "");
             len = slen;
         }
@@ -130,8 +130,10 @@ int option (struct option *opts, int argc, char **argv)
 
     int slen = gt_print("usage: %s", argv[0]);
 
-    if (slen>40)
+    if (slen>40) {
         slen = 12;
+        gt_print("\n%*s", (int)slen, "");
+    }
 
     option_usage(opts, slen);
 
