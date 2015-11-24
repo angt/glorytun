@@ -24,11 +24,18 @@
 
 #define GT_BUFFER_SIZE (4*1024*1024)
 #define GT_TIMEOUT     (1000)
+#define GT_MTU_MAX     (1500)
 
 struct fdbuf {
     int fd;
     buffer_t read;
     buffer_t write;
+};
+
+struct blk {
+    uint8_t prio;
+    size_t size;
+    uint8_t data[GT_MTU_MAX];
 };
 
 struct crypto_ctx {
@@ -629,6 +636,7 @@ int main (int argc, char **argv)
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
+    long dscp_prio = 0x3F;
 
 #ifdef TCP_INFO
     struct {
@@ -655,6 +663,7 @@ int main (int argc, char **argv)
         { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
+        { "dscp-prio",   &dscp_prio,   option_long   },
         { "daemon",      NULL,         option_option },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
@@ -707,10 +716,19 @@ int main (int argc, char **argv)
     if (tun.fd==-1)
         return 1;
 
+    struct blk *blks = calloc(256, sizeof(struct blk));
+    size_t blk_count = 0;
+    size_t blk_prio = 0;
+    uint8_t blk_read = 0;
+    uint8_t blk_write = 0;
+
+    if (!blks)
+        return 1;
+
     fd_set_nonblock(tun.fd);
 
-    buffer_setup(&tun.write, NULL, 32*1024);
-    buffer_setup(&tun.read, NULL, 32*1024);
+    buffer_setup(&tun.write, NULL, 0x7FFF);
+    buffer_setup(&tun.read, NULL, 0x7FFF-16);
 
     buffer_setup(&sock.write, NULL, buffer_size);
     buffer_setup(&sock.read, NULL, buffer_size);
@@ -743,13 +761,15 @@ int main (int argc, char **argv)
 
         if (sock.fd==-1) {
             usleep(100000);
-            goto restart;
+            continue;
         }
 
         char *sockname = sk_get_name(sock.fd);
 
-        if (!sockname)
-            goto restart;
+        if (!sockname) {
+            close(sock.fd);
+            continue;
+        }
 
         gt_log("%s: connected\n", sockname);
 
@@ -801,7 +821,7 @@ int main (int argc, char **argv)
 
             FD_SET(sock.fd, &rfds);
 
-            if (buffer_read_size(&tun.read))
+            if (buffer_read_size(&tun.read) || blk_count)
                 FD_SET(sock.fd, &wfds);
 
             if (buffer_read_size(&sock.read))
@@ -828,16 +848,10 @@ int main (int argc, char **argv)
             }
 #endif
 
-            buffer_shift(&tun.read);
-
             if (FD_ISSET(tun.fd, &rfds)) {
-                while (1) {
-                    size_t size = buffer_write_size(&tun.read);
-
-                    if (size<1500)
-                        break;
-
-                    ssize_t r = tun_read(tun.fd, tun.read.write, size);
+                while (!blks[blk_write].size) {
+                    uint8_t *data = blks[blk_write].data;
+                    ssize_t r = tun_read(tun.fd, data, GT_MTU_MAX);
 
                     if (!r)
                         return 2;
@@ -845,23 +859,73 @@ int main (int argc, char **argv)
                     if (r<0)
                         break;
 
-                    ssize_t ip_size = ip_get_size(tun.read.write, size);
+                    ssize_t ip_size = ip_get_size(data, GT_MTU_MAX);
 
                     if (ip_size<=0)
                         continue;
 
                     if (ip_size!=r) {
-                        dump_ip_header(tun.read.write, r);
+                        dump_ip_header(data, r);
 
                         if (r<ip_size) {
-                            ip_set_size(tun.read.write, r);
+                            ip_set_size(data, r);
                         } else {
                             continue;
                         }
                     }
 
-                    tun.read.write += r;
+                    if (ip_get_dscp(data, GT_MTU_MAX)==dscp_prio) {
+                        blks[blk_write].prio = 1;
+                        blk_prio++;
+                    }
+
+                    blks[blk_write++].size = r;
+                    blk_count++;
                 }
+            }
+
+            buffer_shift(&tun.read);
+
+            // XXX prio code needs a full rewrite :)
+
+            if (blk_prio) {
+                uint8_t k = blk_read;
+
+                while (blk_prio && buffer_write_size(&tun.read)>8*GT_MTU_MAX) {
+                    while (!blks[k].prio)
+                        k++;
+
+                    byte_cpy(tun.read.write, blks[k].data, blks[k].size);
+                    tun.read.write += blks[k].size;
+
+                    blks[k].size = 0;
+                    blk_count--;
+                    blk_prio--;
+
+                    if (blk_read==k)
+                        blk_read++;
+
+                    k++;
+                }
+            }
+
+            while (blk_count) {
+                if (!blks[blk_read].size) {
+                    blk_read++;
+                    continue;
+                }
+
+                if (buffer_write_size(&tun.read)<blks[blk_read].size)
+                    break;
+
+                byte_cpy(tun.read.write, blks[blk_read].data, blks[blk_read].size);
+                tun.read.write += blks[blk_read].size;
+
+                if (blks[blk_read].prio)
+                    blk_prio--;
+
+                blks[blk_read++].size = 0;
+                blk_count--;
             }
 
             gt_encrypt(&ctx, &sock.write, &tun.read);
@@ -899,12 +963,12 @@ int main (int argc, char **argv)
                     sock.read.write += r;
             }
 
-            if (gt_decrypt(&ctx, &tun.write, &sock.read)) {
-                gt_log("%s: message could not be verified!\n", sockname);
-                goto restart;
-            }
-
             while (1) {
+                if (gt_decrypt(&ctx, &tun.write, &sock.read)) {
+                    gt_log("%s: message could not be verified!\n", sockname);
+                    goto restart;
+                }
+
                 size_t size = buffer_read_size(&tun.write);
                 ssize_t ip_size = ip_get_size(tun.write.read, size);
 

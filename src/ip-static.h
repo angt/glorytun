@@ -28,3 +28,12 @@ static inline ssize_t ip_get_size (const uint8_t *data, size_t size)
     return 0;
 }
 
+static inline int ip_get_dscp (const uint8_t *data, size_t size)
+{
+    switch (ip_get_version(data, size)) {
+    case 4:
+        return data[1]>>2;
+    }
+
+    return 0;
+}
