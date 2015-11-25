@@ -22,9 +22,11 @@
 #define O_CLOEXEC 0
 #endif
 
-#define GT_BUFFER_SIZE (4*1024*1024)
-#define GT_TIMEOUT     (1000)
-#define GT_MTU_MAX     (1500)
+#define GT_BUFFER_SIZE  (4*1024*1024)
+#define GT_TIMEOUT      (1000)
+#define GT_MTU_MAX      (1500)
+#define GT_TUNR_SIZE    (0x7FFF-16)
+#define GT_TUNW_SIZE    (0x7FFF)
 
 struct fdbuf {
     int fd;
@@ -636,7 +638,8 @@ int main (int argc, char **argv)
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
-    long dscp_prio = 0x3F;
+    long prio_dscp = 46;
+    long prio_size = (GT_TUNR_SIZE*3)/4;
 
 #ifdef TCP_INFO
     struct {
@@ -652,6 +655,12 @@ int main (int argc, char **argv)
         { NULL },
     };
 
+    struct option prio_opts[] = {
+        { "dscp",  &prio_dscp, option_long },
+        { "size",  &prio_size, option_long },
+        { NULL },
+    };
+
     struct option opts[] = {
         { "listener",    NULL,         option_option },
         { "host",        &host,        option_str    },
@@ -663,7 +672,7 @@ int main (int argc, char **argv)
         { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
-        { "dscp-prio",   &dscp_prio,   option_long   },
+        { "priority",    prio_opts,    option_option },
         { "daemon",      NULL,         option_option },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
@@ -686,6 +695,16 @@ int main (int argc, char **argv)
     if (buffer_size < 2048) {
         buffer_size = 2048;
         gt_log("buffer size must be greater than 2048!\n");
+    }
+
+    if (prio_size < 0) {
+        prio_size = 0;
+        gt_log("priority size must be positive!\n");
+    }
+
+    if (prio_size > GT_TUNR_SIZE) {
+        prio_size = GT_TUNR_SIZE;
+        gt_log("priority size must be less than or equal to %zu\n", GT_TUNR_SIZE);
     }
 
     if (sodium_init()==-1) {
@@ -727,11 +746,11 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun.fd);
 
-    buffer_setup(&tun.write, NULL, 0x7FFF);
-    buffer_setup(&tun.read, NULL, 0x7FFF-16);
+    buffer_setup(&tun.write, NULL, GT_TUNW_SIZE);
+    buffer_setup(&tun.read,  NULL, GT_TUNR_SIZE);
 
     buffer_setup(&sock.write, NULL, buffer_size);
-    buffer_setup(&sock.read, NULL, buffer_size);
+    buffer_setup(&sock.read,  NULL, buffer_size);
 
     int fd = -1;
 
@@ -874,9 +893,11 @@ int main (int argc, char **argv)
                         }
                     }
 
-                    if (ip_get_dscp(data, GT_MTU_MAX)==dscp_prio) {
+                    if (ip_get_dscp(data, GT_MTU_MAX)==prio_dscp) {
                         blks[blk_write].prio = 1;
                         blk_prio++;
+                    } else {
+                        blks[blk_write].prio = 0;
                     }
 
                     blks[blk_write++].size = r;
@@ -891,9 +912,12 @@ int main (int argc, char **argv)
             if (blk_prio) {
                 uint8_t k = blk_read;
 
-                while (blk_prio && buffer_write_size(&tun.read)>8*GT_MTU_MAX) {
-                    while (!blks[k].prio)
+                while (blk_prio && buffer_read_size(&tun.read)<(size_t)prio_size) {
+                    while (!blks[k].prio || !blks[k].size)
                         k++;
+
+                    if (buffer_write_size(&tun.read)<blks[k].size)
+                        break;
 
                     byte_cpy(tun.read.write, blks[k].data, blks[k].size);
                     tun.read.write += blks[k].size;
