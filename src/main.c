@@ -36,7 +36,7 @@ struct fdbuf {
 
 struct blk {
     size_t size;
-    uint8_t data[GT_MTU_MAX];
+    uint8_t data[GT_MTU_MAX] _align_(16);
 };
 
 struct crypto_ctx {
