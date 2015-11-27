@@ -35,7 +35,6 @@ struct fdbuf {
 };
 
 struct blk {
-    uint8_t prio;
     size_t size;
     uint8_t data[GT_MTU_MAX];
 };
@@ -638,8 +637,6 @@ int main (int argc, char **argv)
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
-    long prio_dscp = 46;
-    long prio_size = (GT_TUNR_SIZE*3)/4;
 
 #ifdef TCP_INFO
     struct {
@@ -655,12 +652,6 @@ int main (int argc, char **argv)
         { NULL },
     };
 
-    struct option prio_opts[] = {
-        { "dscp",  &prio_dscp, option_long },
-        { "size",  &prio_size, option_long },
-        { NULL },
-    };
-
     struct option opts[] = {
         { "listener",    NULL,         option_option },
         { "host",        &host,        option_str    },
@@ -672,7 +663,6 @@ int main (int argc, char **argv)
         { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
-        { "priority",    prio_opts,    option_option },
         { "daemon",      NULL,         option_option },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
@@ -695,16 +685,6 @@ int main (int argc, char **argv)
     if (buffer_size < 2048) {
         buffer_size = 2048;
         gt_log("buffer size must be greater than 2048!\n");
-    }
-
-    if (prio_size < 0) {
-        prio_size = 0;
-        gt_log("priority size must be positive!\n");
-    }
-
-    if (prio_size > GT_TUNR_SIZE) {
-        prio_size = GT_TUNR_SIZE;
-        gt_log("priority size must be less than or equal to %zu\n", GT_TUNR_SIZE);
     }
 
     if (sodium_init()==-1) {
@@ -737,7 +717,6 @@ int main (int argc, char **argv)
 
     struct blk *blks = calloc(256, sizeof(struct blk));
     size_t blk_count = 0;
-    size_t blk_prio = 0;
     uint8_t blk_read = 0;
     uint8_t blk_write = 0;
 
@@ -893,45 +872,12 @@ int main (int argc, char **argv)
                         }
                     }
 
-                    if (ip_get_dscp(data, GT_MTU_MAX)==prio_dscp) {
-                        blks[blk_write].prio = 1;
-                        blk_prio++;
-                    } else {
-                        blks[blk_write].prio = 0;
-                    }
-
                     blks[blk_write++].size = r;
                     blk_count++;
                 }
             }
 
             buffer_shift(&tun.read);
-
-            // XXX prio code needs a full rewrite :)
-
-            if (blk_prio) {
-                uint8_t k = blk_read;
-
-                while (blk_prio && buffer_read_size(&tun.read)<(size_t)prio_size) {
-                    while (!blks[k].prio || !blks[k].size)
-                        k++;
-
-                    if (buffer_write_size(&tun.read)<blks[k].size)
-                        break;
-
-                    byte_cpy(tun.read.write, blks[k].data, blks[k].size);
-                    tun.read.write += blks[k].size;
-
-                    blks[k].size = 0;
-                    blk_count--;
-                    blk_prio--;
-
-                    if (blk_read==k)
-                        blk_read++;
-
-                    k++;
-                }
-            }
 
             while (blk_count) {
                 if (!blks[blk_read].size) {
@@ -944,9 +890,6 @@ int main (int argc, char **argv)
 
                 byte_cpy(tun.read.write, blks[blk_read].data, blks[blk_read].size);
                 tun.read.write += blks[blk_read].size;
-
-                if (blks[blk_read].prio)
-                    blk_prio--;
 
                 blks[blk_read++].size = 0;
                 blk_count--;
