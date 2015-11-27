@@ -83,6 +83,7 @@ enum sk_opt {
     sk_keepintvl,
     sk_congestion,
     sk_defer_accept,
+    sk_quickack,
 };
 
 static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
@@ -122,6 +123,11 @@ static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
         [sk_defer_accept] = { "TCP_DEFER_ACCEPT",
 #ifdef TCP_DEFER_ACCEPT
             1, IPPROTO_TCP, TCP_DEFER_ACCEPT,
+#endif
+        },
+        [sk_quickack] = { "TCP_QUICKACK",
+#ifdef TCP_QUICKACK
+            1, IPPROTO_TCP, TCP_QUICKACK,
 #endif
         },
     };
@@ -663,6 +669,7 @@ int main (int argc, char **argv)
         { "multiqueue",  NULL,         option_option },
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
+        { "noquickack",  NULL,         option_option },
         { "daemon",      NULL,         option_option },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
@@ -681,6 +688,7 @@ int main (int argc, char **argv)
     int delay = option_is_set(opts, "delay");
     int debug = option_is_set(opts, "debug");
     int keepalive = option_is_set(opts, "keepalive");
+    int noquickack = option_is_set(opts, "noquickack");
 
     if (buffer_size < 2048) {
         buffer_size = 2048;
@@ -921,6 +929,9 @@ int main (int argc, char **argv)
             buffer_shift(&sock.read);
 
             if (FD_ISSET(sock.fd, &rfds)) {
+                if (noquickack)
+                    sk_set_int(sock.fd, sk_quickack, 0);
+
                 ssize_t r = fd_read(sock.fd, sock.read.write,
                                     buffer_write_size(&sock.read));
 
