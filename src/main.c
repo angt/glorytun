@@ -967,7 +967,8 @@ int main (int argc, char **argv)
                 if (r>0)
                     sock.write.read += r;
             } else {
-                if (stop_loop) {
+                if (stop_loop && !(stop_loop>>2)) {
+                    stop_loop |= (1<<2);
                     gt_log("%s: shutdown\n", sockname);
                     shutdown(sock.fd, SHUT_WR);
                 }
