@@ -342,7 +342,7 @@ static void gt_set_signal (void)
 static ssize_t fd_read (int fd, void *data, size_t size)
 {
     if (!size)
-        return -2;
+        return -1;
 
     ssize_t ret = read(fd, data, size);
 
@@ -362,7 +362,7 @@ static ssize_t fd_read (int fd, void *data, size_t size)
 static ssize_t fd_write (int fd, const void *data, size_t size)
 {
     if (!size)
-        return -2;
+        return -1;
 
     ssize_t ret = write(fd, data, size);
 
@@ -859,11 +859,10 @@ int main (int argc, char **argv)
                     uint8_t *data = blks[blk_write].data;
                     ssize_t r = tun_read(tun.fd, data, GT_MTU_MAX);
 
-                    if (!r)
-                        return 2;
-
-                    if (r<0)
+                    if (r<=0) {
+                        gt_close |= !r;
                         break;
+                    }
 
                     ssize_t ip_size = ip_get_size(data, GT_MTU_MAX);
 
@@ -908,20 +907,18 @@ int main (int argc, char **argv)
             if (buffer_read_size(&sock.write)) {
                 ssize_t r = fd_write(sock.fd, sock.write.read,
                                      buffer_read_size(&sock.write));
-
-                if (r==-1)
-                    FD_SET(sock.fd, &wfds);
-
-                if (!r)
-                    stop_loop |= (1<<2);
-
-                if (r>0)
+                if (r>0) {
                     sock.write.read += r;
+                } else if (!r) {
+                    stop_loop |= (1<<2);
+                } else {
+                    FD_SET(sock.fd, &wfds);
+                }
             } else {
                 if (stop_loop && !(stop_loop>>2)) {
                     stop_loop |= (1<<2);
-                    gt_log("%s: shutdown\n", sockname);
                     shutdown(sock.fd, SHUT_WR);
+                    gt_log("%s: shutdown\n", sockname);
                 }
             }
 
@@ -935,11 +932,11 @@ int main (int argc, char **argv)
                 ssize_t r = fd_read(sock.fd, sock.read.write,
                                     buffer_write_size(&sock.read));
 
-                if (!r)
-                    stop_loop |= (1<<1);
-
-                if (r>0)
+                if (r>0) {
                     sock.read.write += r;
+                } else if (!r) {
+                    stop_loop |= (1<<1);
+                }
             }
 
             while (1) {
@@ -961,14 +958,13 @@ int main (int argc, char **argv)
 
                 ssize_t r = tun_write(tun.fd, tun.write.read, ip_size);
 
-                if (!r)
-                    return 2;
-
-                if (r==-1)
-                    FD_SET(tun.fd, &wfds);
-
-                if (r>0)
+                if (r>0) {
                     tun.write.read += r;
+                } else {
+                    gt_close |= !r;
+                    FD_SET(tun.fd, &wfds);
+                    break;
+                }
             }
 
             buffer_shift(&tun.write);

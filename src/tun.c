@@ -124,7 +124,7 @@ int tun_create (_unused_ char *name, _unused_ int mq)
 ssize_t tun_read (int fd, void *data, size_t size)
 {
     if (!size)
-        return -2;
+        return -1;
 
 #ifdef GT_BSD_TUN
     uint32_t family;
@@ -162,7 +162,7 @@ ssize_t tun_read (int fd, void *data, size_t size)
 ssize_t tun_write (int fd, const void *data, size_t size)
 {
     if (!size)
-        return -2;
+        return -1;
 
 #ifdef GT_BSD_TUN
     uint32_t family;
