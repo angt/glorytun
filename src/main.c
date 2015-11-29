@@ -48,6 +48,7 @@ struct crypto_ctx {
 };
 
 volatile sig_atomic_t gt_close = 0;
+volatile sig_atomic_t gt_info = 0;
 
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
@@ -319,20 +320,29 @@ static void gt_sa_stop (int sig)
 {
     switch (sig) {
     case SIGINT:
+    case SIGQUIT:
     case SIGTERM:
         gt_close = 1;
+        break;
+    case SIGUSR1:
+        gt_info = 1;
+        break;
     }
 }
 
 static void gt_set_signal (void)
 {
-    struct sigaction sa;
+    struct sigaction sa = {
+        .sa_flags = 0,
+    };
 
-    byte_set(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
 
     sa.sa_handler = gt_sa_stop;
     sigaction(SIGINT,  &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
 
     sa.sa_handler = SIG_IGN;
     sigaction(SIGHUP,  &sa, NULL);
@@ -644,13 +654,6 @@ int main (int argc, char **argv)
     long ka_idle = -1;
     long ka_interval = -1;
 
-#ifdef TCP_INFO
-    struct {
-        struct timeval time;
-        struct tcp_info info;
-    } tcpinfo = {0};
-#endif
-
     struct option ka_opts[] = {
         { "count",    &ka_count,    option_long },
         { "idle",     &ka_idle,     option_long },
@@ -671,7 +674,6 @@ int main (int argc, char **argv)
         { "buffer-size", &buffer_size, option_long   },
         { "noquickack",  NULL,         option_option },
         { "daemon",      NULL,         option_option },
-        { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
     };
@@ -686,7 +688,6 @@ int main (int argc, char **argv)
 
     int listener = option_is_set(opts, "listener");
     int delay = option_is_set(opts, "delay");
-    int debug = option_is_set(opts, "debug");
     int keepalive = option_is_set(opts, "keepalive");
     int noquickack = option_is_set(opts, "noquickack");
 
@@ -843,14 +844,18 @@ int main (int argc, char **argv)
             FD_CLR(sock.fd, &wfds);
             FD_CLR(tun.fd, &wfds);
 
-#ifdef TCP_INFO
-            struct timeval now;
-            gettimeofday(&now, NULL);
+         // TODO
+         // struct timeval now;
+         // gettimeofday(&now, NULL);
 
-            if (debug && dt_ms(&now, &tcpinfo.time)>1000LL) {
-                tcpinfo.time = now;
-                if (sk_get_info(sock.fd, &tcpinfo.info))
-                    print_tcp_info(sockname, &tcpinfo.info);
+#ifdef TCP_INFO
+            if (gt_info) {
+                struct tcp_info ti;
+
+                if (sk_get_info(sock.fd, &ti))
+                    print_tcp_info(sockname, &ti);
+
+                gt_info = 0;
             }
 #endif
 
