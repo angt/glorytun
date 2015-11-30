@@ -828,12 +828,6 @@ int main (int argc, char **argv)
 
             FD_SET(sock.fd, &rfds);
 
-            if (buffer_read_size(&tun.read) || blk_count)
-                FD_SET(sock.fd, &wfds);
-
-            if (buffer_read_size(&sock.read))
-                FD_SET(tun.fd, &wfds);
-
             if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
                 if (errno==EINTR)
                     continue;
@@ -889,38 +883,47 @@ int main (int argc, char **argv)
                 }
             }
 
-            buffer_shift(&tun.read);
+            while (1) {
+                buffer_shift(&tun.read);
 
-            while (blk_count) {
-                if (!blks[blk_read].size) {
-                    blk_read++;
-                    continue;
+                if (!stop_loop) {
+                    for (; blk_count; blk_read++) {
+                        if (!blks[blk_read].size)
+                            break;
+
+                        if (buffer_write_size(&tun.read)<blks[blk_read].size)
+                            break;
+
+                        byte_cpy(tun.read.write, blks[blk_read].data, blks[blk_read].size);
+                        tun.read.write += blks[blk_read].size;
+
+                        blks[blk_read].size = 0;
+                        blk_count--;
+                    }
+
+                    gt_encrypt(&ctx, &sock.write, &tun.read);
                 }
 
-                if (buffer_write_size(&tun.read)<blks[blk_read].size)
+                if (!buffer_read_size(&sock.write))
                     break;
 
-                byte_cpy(tun.read.write, blks[blk_read].data, blks[blk_read].size);
-                tun.read.write += blks[blk_read].size;
-
-                blks[blk_read++].size = 0;
-                blk_count--;
-            }
-
-            gt_encrypt(&ctx, &sock.write, &tun.read);
-
-            if (buffer_read_size(&sock.write)) {
                 ssize_t r = fd_write(sock.fd, sock.write.read,
                                      buffer_read_size(&sock.write));
+
                 if (r>0) {
                     sock.write.read += r;
-                } else if (!r) {
-                    stop_loop |= (1<<2);
                 } else {
-                    FD_SET(sock.fd, &wfds);
+                    if (!r) {
+                        stop_loop |= (1<<2);
+                    } else {
+                        FD_SET(sock.fd, &wfds);
+                    }
+                    break;
                 }
-            } else {
-                if (stop_loop && !(stop_loop>>2)) {
+            }
+
+            if (stop_loop && !buffer_read_size(&sock.write)) {
+                if (!(stop_loop&(1<<2))) {
                     stop_loop |= (1<<2);
                     shutdown(sock.fd, SHUT_WR);
                     gt_log("%s: shutdown\n", sockname);
