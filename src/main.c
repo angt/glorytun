@@ -316,7 +316,7 @@ static struct addrinfo *ai_create (const char *host, const char *port, int liste
     return NULL;
 }
 
-static void gt_sa_stop (int sig)
+static void gt_sa_handler (int sig)
 {
     switch (sig) {
     case SIGINT:
@@ -338,7 +338,7 @@ static void gt_set_signal (void)
 
     sigemptyset(&sa.sa_mask);
 
-    sa.sa_handler = gt_sa_stop;
+    sa.sa_handler = gt_sa_handler;
     sigaction(SIGINT,  &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
@@ -445,13 +445,13 @@ static ssize_t fd_write_all (int fd, const void *data, size_t size)
 
 static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 {
-    size_t rs = buffer_read_size(src);
-    size_t ws = buffer_write_size(dst);
+    const size_t rs = buffer_read_size(src);
+    const size_t ws = buffer_write_size(dst);
 
     if (!rs || !ws)
         return 0;
 
-    size_t size = rs+crypto_aead_aes256gcm_ABYTES;
+    const size_t size = rs+crypto_aead_aes256gcm_ABYTES;
 
     if (size+2>ws)
         return 0;
@@ -476,16 +476,16 @@ static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 
 static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 {
-    size_t rs = buffer_read_size(src);
-    size_t ws = buffer_write_size(dst);
+    const size_t rs = buffer_read_size(src);
+    const size_t ws = buffer_write_size(dst);
 
     if (!rs || !ws)
         return 0;
 
-    if (rs<=2+16)
+    if (rs<=2+crypto_aead_aes256gcm_ABYTES)
         return 0;
 
-    size_t size = (src->read[0]<<8)|src->read[1];
+    const size_t size = (src->read[0]<<8)|src->read[1];
 
     if (size-crypto_aead_aes256gcm_ABYTES>ws)
         return 0;
@@ -530,7 +530,7 @@ static void dump_ip_header (uint8_t *data, size_t size)
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 {
-    size_t size = sizeof(ctx->skey);
+    const size_t size = sizeof(ctx->skey);
 
     byte_set(ctx->skey, 1, size);
 
@@ -686,10 +686,10 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    int listener = option_is_set(opts, "listener");
-    int delay = option_is_set(opts, "delay");
-    int keepalive = option_is_set(opts, "keepalive");
-    int noquickack = option_is_set(opts, "noquickack");
+    const int listener = option_is_set(opts, "listener");
+    const int delay = option_is_set(opts, "delay");
+    const int keepalive = option_is_set(opts, "keepalive");
+    const int noquickack = option_is_set(opts, "noquickack");
 
     if (buffer_size < 2048) {
         buffer_size = 2048;
@@ -814,10 +814,10 @@ int main (int argc, char **argv)
         buffer_format(&sock.read);
 
         while (1) {
-            if (gt_close)
+            if _0_(gt_close)
                 stop_loop |= 1;
 
-            if (stop_loop) {
+            if _0_(stop_loop) {
                 if (((stop_loop&(1<<2)) || !buffer_read_size(&sock.write)) &&
                     ((stop_loop&(1<<1)) || !buffer_read_size(&sock.read)))
                     goto restart;
@@ -828,7 +828,7 @@ int main (int argc, char **argv)
 
             FD_SET(sock.fd, &rfds);
 
-            if (select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
+            if _0_(select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
                 if (errno==EINTR)
                     continue;
                 perror("select");
@@ -843,7 +843,7 @@ int main (int argc, char **argv)
          // gettimeofday(&now, NULL);
 
 #ifdef TCP_INFO
-            if (gt_info) {
+            if _0_(gt_info) {
                 struct tcp_info ti;
 
                 if (sk_get_info(sock.fd, &ti))
@@ -856,26 +856,25 @@ int main (int argc, char **argv)
             if (FD_ISSET(tun.fd, &rfds)) {
                 while (!blks[blk_write].size) {
                     uint8_t *data = blks[blk_write].data;
-                    ssize_t r = tun_read(tun.fd, data, GT_MTU_MAX);
+                    const ssize_t r = tun_read(tun.fd, data, GT_MTU_MAX);
 
                     if (r<=0) {
                         gt_close |= !r;
                         break;
                     }
 
-                    ssize_t ip_size = ip_get_size(data, GT_MTU_MAX);
+                    const ssize_t ip_size = ip_get_size(data, GT_MTU_MAX);
 
-                    if (ip_size<=0)
+                    if _0_(ip_size<=0)
                         continue;
 
-                    if (ip_size!=r) {
+                    if _0_(ip_size!=r) {
                         dump_ip_header(data, r);
 
-                        if (r<ip_size) {
-                            ip_set_size(data, r);
-                        } else {
+                        if (r>ip_size)
                             continue;
-                        }
+
+                        ip_set_size(data, r);
                     }
 
                     blks[blk_write++].size = r;
@@ -886,16 +885,15 @@ int main (int argc, char **argv)
             while (1) {
                 buffer_shift(&tun.read);
 
-                if (!stop_loop) {
+                if _0_(!stop_loop) {
                     for (; blk_count; blk_read++) {
-                        if (!blks[blk_read].size)
+                        const size_t size = blks[blk_read].size;
+
+                        if (!size || buffer_write_size(&tun.read)<size)
                             break;
 
-                        if (buffer_write_size(&tun.read)<blks[blk_read].size)
-                            break;
-
-                        byte_cpy(tun.read.write, blks[blk_read].data, blks[blk_read].size);
-                        tun.read.write += blks[blk_read].size;
+                        byte_cpy(tun.read.write, blks[blk_read].data, size);
+                        tun.read.write += size;
 
                         blks[blk_read].size = 0;
                         blk_count--;
@@ -907,8 +905,8 @@ int main (int argc, char **argv)
                 if (!buffer_read_size(&sock.write))
                     break;
 
-                ssize_t r = fd_write(sock.fd, sock.write.read,
-                                     buffer_read_size(&sock.write));
+                const ssize_t r = fd_write(sock.fd, sock.write.read,
+                                           buffer_read_size(&sock.write));
 
                 if (r>0) {
                     sock.write.read += r;
@@ -922,7 +920,7 @@ int main (int argc, char **argv)
                 }
             }
 
-            if (stop_loop && !buffer_read_size(&sock.write)) {
+            if _0_(stop_loop && !buffer_read_size(&sock.write)) {
                 if (!(stop_loop&(1<<2))) {
                     stop_loop |= (1<<2);
                     shutdown(sock.fd, SHUT_WR);
@@ -937,8 +935,8 @@ int main (int argc, char **argv)
                 if (noquickack)
                     sk_set_int(sock.fd, sk_quickack, 0);
 
-                ssize_t r = fd_read(sock.fd, sock.read.write,
-                                    buffer_write_size(&sock.read));
+                const ssize_t r = fd_read(sock.fd, sock.read.write,
+                                          buffer_write_size(&sock.read));
 
                 if (r>0) {
                     sock.read.write += r;
@@ -948,7 +946,9 @@ int main (int argc, char **argv)
             }
 
             while (1) {
-                if (gt_decrypt(&ctx, &tun.write, &sock.read)) {
+                buffer_shift(&tun.write);
+
+                if _0_(gt_decrypt(&ctx, &tun.write, &sock.read)) {
                     gt_log("%s: message could not be verified!\n", sockname);
                     goto restart;
                 }
@@ -956,7 +956,7 @@ int main (int argc, char **argv)
                 size_t size = buffer_read_size(&tun.write);
                 ssize_t ip_size = ip_get_size(tun.write.read, size);
 
-                if (!ip_size) {
+                if _0_(!ip_size) {
                     gt_log("%s: bad packet!\n", sockname);
                     goto restart;
                 }
@@ -974,8 +974,6 @@ int main (int argc, char **argv)
                     break;
                 }
             }
-
-            buffer_shift(&tun.write);
         }
 
     restart:
