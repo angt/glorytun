@@ -649,10 +649,16 @@ int main (int argc, char **argv)
     char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
+
     long buffer_size = GT_BUFFER_SIZE;
+
     long ka_count = -1;
     long ka_idle = -1;
     long ka_interval = -1;
+
+    long retry_count = 0;
+    long retry_slope = 1000;
+    long retry_limit = 1000000;
 
     struct option ka_opts[] = {
         { "count",    &ka_count,    option_long },
@@ -663,6 +669,12 @@ int main (int argc, char **argv)
 
     struct option daemon_opts[] = {
         { "fake", NULL, option_option },
+    };
+
+    struct option retry_opts[] = {
+        { "count", &retry_count, option_long },
+        { "slope", &retry_slope, option_long },
+        { "limit", &retry_limit, option_long },
     };
 
     struct option opts[] = {
@@ -677,6 +689,7 @@ int main (int argc, char **argv)
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
         { "noquickack",  NULL,         option_option },
+        { "retry",       &retry_opts,  option_option },
         { "daemon",      &daemon_opts, option_option },
         { "version",     NULL,         option_option },
         { NULL },
@@ -770,13 +783,37 @@ int main (int argc, char **argv)
         }
     }
 
+    long retry = 0;
+
     while (!gt_close) {
         sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
 
         if (sock.fd==-1) {
-            usleep(100000);
+            if (retry<LONG_MAX)
+                retry++;
+
+            long usec = retry*retry_slope;
+
+            if (retry_count>=0 && retry>=retry_count) {
+                gt_log("couldn't %s (%d attempt%s)\n",
+                        listener?"listen":"connect",
+                        retry, (retry>1)?"s":"");
+                break;
+            }
+
+            if (usec>retry_limit)
+                usec = retry_limit;
+
+            if (usec<=0)
+                usec = 0;
+
+            if (usleep(usec)==-1 && errno==EINVAL)
+                sleep(usec/1000000);
+
             continue;
         }
+
+        retry = 0;
 
         char *sockname = sk_get_name(sock.fd);
 
