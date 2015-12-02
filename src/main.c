@@ -669,12 +669,14 @@ int main (int argc, char **argv)
 
     struct option daemon_opts[] = {
         { "fake", NULL, option_option },
+        { NULL },
     };
 
     struct option retry_opts[] = {
         { "count", &retry_count, option_long },
         { "slope", &retry_slope, option_long },
         { "limit", &retry_limit, option_long },
+        { NULL },
     };
 
     struct option opts[] = {
