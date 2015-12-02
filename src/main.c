@@ -659,6 +659,7 @@ int main (int argc, char **argv)
 
     long retry_count = 0;
     long retry_slope = 1000;
+    long retry_const = 0;
     long retry_limit = 1000000;
 
     struct option ka_opts[] = {
@@ -676,6 +677,7 @@ int main (int argc, char **argv)
     struct option retry_opts[] = {
         { "count", &retry_count, option_long },
         { "slope", &retry_slope, option_long },
+        { "const", &retry_const, option_long },
         { "limit", &retry_limit, option_long },
         { NULL },
     };
@@ -796,7 +798,7 @@ int main (int argc, char **argv)
             if (retry<LONG_MAX)
                 retry++;
 
-            long usec = retry*retry_slope;
+            long usec = retry*retry_slope+retry_const;
 
             if (retry_count>=0 && retry>=retry_count) {
                 gt_log("couldn't %s (%d attempt%s)\n",
