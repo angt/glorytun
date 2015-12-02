@@ -661,6 +661,10 @@ int main (int argc, char **argv)
         { NULL },
     };
 
+    struct option daemon_opts[] = {
+        { "fake", NULL, option_option },
+    };
+
     struct option opts[] = {
         { "listener",    NULL,         option_option },
         { "host",        &host,        option_str    },
@@ -673,7 +677,7 @@ int main (int argc, char **argv)
         { "keepalive",   ka_opts,      option_option },
         { "buffer-size", &buffer_size, option_long   },
         { "noquickack",  NULL,         option_option },
-        { "daemon",      NULL,         option_option },
+        { "daemon",      &daemon_opts, option_option },
         { "version",     NULL,         option_option },
         { NULL },
     };
@@ -755,8 +759,11 @@ int main (int argc, char **argv)
             perror("fork");
             return 1;
         case 0:
-            if (setsid()==-1)
+            if (option_is_set(daemon_opts, "fake")) {
+                gt_log("running in fake daemon mode\n");
+            } else if (setsid()==-1) {
                 perror("setsid");
+            }
             break;
         default:
             _exit(0);
