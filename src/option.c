@@ -94,18 +94,18 @@ static int option_usage (struct option *opts, int slen)
     if (!opts)
         return 0;
 
-    int len = slen;
+    int len = 0;
 
     for (int k=0; opts[k].name; k++) {
-        if (len>slen+40) {
-            gt_print("\n%*s", (int)slen, "");
-            len = slen;
+        if (len>40) {
+            gt_print("\n%*s", slen, "");
+            len = 0;
         }
 
         len += gt_print(" [%s", opts[k].name);
 
         if (opts[k].call==option_option) {
-            len += option_usage((struct option *)opts[k].data, len);
+            len += option_usage((struct option *)opts[k].data, slen+len);
         } else {
             len += gt_print(" ARG");
         }
@@ -132,12 +132,11 @@ int option (struct option *opts, int argc, char **argv)
 
     if (slen>40) {
         slen = 12;
-        gt_print("\n%*s", (int)slen, "");
+        gt_print("\n%*s", slen, "");
     }
 
     option_usage(opts, slen);
-
-    printf("\n");
+    gt_print("\n");
 
     return 1;
 }
