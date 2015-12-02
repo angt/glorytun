@@ -347,6 +347,7 @@ static void gt_set_signal (void)
     sa.sa_handler = SIG_IGN;
     sigaction(SIGHUP,  &sa, NULL);
     sigaction(SIGPIPE, &sa, NULL);
+    sigaction(SIGUSR2, &sa, NULL);
 }
 
 static ssize_t fd_read (int fd, void *data, size_t size)
@@ -824,6 +825,7 @@ int main (int argc, char **argv)
             continue;
         }
 
+        kill(0, SIGUSR2);
         gt_log("%s: connected\n", sockname);
 
         fd_set_nonblock(sock.fd);
