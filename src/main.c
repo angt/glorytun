@@ -694,6 +694,7 @@ int main (int argc, char **argv)
         { "noquickack",  NULL,         option_option },
         { "retry",       &retry_opts,  option_option },
         { "daemon",      &daemon_opts, option_option },
+        { "trap",        NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
     };
@@ -825,7 +826,9 @@ int main (int argc, char **argv)
             continue;
         }
 
-        kill(0, SIGUSR2);
+        if (option_is_set(opts, "trap"))
+            kill(0, SIGUSR2);
+
         gt_log("%s: connected\n", sockname);
 
         fd_set_nonblock(sock.fd);
