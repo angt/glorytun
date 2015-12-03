@@ -819,17 +819,12 @@ int main (int argc, char **argv)
             continue;
         }
 
-        retry = 0;
-
         char *sockname = sk_get_name(sock.fd);
 
         if (!sockname) {
             close(sock.fd);
             continue;
         }
-
-        if (option_is_set(opts, "trap"))
-            kill(0, SIGUSR2);
 
         gt_log("%s: connected\n", sockname);
 
@@ -861,6 +856,13 @@ int main (int argc, char **argv)
         default:
             break;
         }
+
+        retry = 0;
+
+        if (option_is_set(opts, "trap"))
+            kill(0, SIGUSR2);
+
+        gt_log("%s: running\n");
 
         fd_set rfds;
         FD_ZERO(&rfds);
