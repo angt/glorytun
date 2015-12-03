@@ -23,7 +23,7 @@
 #endif
 
 #define GT_BUFFER_SIZE  (4*1024*1024)
-#define GT_TIMEOUT      (1000)
+#define GT_TIMEOUT      (5000)
 #define GT_MTU_MAX      (1500)
 #define GT_TUNR_SIZE    (0x7FFF-16)
 #define GT_TUNW_SIZE    (0x7FFF)
@@ -852,9 +852,14 @@ int main (int argc, char **argv)
         sk_set(sock.fd, sk_congestion, congestion, str_len(congestion));
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
-            case -2: gt_log("%s: key exchange could not be verified!\n", sockname);
-            case -1: goto restart;
-            default: break;
+        case -2:
+            gt_log("%s: key exchange could not be verified!\n", sockname);
+            goto restart;
+        case -1:
+            gt_log("%s: key exchange timeout\n", sockname);
+            goto restart;
+        default:
+            break;
         }
 
         fd_set rfds, wfds;
