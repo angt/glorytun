@@ -862,7 +862,7 @@ int main (int argc, char **argv)
         if (option_is_set(opts, "trap"))
             kill(0, SIGUSR2);
 
-        gt_log("%s: running\n");
+        gt_log("%s: running\n", sockname);
 
         fd_set rfds;
         FD_ZERO(&rfds);
