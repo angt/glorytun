@@ -880,10 +880,14 @@ int main (int argc, char **argv)
                     goto restart;
                 FD_CLR(tun.fd, &rfds);
             } else {
-                FD_SET(tun.fd, &rfds);
+                if (!blks[blk_write].size)
+                    FD_SET(tun.fd, &rfds);
             }
 
-            FD_SET(sock.fd, &rfds);
+            buffer_shift(&sock.read);
+
+            if (buffer_write_size(&sock.read))
+                FD_SET(sock.fd, &rfds);
 
             struct timeval timeout = {
                 .tv_usec = 1000,
@@ -984,7 +988,6 @@ int main (int argc, char **argv)
             }
 
             buffer_shift(&sock.write);
-            buffer_shift(&sock.read);
 
             if (FD_ISSET(sock.fd, &rfds)) {
                 if (noquickack)
