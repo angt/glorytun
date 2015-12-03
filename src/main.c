@@ -880,14 +880,20 @@ int main (int argc, char **argv)
                     goto restart;
                 FD_CLR(tun.fd, &rfds);
             } else {
-                if (!blks[blk_write].size)
+                if (!blks[blk_write].size) {
                     FD_SET(tun.fd, &rfds);
+                } else {
+                    FD_CLR(tun.fd, &rfds);
+                }
             }
 
             buffer_shift(&sock.read);
 
-            if (buffer_write_size(&sock.read))
+            if (buffer_write_size(&sock.read)) {
                 FD_SET(sock.fd, &rfds);
+            } else {
+                FD_CLR(sock.fd, &rfds);
+            }
 
             struct timeval timeout = {
                 .tv_usec = 1000,
