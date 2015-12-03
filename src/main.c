@@ -862,9 +862,8 @@ int main (int argc, char **argv)
             break;
         }
 
-        fd_set rfds, wfds;
+        fd_set rfds;
         FD_ZERO(&rfds);
-        FD_ZERO(&wfds);
 
         int stop_loop = 0;
 
@@ -886,15 +885,16 @@ int main (int argc, char **argv)
 
             FD_SET(sock.fd, &rfds);
 
-            if _0_(select(sock.fd+1, &rfds, &wfds, NULL, NULL)==-1) {
+            struct timeval timeout = {
+                .tv_usec = 1000,
+            };
+
+            if _0_(select(sock.fd+1, &rfds, NULL, NULL, &timeout)==-1) {
                 if (errno==EINTR)
                     continue;
                 perror("select");
                 return 1;
             }
-
-            FD_CLR(sock.fd, &wfds);
-            FD_CLR(tun.fd, &wfds);
 
          // TODO
          // struct timeval now;
@@ -969,11 +969,8 @@ int main (int argc, char **argv)
                 if (r>0) {
                     sock.write.read += r;
                 } else {
-                    if (!r) {
+                    if (!r)
                         stop_loop |= (1<<2);
-                    } else {
-                        FD_SET(sock.fd, &wfds);
-                    }
                     break;
                 }
             }
@@ -1028,7 +1025,6 @@ int main (int argc, char **argv)
                     tun.write.read += r;
                 } else {
                     gt_close |= !r;
-                    FD_SET(tun.fd, &wfds);
                     break;
                 }
             }
