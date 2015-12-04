@@ -6,6 +6,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar subdir-objects])
 AM_DEP_TRACK
 AM_SILENT_RULES([yes])
+AM_PROG_CC_C_O
 AC_PROG_CC_C99
 AC_USE_SYSTEM_EXTENSIONS
 AC_SEARCH_LIBS([getaddrinfo], [resolv nsl])
