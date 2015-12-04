@@ -851,7 +851,7 @@ int main (int argc, char **argv)
             gt_log("%s: key exchange could not be verified!\n", sockname);
             goto restart;
         case -1:
-            gt_log("%s: key exchange timeout\n", sockname);
+            gt_log("%s: key exchange failed\n", sockname);
             goto restart;
         default:
             break;
