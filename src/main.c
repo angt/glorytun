@@ -803,7 +803,7 @@ int main (int argc, char **argv)
             if (retry_count>=0 && retry>=retry_count) {
                 gt_log("couldn't %s (%d attempt%s)\n",
                         listener?"listen":"connect",
-                        retry, (retry>1)?"s":"");
+                        (int)retry, (retry>1)?"s":"");
                 break;
             }
 
