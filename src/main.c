@@ -668,11 +668,6 @@ int main (int argc, char **argv)
         { NULL },
     };
 
-    struct option daemon_opts[] = {
-        { "fake", NULL, option_option },
-        { NULL },
-    };
-
     struct option retry_opts[] = {
         { "count", &retry_count, option_long },
         { "slope", &retry_slope, option_long },
@@ -694,7 +689,7 @@ int main (int argc, char **argv)
         { "buffer-size", &buffer_size, option_long   },
         { "noquickack",  NULL,         option_option },
         { "retry",       &retry_opts,  option_option },
-        { "daemon",      &daemon_opts, option_option },
+        { "daemon",      NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
     };
@@ -776,15 +771,14 @@ int main (int argc, char **argv)
             perror("fork");
             return 1;
         case 0:
-            if (option_is_set(daemon_opts, "fake")) {
-                gt_log("running in fake daemon mode\n");
-            } else if (setsid()==-1) {
+            if (setsid()==-1)
                 perror("setsid");
-            }
             break;
         default:
             _exit(0);
         }
+
+        chdir("/");
     }
 
     long retry = 0;
