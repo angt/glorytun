@@ -14,6 +14,7 @@ glorytun_SOURCES = \
     src/tun.h
 
 EXTRA_DIST = \
+	LICENSE \
 	README.md \
 	autogen.sh \
 	version.sh
