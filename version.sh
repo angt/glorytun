@@ -6,4 +6,4 @@
 [ -z "${VERSION}" ] && VERSION=`basename \`pwd\`` \
                     && VERSION=${VERSION#*-}
 
-echo -n ${VERSION}
+printf ${VERSION}
