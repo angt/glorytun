@@ -6,6 +6,7 @@ AC_INIT([glorytun],
         [https://github.com/angt/glorytun])
 AC_CONFIG_SRCDIR([src/common.h])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar subdir-objects])
 AM_DEP_TRACK
 AM_SILENT_RULES([yes])

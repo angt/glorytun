@@ -1,9 +1,9 @@
 *.o
 *.log
 *.scan
-*.m4
 *.cache
 *.status
+aclocal.m4
 Makefile
 Makefile.in
 configure

@@ -1,3 +1,5 @@
+ACLOCAL_AMFLAGS = -I m4 --install
+
 bin_PROGRAMS = glorytun
 
 glorytun_CFLAGS = $(libsodium_CFLAGS)
