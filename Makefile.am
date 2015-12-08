@@ -1,4 +1,5 @@
 bin_PROGRAMS = glorytun
+
 glorytun_CFLAGS = $(libsodium_CFLAGS)
 glorytun_LDADD = $(libsodium_LIBS)
 glorytun_SOURCES = \
@@ -11,3 +12,8 @@ glorytun_SOURCES = \
     src/option.h \
     src/tun.c \
     src/tun.h
+
+EXTRA_DIST = \
+	README.md \
+	autogen.sh \
+	version.sh
