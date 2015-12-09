@@ -29,3 +29,4 @@ deploy:
     on:
         tags: true
         repo: angt/glorytun
+        condition: "${TRAVIS_OS_NAME}-${CC} == linux-gcc"
