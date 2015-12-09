@@ -929,11 +929,7 @@ int main (int argc, char **argv)
 
                     if _0_(ip_size!=r) {
                         dump_ip_header(data, r);
-
-                        if (r>ip_size)
-                            continue;
-
-                        ip_set_size(data, r);
+                        continue;
                     }
 
                     blks[blk_write++].size = r;
