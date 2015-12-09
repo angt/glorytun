@@ -380,6 +380,9 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
         if (errno==EAGAIN || errno==EINTR)
             return -1;
 
+        if (errno==EPIPE || errno==ECONNRESET)
+            return 0;
+
         if (errno)
             perror("write");
 
