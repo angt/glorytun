@@ -662,6 +662,7 @@ int main (int argc, char **argv)
         { "noquickack",  NULL,         option_option },
         { "retry",       &retry_opts,  option_option },
         { "daemon",      NULL,         option_option },
+        { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
     };
@@ -678,6 +679,7 @@ int main (int argc, char **argv)
     const int delay = option_is_set(opts, "delay");
     const int keepalive = option_is_set(opts, "keepalive");
     const int noquickack = option_is_set(opts, "noquickack");
+    const int debug = option_is_set(opts, "debug");
 
     if (buffer_size < 2048) {
         buffer_size = 2048;
@@ -891,6 +893,12 @@ int main (int argc, char **argv)
                     if _0_(ip_size!=r) {
                         dump_ip_header(data, r);
                         continue;
+                    }
+
+                    if _0_(debug) {
+                        const int ip_version = ip_get_version(data, GT_MTU_MAX);
+                        const ssize_t ip_proto = ip_get_proto(data, GT_MTU_MAX);
+                        gt_log("%s: version=%i size=%zi proto=%zi\n", sockname, ip_version, ip_size, ip_proto);
                     }
 
                     blks[blk_write++].size = r;
