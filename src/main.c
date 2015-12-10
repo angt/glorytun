@@ -50,6 +50,7 @@ struct crypto_ctx {
 volatile sig_atomic_t gt_close = 0;
 volatile sig_atomic_t gt_info = 0;
 
+_pure_
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
 {
     const int64_t s = ta->tv_sec-tb->tv_sec;
