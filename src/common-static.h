@@ -43,6 +43,7 @@ static inline size_t str_cpy (char *restrict dst, const char *restrict src, size
     return i;
 }
 
+_pure_
 static inline int str_cmp (const char *restrict sa, const char *restrict sb)
 {
     if (!sa || !sb)
@@ -55,6 +56,7 @@ static inline int str_cmp (const char *restrict sa, const char *restrict sb)
     return 1;
 }
 
+_pure_
 static inline size_t str_len (const char *restrict str)
 {
     if (!str)
@@ -111,16 +113,19 @@ static inline void buffer_format (buffer_t *buffer)
     buffer->read  = buffer->data;
 }
 
+_pure_
 static inline size_t buffer_size (buffer_t *buffer)
 {
     return buffer->end-buffer->data;
 }
 
+_pure_
 static inline size_t buffer_write_size (buffer_t *buffer)
 {
     return buffer->end-buffer->write;
 }
 
+_pure_
 static inline size_t buffer_read_size (buffer_t *buffer)
 {
     return buffer->write-buffer->read;
