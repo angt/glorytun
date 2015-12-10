@@ -245,38 +245,6 @@ static char *sk_get_name (int fd)
     return str_cat(strs, COUNT(strs));
 }
 
-#ifdef TCP_INFO
-static socklen_t sk_get_info (int fd, struct tcp_info *ti)
-{
-    socklen_t len = sizeof(struct tcp_info);
-
-    if (getsockopt(fd, SOL_TCP, TCP_INFO, ti, &len)==-1) {
-        perror("getsockopt TCP_INFO");
-        return 0;
-    }
-
-    return len;
-}
-
-static void print_tcp_info (const char *name, struct tcp_info *ti)
-{
-    gt_log("%s: tcpinfo"
-            " rto:%"     PRIu32 " ato:%"          PRIu32 " snd_mss:%"  PRIu32
-            " rcv_mss:%" PRIu32 " unacked:%"      PRIu32 " sacked:%"   PRIu32
-            " lost:%"    PRIu32 " retrans:%"      PRIu32 " fackets:%"  PRIu32
-            " pmtu:%"    PRIu32 " rcv_ssthresh:%" PRIu32 " rtt:%"      PRIu32
-            " rttvar:%"  PRIu32 " snd_ssthresh:%" PRIu32 " snd_cwnd:%" PRIu32
-            " advmss:%"  PRIu32 " reordering:%"   PRIu32 "\n",
-            name,
-            ti->tcpi_rto,       ti->tcpi_ato,            ti->tcpi_snd_mss,
-            ti->tcpi_rcv_mss,   ti->tcpi_unacked,        ti->tcpi_sacked,
-            ti->tcpi_lost,      ti->tcpi_retrans,        ti->tcpi_fackets,
-            ti->tcpi_pmtu,      ti->tcpi_rcv_ssthresh,   ti->tcpi_rtt,
-            ti->tcpi_rttvar,    ti->tcpi_snd_ssthresh,   ti->tcpi_snd_cwnd,
-            ti->tcpi_advmss,    ti->tcpi_reordering);
-}
-#endif
-
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
 {
     if (!port || !port[0]) {
@@ -903,17 +871,6 @@ int main (int argc, char **argv)
          // TODO
          // struct timeval now;
          // gettimeofday(&now, NULL);
-
-#ifdef TCP_INFO
-            if _0_(gt_info) {
-                struct tcp_info ti;
-
-                if (sk_get_info(sock.fd, &ti))
-                    print_tcp_info(sockname, &ti);
-
-                gt_info = 0;
-            }
-#endif
 
             if (FD_ISSET(tun.fd, &rfds)) {
                 while (!blks[blk_write].size) {
