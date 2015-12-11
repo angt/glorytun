@@ -40,3 +40,18 @@ static inline ssize_t ip_get_proto (const uint8_t *data, size_t size)
 
     return 0;
 }
+
+_pure_
+static inline ssize_t ip_get_hdr_size (const uint8_t *data, size_t size)
+{
+    switch (ip_get_version(data, size)) {
+    case 4:
+        return (data[0]&0xF)<<2;
+    case 6:
+        return 40;
+    case -1:
+        return -1;
+    }
+
+    return 0;
+}
