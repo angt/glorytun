@@ -18,5 +18,5 @@ To build and install the latest version:
 
 To create and use a new secret key:
 
-    $ dd if=/dev/urandom of=glorytun.key bs=32 count=1
+    $ hexdump -n 32 /dev/urandom -e '"%X"' > glorytun.key
     # glorytun keyfile glorytun.key [...]
