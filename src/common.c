@@ -38,3 +38,53 @@ void gt_na (const char *name)
 {
     gt_log("%s is not available on your platform!\n", name);
 }
+
+int gt_tohex (char *dst, size_t dst_size, const uint8_t *src, size_t src_size)
+{
+    if _0_(dst_size<2*src_size+1)
+        return -1;
+
+    const char tbl[] = "0123456789ABCDEF";
+
+    for (size_t i=0; i<src_size; i++) {
+        dst[(i<<1)+0] = tbl[0xF&(src[i]>>4)];
+        dst[(i<<1)+1] = tbl[0xF&(src[i])];
+    }
+
+    dst[2*src_size] = 0;
+
+    return 0;
+}
+
+_const_
+static inline int fromhex (const char c)
+{
+    if (c>='0' && c<='9')
+        return c-'0';
+
+    if (c>='A' && c<='F')
+        return c-'a'+10;
+
+    return -1;
+}
+
+int gt_fromhex (uint8_t *dst, size_t dst_size, const char *src, size_t src_size)
+{
+    if _0_(src_size&1)
+        return -1;
+
+    if _0_(src_size>2*dst_size)
+        return -1;
+
+    for (size_t i=0; i<src_size; i+=2) {
+        const int a = fromhex(src[i]);
+        const int b = fromhex(src[i+1]);
+
+        if _0_(a==-1 || b==-1)
+            return -1;
+
+        dst[i>>1] = (a<<4)|b;
+    }
+
+    return 0;
+}

@@ -483,38 +483,23 @@ static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     return 0;
 }
 
-static void gt_dump (uint8_t *dst, size_t dst_size, uint8_t *src, size_t src_size)
-{
-    if (dst_size<2*src_size+1)
-        return;
-
-    const char tbl[] = "0123456789ABCDEF";
-
-    for (size_t i=0; i<src_size; i++) {
-        dst[(i<<1)+0] = tbl[0xF&(src[i]>>4)];
-        dst[(i<<1)+1] = tbl[0xF&(src[i])];
-    }
-
-    dst[2*src_size] = 0;
-}
-
 static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
 {
     const int ip_version = ip_get_version(data, GT_MTU_MAX);
     const ssize_t ip_proto = ip_get_proto(data, GT_MTU_MAX);
     const ssize_t ip_hdr_size = ip_get_hdr_size(data, GT_MTU_MAX);
 
-    uint8_t ip_src[33];
-    uint8_t ip_dst[33];
+    char ip_src[33];
+    char ip_dst[33];
 
     switch (ip_version) {
         case 4:
-            gt_dump(ip_src, sizeof(ip_src), &data[12], 4);
-            gt_dump(ip_dst, sizeof(ip_dst), &data[16], 4);
+            gt_tohex(ip_src, sizeof(ip_src), &data[12], 4);
+            gt_tohex(ip_dst, sizeof(ip_dst), &data[16], 4);
             break;
         case 6:
-            gt_dump(ip_src, sizeof(ip_src), &data[9], 16);
-            gt_dump(ip_dst, sizeof(ip_dst), &data[25], 16);
+            gt_tohex(ip_src, sizeof(ip_src), &data[9], 16);
+            gt_tohex(ip_dst, sizeof(ip_dst), &data[25], 16);
             break;
     }
 
@@ -930,8 +915,8 @@ int main (int argc, char **argv)
                         continue;
 
                     if _0_(ip_size!=r) {
-                        uint8_t tmp[2*GT_MTU_MAX+1];
-                        gt_dump(tmp, sizeof(tmp), data, GT_MTU_MAX);
+                        char tmp[2*GT_MTU_MAX+1];
+                        gt_tohex(tmp, sizeof(tmp), data, r);
                         gt_log("%s: DUMP %zi %s\n", sockname, r, tmp);
                         continue;
                     }
