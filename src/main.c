@@ -544,13 +544,20 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
         return -1;
     }
 
-    if (fd_read_all(fd, ctx->skey, size)!=size) {
-        gt_log("unable to read secret key in `%s'\n", keyfile);
-        close(fd);
+    char key[2*size];
+    size_t r = fd_read_all(fd, key, sizeof(key));
+
+    close(fd);
+
+    if (r!=sizeof(key)) {
+        gt_log("unable to read secret key\n");
         return -1;
     }
 
-    close(fd);
+    if (gt_fromhex(ctx->skey, size, key, sizeof(key))) {
+        gt_log("secret key is not valid\n");
+        return -1;
+    }
 
     return 0;
 }
