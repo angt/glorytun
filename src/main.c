@@ -12,6 +12,8 @@
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
+
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -509,27 +511,42 @@ static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
 
     gt_log("%s: version=%i size=%zi proto=%zi src=%s dst=%s\n", sockname, ip_version, ip_size, ip_proto, ip_src, ip_dst);
 
-    if (ip_hdr_size<=0 || ip_proto!=6)
+    if (ip_hdr_size<=0)
         return;
 
-    struct tcphdr tcp;
+    if (ip_proto==SOL_TCP) {
+        struct tcphdr tcp;
 
-    byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
+        byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
 
-    tcp.th_sport = ntohs(tcp.th_sport);
-    tcp.th_dport = ntohs(tcp.th_dport);
-    tcp.th_seq = ntohl(tcp.th_seq);
-    tcp.th_ack = ntohl(tcp.th_ack);
-    tcp.th_win = ntohs(tcp.th_win);
+        tcp.th_sport = ntohs(tcp.th_sport);
+        tcp.th_dport = ntohs(tcp.th_dport);
+        tcp.th_seq = ntohl(tcp.th_seq);
+        tcp.th_ack = ntohl(tcp.th_ack);
+        tcp.th_win = ntohs(tcp.th_win);
 
-    gt_log("%s: tcp src=%i dst=%i seq=%u ack=%u win=%u %c%c%c%c%c%c\n",
-            sockname, tcp.th_sport, tcp.th_dport, tcp.th_seq, tcp.th_ack, tcp.th_win,
-            (tcp.th_flags&TH_FIN) ?'F':'.',
-            (tcp.th_flags&TH_SYN) ?'S':'.',
-            (tcp.th_flags&TH_RST) ?'R':'.',
-            (tcp.th_flags&TH_PUSH)?'P':'.',
-            (tcp.th_flags&TH_ACK) ?'A':'.',
-            (tcp.th_flags&TH_URG) ?'U':'.');
+        gt_log("%s: tcp src=%u dst=%u seq=%u ack=%u win=%u %c%c%c%c%c%c\n",
+                sockname, tcp.th_sport, tcp.th_dport, tcp.th_seq, tcp.th_ack, tcp.th_win,
+                (tcp.th_flags&TH_FIN) ?'F':'.',
+                (tcp.th_flags&TH_SYN) ?'S':'.',
+                (tcp.th_flags&TH_RST) ?'R':'.',
+                (tcp.th_flags&TH_PUSH)?'P':'.',
+                (tcp.th_flags&TH_ACK) ?'A':'.',
+                (tcp.th_flags&TH_URG) ?'U':'.');
+    }
+
+    if (ip_proto==SOL_UDP) {
+        struct udphdr udp;
+
+        byte_cpy(&udp, &data[ip_hdr_size], sizeof(udp));
+
+        udp.uh_sport = ntohs(udp.uh_sport);
+        udp.uh_dport = ntohs(udp.uh_dport);
+        udp.uh_ulen = ntohs(udp.uh_ulen);
+
+        gt_log("%s: udp src=%u dst=%u len=%u\n",
+                sockname, udp.uh_sport, udp.uh_dport, udp.uh_ulen);
+    }
 }
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
@@ -938,7 +955,6 @@ int main (int argc, char **argv)
 
                     if _0_(debug)
                         gt_print_hdr(data, ip_size, sockname);
-
 
                     blks[blk_write++].size = r;
                     blk_count++;
