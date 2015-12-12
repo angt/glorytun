@@ -792,32 +792,29 @@ int main (int argc, char **argv)
     long retry = 0;
 
     while (!gt_close) {
-        sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
+        if (retry_count>=0 && retry>=retry_count+1) {
+            gt_log("couldn't %s (%d attempt%s)\n", listener?"listen":"connect",
+                   (int)retry, (retry>1)?"s":"");
+            break;
+        }
 
-        if (sock.fd==-1) {
-            if (retry<LONG_MAX)
-                retry++;
-
+        if (retry_slope || retry_const) {
             long usec = retry*retry_slope+retry_const;
-
-            if (retry_count>=0 && retry>=retry_count) {
-                gt_log("couldn't %s (%d attempt%s)\n",
-                        listener?"listen":"connect",
-                        (int)retry, (retry>1)?"s":"");
-                break;
-            }
 
             if (usec>retry_limit)
                 usec = retry_limit;
 
-            if (usec<=0)
-                continue;
-
-            if (usleep(usec)==-1 && errno==EINVAL)
+            if (usec>0 && usleep(usec)==-1 && errno==EINVAL)
                 sleep(usec/1000000);
-
-            continue;
         }
+
+        if (retry<LONG_MAX)
+            retry++;
+
+        sock.fd = listener?sk_accept(fd):sk_create(ai, sk_connect);
+
+        if (sock.fd==-1)
+            continue;
 
         char *sockname = sk_get_name(sock.fd);
 
