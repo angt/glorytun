@@ -514,7 +514,7 @@ static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
     if (ip_hdr_size<=0)
         return;
 
-    if (ip_proto==SOL_TCP) {
+    if (ip_proto==6) {
         struct tcphdr tcp;
 
         byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
@@ -535,7 +535,7 @@ static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
                 (tcp.th_flags&TH_URG) ?'U':'.');
     }
 
-    if (ip_proto==SOL_UDP) {
+    if (ip_proto==17) {
         struct udphdr udp;
 
         byte_cpy(&udp, &data[ip_hdr_size], sizeof(udp));
