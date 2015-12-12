@@ -5,7 +5,11 @@
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
-#include <sys/socket.h>
+
+#ifndef __FAVOR_BSD
+#define __FAVOR_BSD 1
+#endif
+
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -512,16 +516,20 @@ static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
 
     byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
 
-    tcp.source = ntohs(tcp.source);
-    tcp.dest = ntohs(tcp.dest);
-    tcp.seq = ntohl(tcp.seq);
-    tcp.ack_seq = ntohl(tcp.ack_seq);
-    tcp.window = ntohs(tcp.window);
+    tcp.th_sport = ntohs(tcp.th_sport);
+    tcp.th_dport = ntohs(tcp.th_dport);
+    tcp.th_seq = ntohl(tcp.th_seq);
+    tcp.th_ack = ntohl(tcp.th_ack);
+    tcp.th_win = ntohs(tcp.th_win);
 
-    gt_log("%s: tcp src=%i dst=%i seq=%u ack=%u win=%u %s%s%s%s%s%s\n",
-            sockname, tcp.source, tcp.dest, tcp.seq, tcp.ack_seq, tcp.window,
-            tcp.fin?"FIN ":"", tcp.syn?"SYN ":"", tcp.rst?"RST ":"",
-            tcp.psh?"PSH ":"", tcp.ack?"ACK ":"", tcp.urg?"URG ":"");
+    gt_log("%s: tcp src=%i dst=%i seq=%u ack=%u win=%u %c%c%c%c%c%c\n",
+            sockname, tcp.th_sport, tcp.th_dport, tcp.th_seq, tcp.th_ack, tcp.th_win,
+            (tcp.th_flags&TH_FIN) ?'F':'.',
+            (tcp.th_flags&TH_SYN) ?'S':'.',
+            (tcp.th_flags&TH_RST) ?'R':'.',
+            (tcp.th_flags&TH_PUSH)?'P':'.',
+            (tcp.th_flags&TH_ACK) ?'A':'.',
+            (tcp.th_flags&TH_URG) ?'U':'.');
 }
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
