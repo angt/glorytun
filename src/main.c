@@ -659,8 +659,8 @@ int main (int argc, char **argv)
     long ka_idle = -1;
     long ka_interval = -1;
 
-    long retry_count = 0;
-    long retry_slope = 1000;
+    long retry_count = -1;
+    long retry_slope = 0;
     long retry_const = 0;
     long retry_limit = 1000000;
 
@@ -716,6 +716,9 @@ int main (int argc, char **argv)
         buffer_size = 2048;
         gt_log("buffer size must be greater than 2048!\n");
     }
+
+    if (!listener && !option_is_set(opts, "retry"))
+        retry_count = 0;
 
     if (sodium_init()==-1) {
         gt_log("libsodium initialization has failed!\n");
@@ -808,7 +811,7 @@ int main (int argc, char **argv)
                 usec = retry_limit;
 
             if (usec<=0)
-                usec = 0;
+                continue;
 
             if (usleep(usec)==-1 && errno==EINVAL)
                 sleep(usec/1000000);
