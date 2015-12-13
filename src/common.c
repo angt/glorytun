@@ -41,17 +41,20 @@ void gt_na (const char *name)
 
 int gt_tohex (char *dst, size_t dst_size, const uint8_t *src, size_t src_size)
 {
-    if _0_(dst_size<2*src_size+1)
+    if _0_(!dst_size)
         return -1;
 
-    const char tbl[] = "0123456789ABCDEF";
+    if _0_(((dst_size-1)/2)<src_size)
+        return -1;
+
+    static const char tbl[] = "0123456789ABCDEF";
 
     for (size_t i=0; i<src_size; i++) {
-        dst[(i<<1)+0] = tbl[0xF&(src[i]>>4)];
-        dst[(i<<1)+1] = tbl[0xF&(src[i])];
+        *dst++ = tbl[0xF&(src[i]>>4)];
+        *dst++ = tbl[0xF&(src[i])];
     }
 
-    dst[2*src_size] = 0;
+    *dst = 0;
 
     return 0;
 }
@@ -63,7 +66,7 @@ static inline int fromhex (const char c)
         return c-'0';
 
     if (c>='A' && c<='F')
-        return c-'a'+10;
+        return c-'A'+10;
 
     return -1;
 }
@@ -73,7 +76,7 @@ int gt_fromhex (uint8_t *dst, size_t dst_size, const char *src, size_t src_size)
     if _0_(src_size&1)
         return -1;
 
-    if _0_(src_size>2*dst_size)
+    if _0_(dst_size<(src_size/2))
         return -1;
 
     for (size_t i=0; i<src_size; i+=2) {
@@ -83,7 +86,7 @@ int gt_fromhex (uint8_t *dst, size_t dst_size, const char *src, size_t src_size)
         if _0_(a==-1 || b==-1)
             return -1;
 
-        dst[i>>1] = (a<<4)|b;
+        *dst++ = (a<<4)|b;
     }
 
     return 0;
