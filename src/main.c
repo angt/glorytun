@@ -491,11 +491,10 @@ static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     return 0;
 }
 
-static void gt_print_hdr (uint8_t *data, size_t ip_size, const char *sockname)
+static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size, const char *sockname)
 {
-    const int ip_version = ip_get_version(data, GT_MTU_MAX);
-    const ssize_t ip_proto = ip_get_proto(data, GT_MTU_MAX);
-    const ssize_t ip_hdr_size = ip_get_hdr_size(data, GT_MTU_MAX);
+    const ssize_t ip_proto = ip_get_proto(ip_version, data, ip_size);
+    const ssize_t ip_hdr_size = ip_get_hdr_size(ip_version, data, ip_size);
 
     char ip_src[33];
     char ip_dst[33];
@@ -943,7 +942,8 @@ int main (int argc, char **argv)
                         break;
                     }
 
-                    const ssize_t ip_size = ip_get_size(data, GT_MTU_MAX);
+                    const int ip_version = ip_get_version(data, GT_MTU_MAX);
+                    const ssize_t ip_size = ip_get_size(ip_version, data, GT_MTU_MAX);
 
                     if _0_(ip_size<=0)
                         continue;
@@ -956,7 +956,7 @@ int main (int argc, char **argv)
                     }
 
                     if _0_(debug)
-                        gt_print_hdr(data, ip_size, sockname);
+                        gt_print_hdr(ip_version, data, ip_size, sockname);
 
                     blks[blk_write++].size = r;
                     blk_count++;
@@ -1031,7 +1031,9 @@ int main (int argc, char **argv)
                 }
 
                 size_t size = buffer_read_size(&tun.write);
-                ssize_t ip_size = ip_get_size(tun.write.read, size);
+
+                const int ip_version = ip_get_version(tun.write.read, size);
+                ssize_t ip_size = ip_get_size(ip_version, tun.write.read, size);
 
                 if _0_(!ip_size) {
                     gt_log("%s: bad packet!\n", sockname);
