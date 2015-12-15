@@ -554,10 +554,16 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 {
     const size_t size = sizeof(ctx->skey);
 
-    byte_set(ctx->skey, 1, size);
+    if (!keyfile) {
+        char buf[2*size+1];
 
-    if (!keyfile)
+        randombytes_buf(ctx->skey, size);
+        gt_tohex(buf, sizeof(buf), ctx->skey, size);
+
+        gt_print("new secret key: %s\n", buf);
+
         return 0;
+    }
 
     int fd;
 
@@ -756,11 +762,6 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    struct crypto_ctx ctx;
-
-    if (gt_setup_secretkey(&ctx, keyfile))
-        return 1;
-
     struct addrinfo *ai = ai_create(host, port, listener);
 
     if (!ai)
@@ -798,6 +799,11 @@ int main (int argc, char **argv)
         if (fd==-1)
             return 1;
     }
+
+    struct crypto_ctx ctx;
+
+    if (gt_setup_secretkey(&ctx, keyfile))
+        return 1;
 
     if (option_is_set(opts, "daemon")) {
         switch (fork()) {
