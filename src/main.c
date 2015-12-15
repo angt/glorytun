@@ -7,12 +7,18 @@
 #include <sys/fcntl.h>
 
 #ifndef __FAVOR_BSD
-#define __FAVOR_BSD 1
+#define __FAVOR_BSD
+#define GT_FAKE_BSD
 #endif
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+
+#ifdef GT_FAKE_BSD
+#undef GT_FAKE_BSD
+#undef __FAVOR_BSD
+#endif
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -496,18 +502,18 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size, c
     const ssize_t ip_proto = ip_get_proto(ip_version, data, ip_size);
     const ssize_t ip_hdr_size = ip_get_hdr_size(ip_version, data, ip_size);
 
-    char ip_src[33];
-    char ip_dst[33];
+    char ip_src[INET6_ADDRSTRLEN];
+    char ip_dst[INET6_ADDRSTRLEN];
 
     switch (ip_version) {
-        case 4:
-            gt_tohex(ip_src, sizeof(ip_src), &data[12], 4);
-            gt_tohex(ip_dst, sizeof(ip_dst), &data[16], 4);
-            break;
-        case 6:
-            gt_tohex(ip_src, sizeof(ip_src), &data[9], 16);
-            gt_tohex(ip_dst, sizeof(ip_dst), &data[25], 16);
-            break;
+    case 4:
+        inet_ntop(AF_INET, &data[12], ip_src, sizeof(ip_src));
+        inet_ntop(AF_INET, &data[16], ip_dst, sizeof(ip_dst));
+        break;
+    case 6:
+        inet_ntop(AF_INET6, &data[9],  ip_src, sizeof(ip_src));
+        inet_ntop(AF_INET6, &data[25], ip_dst, sizeof(ip_dst));
+        break;
     }
 
     gt_log("%s: version=%i size=%zi proto=%zi src=%s dst=%s\n", sockname, ip_version, ip_size, ip_proto, ip_src, ip_dst);
