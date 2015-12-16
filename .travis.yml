@@ -18,6 +18,7 @@ before_script:
 
 script:
     - ./configure --disable-dependency-tracking && make distcheck
+    - md5sum glorytun-*.tar.gz
 
 deploy:
     provider: releases
