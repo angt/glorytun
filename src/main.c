@@ -783,8 +783,10 @@ int main (int argc, char **argv)
 
     tun.fd = tun_create(dev, option_is_set(opts, "multiqueue"));
 
-    if (tun.fd==-1)
+    if (tun.fd==-1) {
+        gt_log("couldn't create tun device\n");
         return 1;
+    }
 
     struct blk *blks = calloc(256, sizeof(struct blk));
     size_t blk_count = 0;

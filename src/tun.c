@@ -35,10 +35,8 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 {
     int fd = open("/dev/net/tun", O_RDWR);
 
-    if (fd==-1) {
-        perror("open /dev/net/tun");
+    if (fd==-1)
         return -1;
-    }
 
     struct ifreq ifr = {
         .ifr_flags = IFF_TUN|IFF_NO_PI,
@@ -55,7 +53,6 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
     str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
 
     if (ioctl(fd, TUNSETIFF, &ifr)) {
-        perror("ioctl TUNSETIFF");
         close(fd);
         return -1;
     }
@@ -69,10 +66,8 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
 {
     int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
 
-    if (fd==-1) {
-        perror("socket");
+    if (fd==-1)
         return -1;
-    }
 
     struct ctl_info ci;
 
@@ -80,7 +75,6 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
     str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
 
     if (ioctl(fd, CTLIOCGINFO, &ci)) {
-        perror("ioctl CTLIOCGINFO");
         close(fd);
         return -1;
     }
@@ -94,7 +88,6 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
     };
 
     if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))) {
-        perror("connect");
         close(fd);
         return -1;
     }
