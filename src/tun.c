@@ -26,11 +26,6 @@
 #endif
 
 #ifdef __linux__
-static int tun_create_by_id (_unused_ char *name, _unused_ size_t size, _unused_ unsigned id, _unused_ int mq)
-{
-    return -1;
-}
-
 static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 {
     int fd = open("/dev/net/tun", O_RDWR);
@@ -45,8 +40,6 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
     if (mq) {
 #ifdef IFF_MULTI_QUEUE
         ifr.ifr_flags |= IFF_MULTI_QUEUE;
-#else
-        gt_na("IFF_MULTI_QUEUE");
 #endif
     }
 
@@ -60,6 +53,15 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
     str_cpy(name, ifr.ifr_name, size-1);
 
     return fd;
+}
+
+static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
+{
+    char dev_name[64];
+
+    snprintf(dev_name, sizeof(dev_name), "tun%u", id);
+
+    return tun_create_by_name(name, size, dev_name, mq);
 }
 #elif defined(__APPLE__)
 static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
@@ -92,31 +94,38 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
         return -1;
     }
 
-    snprintf(name, size, "/dev/utun%u", id);
+    snprintf(name, size, "utun%u", id);
 
     return fd;
 }
 
-static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
+static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 {
     unsigned id = 0;
 
-    if (sscanf(dev_name, "/dev/utun%u", &id)!=1)
+    if (sscanf(dev_name, "utun%u", &id)!=1)
         return -1;
 
     return tun_create_by_id(name, size, id, mq);
 }
 #else
-static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
-{
-    snprintf(name, size, "/dev/tun%u", id);
-    return open(name, O_RDWR);
-}
-
 static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
 {
+    char path[64];
+
+    snprintf(path, sizeof(path), "/dev/%s", dev_name);
     str_cpy(name, dev_name, size-1);
-    return open(name, O_RDWR);
+
+    return open(path, O_RDWR);
+}
+
+static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
+{
+    char dev_name[64];
+
+    snprintf(dev_name, sizeof(dev_name), "tun%u", id);
+
+    return tun_create_by_name(name, size, dev_name, mq);
 }
 #endif
 
@@ -124,6 +133,11 @@ int tun_create (char *dev_name, int mq)
 {
     char name[64];
     int fd = -1;
+
+#ifndef IFF_MULTI_QUEUE
+    if (mq)
+        gt_na("IFF_MULTI_QUEUE");
+#endif
 
     if (str_empty(dev_name)) {
         for (unsigned id=0; id<32 && fd==-1; id++)
