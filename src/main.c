@@ -98,6 +98,7 @@ enum sk_opt {
     sk_keepintvl,
     sk_congestion,
     sk_defer_accept,
+    sk_acceptfilter,
     sk_quickack,
 };
 
@@ -145,6 +146,11 @@ static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
             1, IPPROTO_TCP, TCP_QUICKACK,
 #endif
         },
+        [sk_acceptfilter] = { "SO_ACCEPTFILTER",
+#ifdef SO_ACCEPTFILTER
+            1, SOL_SOCKET, SO_ACCEPTFILTER,
+#endif
+        },
     };
 
     if (!opts[opt].present) {
@@ -165,21 +171,23 @@ static int sk_listen (int fd, struct addrinfo *ai)
 {
     sk_set_int(fd, sk_reuseaddr, 1);
 
-    int ret = bind(fd, ai->ai_addr, ai->ai_addrlen);
-
-    if (ret==-1) {
+    if (bind(fd, ai->ai_addr, ai->ai_addrlen)==-1) {
         perror("bind");
         return -1;
     }
 
-    ret = listen(fd, 8);
-
-    if (ret==-1) {
+    if (listen(fd, 8)==-1) {
         perror("listen");
         return -1;
     }
 
+#ifdef __linux__
     sk_set_int(fd, sk_defer_accept, GT_TIMEOUT/1000);
+#else
+    char data[256] = {0};
+    str_cpy(data, "dataready", sizeof(data)-1);
+    sk_set(fd, sk_acceptfilter, &data, sizeof(data));
+#endif
 
     return 0;
 }
