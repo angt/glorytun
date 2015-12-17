@@ -11,26 +11,31 @@
 #include <sys/uio.h>
 
 #ifdef __linux__
-# include <linux/if.h>
-# include <linux/if_tun.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
 #endif
 
 #ifdef __APPLE__
-# include <sys/sys_domain.h>
-# include <sys/kern_control.h>
-# include <net/if_utun.h>
+#include <sys/sys_domain.h>
+#include <sys/kern_control.h>
+#include <net/if_utun.h>
 #endif
 
 #if defined(__APPLE__) || defined(__OpenBSD__)
-# define GT_BSD_TUN 1
+#define GT_BSD_TUN
 #endif
 
 #ifdef __linux__
-int tun_create (char *name, int multiqueue)
+static int tun_create_by_id (_unused_ char *name, _unused_ size_t size, _unused_ unsigned id, _unused_ int mq)
+{
+    return -1;
+}
+
+static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 {
     int fd = open("/dev/net/tun", O_RDWR);
 
-    if (fd<0) {
+    if (fd==-1) {
         perror("open /dev/net/tun");
         return -1;
     }
@@ -39,7 +44,7 @@ int tun_create (char *name, int multiqueue)
         .ifr_flags = IFF_TUN|IFF_NO_PI,
     };
 
-    if (multiqueue) {
+    if (mq) {
 #ifdef IFF_MULTI_QUEUE
         ifr.ifr_flags |= IFF_MULTI_QUEUE;
 #else
@@ -47,79 +52,98 @@ int tun_create (char *name, int multiqueue)
 #endif
     }
 
-    str_cpy(ifr.ifr_name, name, IFNAMSIZ-1);
+    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
 
-    int ret = ioctl(fd, TUNSETIFF, &ifr);
-
-    if (ret<0) {
+    if (ioctl(fd, TUNSETIFF, &ifr)) {
         perror("ioctl TUNSETIFF");
+        close(fd);
         return -1;
     }
 
-    gt_log("tun name: %s\n", ifr.ifr_name);
+    str_cpy(name, ifr.ifr_name, size-1);
 
     return fd;
 }
 #elif defined(__APPLE__)
-int tun_create (_unused_ char *name, _unused_ int mq)
+static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
 {
-    for (unsigned dev_id = 0; dev_id < 32; dev_id++) {
-        struct ctl_info ci;
+    int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
 
-        byte_set(&ci, 0, sizeof(ci));
-        str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
-
-        int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
-
-        if (fd==-1)
-            return -1;
-
-        if (ioctl(fd, CTLIOCGINFO, &ci)==-1) {
-            close(fd);
-            continue;
-        }
-
-        struct sockaddr_ctl sc = {
-            .sc_id = ci.ctl_id,
-            .sc_len = sizeof(sc),
-            .sc_family = AF_SYSTEM,
-            .ss_sysaddr = AF_SYS_CONTROL,
-            .sc_unit = dev_id+1,
-        };
-
-        if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))==-1) {
-            close(fd);
-            continue;
-        }
-
-        gt_log("tun name: /dev/utun%u\n", dev_id);
-
-        return fd;
+    if (fd==-1) {
+        perror("socket");
+        return -1;
     }
 
-    return -1;
+    struct ctl_info ci;
+
+    byte_set(&ci, 0, sizeof(ci));
+    str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
+
+    if (ioctl(fd, CTLIOCGINFO, &ci)) {
+        perror("ioctl CTLIOCGINFO");
+        close(fd);
+        return -1;
+    }
+
+    struct sockaddr_ctl sc = {
+        .sc_id = ci.ctl_id,
+        .sc_len = sizeof(sc),
+        .sc_family = AF_SYSTEM,
+        .ss_sysaddr = AF_SYS_CONTROL,
+        .sc_unit = id+1,
+    };
+
+    if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))) {
+        perror("connect");
+        close(fd);
+        return -1;
+    }
+
+    snprintf(name, size, "/dev/utun%u", id);
+
+    return fd;
+}
+
+static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
+{
+    unsigned id = 0;
+
+    if (sscanf(dev_name, "/dev/utun%u", &id)!=1)
+        return -1;
+
+    return tun_create_by_id(name, size, id, mq);
 }
 #else
-int tun_create (_unused_ char *name, _unused_ int mq)
+static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
 {
-    for (unsigned dev_id = 0; dev_id < 32; dev_id++) {
-        char dev_path[11];
+    snprintf(name, size, "/dev/tun%u", id);
+    return open(name, O_RDWR);
+}
 
-        snprintf(dev_path, sizeof(dev_path), "/dev/tun%u", dev_id);
-
-        int fd = open(dev_path, O_RDWR);
-
-        if (fd==-1)
-            continue;
-
-        gt_log("tun name: %s\n", dev_path);
-
-        return fd;
-    }
-
-    return -1;
+static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
+{
+    str_cpy(name, dev_name, size-1);
+    return open(name, O_RDWR);
 }
 #endif
+
+int tun_create (char *dev_name, int mq)
+{
+    char name[64];
+    int fd = -1;
+
+    if (str_empty(dev_name)) {
+        for (unsigned id=0; id<32 && fd==-1; id++)
+            fd = tun_create_by_id(name, sizeof(name), id, mq);
+    } else {
+        fd = tun_create_by_name(name, sizeof(name), dev_name, mq);
+    }
+
+    if (fd!=-1)
+        gt_print("tun name: %s\n", name);
+
+    return fd;
+}
 
 ssize_t tun_read (int fd, void *data, size_t size)
 {

@@ -687,9 +687,14 @@ int main (int argc, char **argv)
 
     char *host = NULL;
     char *port = "5000";
-    char *dev = PACKAGE_NAME;
     char *keyfile = NULL;
     char *congestion = NULL;
+
+#ifdef __linux__
+    char *dev = PACKAGE_NAME;
+#else
+    char *dev = NULL;
+#endif
 
     long buffer_size = GT_BUFFER_SIZE;
 

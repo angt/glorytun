@@ -18,7 +18,7 @@ static inline void byte_set (void *dst, const char value, size_t size)
 
 static inline void byte_cpy (void *dst, const void *src, size_t size)
 {
-    if (!dst || !src)
+    if (!dst)
         return;
 
     char *restrict d = dst;
@@ -41,6 +41,12 @@ static inline size_t str_cpy (char *restrict dst, const char *restrict src, size
     dst[i] = 0;
 
     return i;
+}
+
+_pure_
+static inline int str_empty (const char *restrict str)
+{
+    return !str || !str[0];
 }
 
 _pure_
