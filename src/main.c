@@ -763,8 +763,15 @@ int main (int argc, char **argv)
         gt_log("buffer size must be greater than 2048!\n");
     }
 
-    if (!listener && !option_is_set(opts, "retry"))
-        retry_count = 0;
+    if (!listener) {
+        if (!option_is_set(opts, "keyfile")) {
+            gt_log("keyfile option must be set\n");
+            return 1;
+        }
+
+        if (!option_is_set(opts, "retry"))
+            retry_count = 0;
+    }
 
     if (sodium_init()==-1) {
         gt_log("libsodium initialization has failed!\n");
