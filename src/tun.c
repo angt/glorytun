@@ -25,45 +25,8 @@
 #define GT_BSD_TUN
 #endif
 
-#ifdef __linux__
-static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
-{
-    int fd = open("/dev/net/tun", O_RDWR);
+#ifdef __APPLE__
 
-    if (fd==-1)
-        return -1;
-
-    struct ifreq ifr = {
-        .ifr_flags = IFF_TUN|IFF_NO_PI,
-    };
-
-    if (mq) {
-#ifdef IFF_MULTI_QUEUE
-        ifr.ifr_flags |= IFF_MULTI_QUEUE;
-#endif
-    }
-
-    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
-
-    if (ioctl(fd, TUNSETIFF, &ifr)) {
-        close(fd);
-        return -1;
-    }
-
-    str_cpy(name, ifr.ifr_name, size-1);
-
-    return fd;
-}
-
-static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
-{
-    char dev_name[64];
-
-    snprintf(dev_name, sizeof(dev_name), "tun%u", id);
-
-    return tun_create_by_name(name, size, dev_name, mq);
-}
-#elif defined(__APPLE__)
 static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
 {
     int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
@@ -108,7 +71,42 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 
     return tun_create_by_id(name, size, id, mq);
 }
-#else
+
+#else /* not __APPLE__ */
+
+#ifdef __linux__
+
+static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
+{
+    int fd = open("/dev/net/tun", O_RDWR);
+
+    if (fd==-1)
+        return -1;
+
+    struct ifreq ifr = {
+        .ifr_flags = IFF_TUN|IFF_NO_PI,
+    };
+
+    if (mq) {
+#ifdef IFF_MULTI_QUEUE
+        ifr.ifr_flags |= IFF_MULTI_QUEUE;
+#endif
+    }
+
+    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
+
+    if (ioctl(fd, TUNSETIFF, &ifr)) {
+        close(fd);
+        return -1;
+    }
+
+    str_cpy(name, ifr.ifr_name, size-1);
+
+    return fd;
+}
+
+#else /* not __linux__ not __APPLE__ */
+
 static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
 {
     char path[64];
@@ -119,6 +117,8 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_
     return open(path, O_RDWR);
 }
 
+#endif /* not __APPLE__ */
+
 static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
 {
     char dev_name[64];
@@ -127,6 +127,7 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
 
     return tun_create_by_name(name, size, dev_name, mq);
 }
+
 #endif
 
 int tun_create (char *dev_name, int mq)
