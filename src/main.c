@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <signal.h>
+#include <string.h>
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
@@ -610,10 +611,11 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 
 static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
+    const size_t size = 96;
+    const size_t hash_size = 32;
+
     const size_t nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
     const size_t public_size = crypto_scalarmult_SCALARBYTES;
-    const size_t hash_size = crypto_generichash_BYTES;
-    const size_t size = nonce_size + public_size + hash_size;
 
     uint8_t secret[crypto_scalarmult_SCALARBYTES];
     uint8_t shared[crypto_scalarmult_BYTES];
@@ -625,9 +627,13 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 
     crypto_generichash_state state;
 
+    byte_set(data_w, 0, size);
     randombytes_buf(data_w, nonce_size);
+
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(&data_w[nonce_size], secret);
+
+    byte_cpy(&data_w[size-hash_size-4], "GT\0\0", 4);
 
     crypto_generichash(&data_w[size-hash_size], hash_size,
             data_w, size-hash_size, ctx->skey, sizeof(ctx->skey));
@@ -637,6 +643,9 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 
     if (fd_read_all(fd, data_r, size)!=size)
         return -1;
+
+    if (memcmp(&data_r[size-hash_size-4], &data_w[size-hash_size-4], 4))
+        return -2;
 
     crypto_generichash(hash, hash_size,
             data_r, size-hash_size, ctx->skey, sizeof(ctx->skey));
