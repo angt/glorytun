@@ -11,11 +11,13 @@ struct node {
     uint8_t mask;
 };
 
+_pure_
 static inline size_t db_size (const uint8_t *a)
 {
     return (a[0]?:str_len((char *)a+1))+1;
 }
 
+_pure_
 static inline size_t db_cmp (const uint8_t *a, const uint8_t *b)
 {
     const size_t size = a[0];
@@ -36,6 +38,7 @@ static inline size_t db_cmp (const uint8_t *a, const uint8_t *b)
     return 0;
 }
 
+_pure_
 static inline int db_dir (struct node *node, const uint8_t *data, const size_t size)
 {
     if (node->size>=size)
@@ -63,14 +66,14 @@ uint8_t *db_search (uint8_t **p, uint8_t *data)
     return NULL;
 }
 
-int db_insert (uint8_t **p, uint8_t *data)
+uint8_t *db_insert (uint8_t **p, uint8_t *data)
 {
     if (CBIT(data))
-        return 0;
+        return NULL;
 
     if (!*p) {
         *p = data;
-        return 1;
+        return data;
     }
 
     uint8_t *r = *p;
@@ -84,7 +87,7 @@ int db_insert (uint8_t **p, uint8_t *data)
     const size_t diff = db_cmp(r, data);
 
     if (!diff)
-        return 2;
+        return r;
 
     const uint8_t size = diff-1;
     const uint8_t mask = ~((1u<<31)>>CLZ(r[size]^data[size]));
@@ -103,7 +106,7 @@ int db_insert (uint8_t **p, uint8_t *data)
     struct node *node = malloc(sizeof(struct node));
 
     if (!node)
-        return 0;
+        return NULL;
 
     const int dir = (mask|r[size])==255;
 
@@ -114,19 +117,19 @@ int db_insert (uint8_t **p, uint8_t *data)
 
     *p = CBIT_PTR(node);
 
-    return 1;
+    return data;
 }
 
-int db_delete (uint8_t **p, uint8_t *data)
+uint8_t *db_remove (uint8_t **p, uint8_t *data)
 {
     if (!*p)
-        return 0;
+        return NULL;
+
+    const size_t size = db_size(data);
 
     uint8_t **p_old = NULL;
     struct node *node = NULL;
     int dir = 0;
-
-    const size_t size = db_size(data);
 
     while (CBIT(*p)) {
         p_old = p;
@@ -136,17 +139,16 @@ int db_delete (uint8_t **p, uint8_t *data)
     }
 
     if (db_cmp(data, *p))
-        return 0;
+        return NULL;
 
-    free(*p);
+    uint8_t *r = *p;
 
-    if (!p_old) {
+    if (p_old) {
+        *p_old = node->child[1-dir];
+        free(node);
+    } else {
         *p = NULL;
-        return 1;
     }
 
-    *p_old = node->child[1-dir];
-    free(node);
-
-    return 1;
+    return r;
 }
