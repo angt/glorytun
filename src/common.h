@@ -17,12 +17,14 @@
 #define _1_(x)         (__builtin_expect((x), 1))
 #define _0_(x)         (__builtin_expect((x), 0))
 
-#define _printf_(A,B)  __attribute__((format(printf,A,B)))
-#define _noreturn_     __attribute__((noreturn))
-#define _unused_       __attribute__((unused))
-#define _pure_         __attribute__((pure))
-#define _const_        __attribute__((const))
-#define _align_(...)   __attribute__((aligned(__VA_ARGS__)))
+#define CLZ(x)         (__builtin_clz(x))
+
+#define _printf_(A,B)  __attribute__ ((format(printf,A,B)))
+#define _noreturn_     __attribute__ ((noreturn))
+#define _unused_       __attribute__ ((unused))
+#define _pure_         __attribute__ ((pure))
+#define _const_        __attribute__ ((const))
+#define _align_(...)   __attribute__ ((aligned(__VA_ARGS__)))
 
 typedef struct buffer buffer_t;
 
