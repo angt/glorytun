@@ -882,7 +882,7 @@ int main (int argc, char **argv)
             return 1;
         }
 
-        if ((st.st_mode&S_IFMT)!=S_IFIFO) {
+        if (!S_ISFIFO(st.st_mode)) {
             gt_log("`%s' is not a fifo\n", statefile);
             return 1;
         }
