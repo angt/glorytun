@@ -7,8 +7,7 @@
 
 struct node {
     uint8_t *child[2];
-    uint8_t size;
-    uint8_t mask;
+    uint32_t point;
 };
 
 _pure_
@@ -39,17 +38,19 @@ static inline size_t db_cmp (const uint8_t *a, const uint8_t *b)
 }
 
 _pure_
-static inline int db_dir (struct node *node, const uint8_t *data, const size_t size)
+static inline int db_dir (const uint32_t point, uint8_t *data, const size_t size)
 {
-    if (node->size>=size)
+    const size_t pos = point>>8;
+
+    if (pos>=size)
         return 0;
 
-    return (node->mask|data[node->size])==255;
+    return ((point|data[pos])&255)==255;
 }
 
 uint8_t *db_search (uint8_t **p, uint8_t *data)
 {
-    if (!*p)
+    if _0_(!*p)
         return NULL;
 
     uint8_t *r = *p;
@@ -57,7 +58,7 @@ uint8_t *db_search (uint8_t **p, uint8_t *data)
 
     while (CBIT(r)) {
         struct node *node = CBIT_NODE(r);
-        r = node->child[db_dir(node, data, size)];
+        r = node->child[db_dir(node->point, data, size)];
     }
 
     if (!db_cmp(r, data))
@@ -68,52 +69,50 @@ uint8_t *db_search (uint8_t **p, uint8_t *data)
 
 uint8_t *db_insert (uint8_t **p, uint8_t *data)
 {
-    if (CBIT(data))
+    if _0_(CBIT(data))
         return NULL;
 
-    if (!*p) {
+    if _0_(!*p) {
         *p = data;
         return data;
     }
 
     uint8_t *r = *p;
-    size_t data_size = db_size(data);
+    size_t size = db_size(data);
 
     while (CBIT(r)) {
         struct node *node = CBIT_NODE(r);
-        r = node->child[db_dir(node, data, data_size)];
+        r = node->child[db_dir(node->point, data, size)];
     }
 
     const size_t diff = db_cmp(r, data);
 
-    if (!diff)
+    if _0_(!diff)
         return r;
 
-    const uint8_t size = diff-1;
-    const uint8_t mask = ~((1u<<31)>>CLZ(r[size]^data[size]));
+    const size_t pos = diff-1;
+    const uint8_t mask = ~((1u<<31)>>CLZ(r[pos]^data[pos]));
+    const size_t point = (pos<<8)|mask;
 
     while (CBIT(*p)) {
         struct node *node = CBIT_NODE(*p);
 
-        if ((node->size>size) ||
-            (node->size==size && node->mask>mask)) {
+        if (node->point>point)
             break;
-        }
 
-        p = node->child+db_dir(node, data, data_size);
+        p = node->child+db_dir(node->point, data, size);
     }
 
     struct node *node = malloc(sizeof(struct node));
 
-    if (!node)
+    if _0_(!node)
         return NULL;
 
-    const int dir = (mask|r[size])==255;
+    const int dir = (mask|r[pos])==255;
 
     node->child[dir] = *p;
     node->child[1-dir] = data;
-    node->size = size;
-    node->mask = mask;
+    node->point = point;
 
     *p = CBIT_PTR(node);
 
@@ -122,7 +121,7 @@ uint8_t *db_insert (uint8_t **p, uint8_t *data)
 
 uint8_t *db_remove (uint8_t **p, uint8_t *data)
 {
-    if (!*p)
+    if _0_(!*p)
         return NULL;
 
     const size_t size = db_size(data);
@@ -134,11 +133,11 @@ uint8_t *db_remove (uint8_t **p, uint8_t *data)
     while (CBIT(*p)) {
         p_old = p;
         node = CBIT_NODE(*p);
-        dir = db_dir(node, data, size);
+        dir = db_dir(node->point, data, size);
         p = node->child+dir;
     }
 
-    if (db_cmp(data, *p))
+    if _0_(db_cmp(data, *p))
         return NULL;
 
     uint8_t *r = *p;
