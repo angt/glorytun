@@ -6,6 +6,7 @@
 #include <poll.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
+#include <sys/stat.h>
 
 #ifndef __FAVOR_BSD
 #define __FAVOR_BSD
@@ -787,6 +788,11 @@ int main (int argc, char **argv)
             retry_count = 0;
     }
 
+    if (statefile && statefile[0]!='/') {
+        gt_log("statefile must be an absolute path\n");
+        return 1;
+    }
+
     if (sodium_init()==-1) {
         gt_log("libsodium initialization has failed!\n");
         return 1;
@@ -866,6 +872,18 @@ int main (int argc, char **argv)
         if (state_fd==-1) {
             if (errno!=EINTR)
                 perror("open statefile");
+            return 1;
+        }
+
+        struct stat st = {0};
+
+        if (fstat(state_fd, &st)==-1) {
+            perror("stat statefile");
+            return 1;
+        }
+
+        if ((st.st_mode&S_IFMT)!=S_IFIFO) {
+            gt_log("`%s' is not a fifo\n", statefile);
             return 1;
         }
     }
