@@ -775,7 +775,7 @@ int main (int argc, char **argv)
 
     if (buffer_size < 2048) {
         buffer_size = 2048;
-        gt_log("buffer size must be greater than 2048!\n");
+        gt_log("buffer size must be greater than 2048\n");
     }
 
     if (!listener) {
@@ -794,7 +794,7 @@ int main (int argc, char **argv)
     }
 
     if (sodium_init()==-1) {
-        gt_log("libsodium initialization has failed!\n");
+        gt_log("libsodium initialization has failed\n");
         return 1;
     }
 
