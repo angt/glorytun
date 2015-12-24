@@ -36,7 +36,7 @@ void gt_fatal (const char *fmt, ...)
 
 void gt_na (const char *name)
 {
-    gt_log("%s is not available on your platform!\n", name);
+    gt_log("%s is not available on your platform\n", name);
 }
 
 int gt_tohex (char *dst, size_t dst_size, const uint8_t *src, size_t src_size)
