@@ -42,6 +42,9 @@
 #define GT_TUNR_SIZE    (0x7FFF-16)
 #define GT_TUNW_SIZE    (0x7FFF)
 
+#define GT_STARTED "STARTED\n"
+#define GT_STOPPED "STOPPED\n"
+
 struct fdbuf {
     int fd;
     buffer_t read;
@@ -342,7 +345,7 @@ static void gt_set_signal (void)
 
 static ssize_t fd_read (int fd, void *data, size_t size)
 {
-    if (!size)
+    if ((fd==-1) || !size)
         return -1;
 
     ssize_t ret = read(fd, data, size);
@@ -362,7 +365,7 @@ static ssize_t fd_read (int fd, void *data, size_t size)
 
 static ssize_t fd_write (int fd, const void *data, size_t size)
 {
-    if (!size)
+    if ((fd==-1) || !size)
         return -1;
 
     ssize_t ret = write(fd, data, size);
@@ -707,6 +710,7 @@ int main (int argc, char **argv)
     char *dev = NULL;
     char *keyfile = NULL;
     char *congestion = NULL;
+    char *statefile = NULL;
 
     long buffer_size = GT_BUFFER_SIZE;
 
@@ -748,6 +752,7 @@ int main (int argc, char **argv)
         { "noquickack",  NULL,         option_option },
         { "retry",       &retry_opts,  option_option },
         { "daemon",      NULL,         option_option },
+        { "statefile",   &statefile,   option_str    },
         { "debug",       NULL,         option_option },
         { "version",     NULL,         option_option },
         { NULL },
@@ -853,6 +858,18 @@ int main (int argc, char **argv)
         chdir("/");
     }
 
+    int state_fd = -1;
+
+    if (statefile) {
+        state_fd = open(statefile, O_WRONLY);
+
+        if (state_fd==-1) {
+            if (errno!=EINTR)
+                perror("open statefile");
+            return 1;
+        }
+    }
+
     long retry = 0;
 
     while (!gt_close) {
@@ -920,7 +937,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        gt_log("%s: running\n", sockname);
+        fd_write(state_fd, GT_STARTED, sizeof(GT_STARTED)-1);
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1093,6 +1110,8 @@ int main (int argc, char **argv)
         }
 
     restart:
+        fd_write(state_fd, GT_STOPPED, sizeof(GT_STOPPED)-1);
+
         if (sockname) {
             free(sockname);
             sockname = NULL;
