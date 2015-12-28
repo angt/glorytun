@@ -43,9 +43,6 @@
 #define GT_TUNR_SIZE    (0x7FFF-16)
 #define GT_TUNW_SIZE    (0x7FFF)
 
-#define GT_STARTED "STARTED\n"
-#define GT_STOPPED "STOPPED\n"
-
 struct fdbuf {
     int fd;
     buffer_t read;
@@ -385,6 +382,11 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     }
 
     return ret;
+}
+
+static ssize_t fd_write_str (int fd, const char *str)
+{
+    return fd_write(fd, str, str_len(str));
 }
 
 static size_t fd_read_all (int fd, void *data, size_t size)
@@ -955,7 +957,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        fd_write(state_fd, GT_STARTED, sizeof(GT_STARTED)-1);
+        fd_write_str(state_fd, "STARTED");
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1128,8 +1130,6 @@ int main (int argc, char **argv)
         }
 
     restart:
-        fd_write(state_fd, GT_STOPPED, sizeof(GT_STOPPED)-1);
-
         if (sockname) {
             free(sockname);
             sockname = NULL;
@@ -1139,6 +1139,8 @@ int main (int argc, char **argv)
             close(sock.fd);
             sock.fd = -1;
         }
+
+        fd_write_str(state_fd, "STOPPED");
     }
 
     freeaddrinfo(ai);
