@@ -512,10 +512,36 @@ static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     return 0;
 }
 
-static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size, const char *sockname)
+_pure_
+static inline uint32_t sum16 (uint32_t sum, const uint8_t *data, const size_t size)
+{
+    const size_t lim = size&~1u;
+
+    for (size_t i=0; i<lim; i+=2)
+        sum += (data[i]<<8)|data[i+1];
+
+    if (size&1)
+        sum += data[size-1]<<8;
+
+    return sum;
+}
+
+_const_
+static inline uint16_t sum16_final (uint32_t sum)
+{
+    sum = (sum>>16)+(sum&0xFFFF);
+    return ~(sum+(sum>>16));
+}
+
+static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
 {
     const ssize_t ip_proto = ip_get_proto(ip_version, data, ip_size);
     const ssize_t ip_hdr_size = ip_get_hdr_size(ip_version, data, ip_size);
+
+    if (ip_proto<0 || ip_hdr_size<=0)
+        return;
+
+    uint32_t sum = (size_t)ip_proto+ip_size-(size_t)ip_hdr_size;
 
     char ip_src[INET6_ADDRSTRLEN];
     char ip_dst[INET6_ADDRSTRLEN];
@@ -524,40 +550,46 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size, c
     case 4:
         inet_ntop(AF_INET, &data[12], ip_src, sizeof(ip_src));
         inet_ntop(AF_INET, &data[16], ip_dst, sizeof(ip_dst));
+        sum = sum16(sum, &data[12], 2*4);
         break;
     case 6:
         inet_ntop(AF_INET6, &data[9],  ip_src, sizeof(ip_src));
         inet_ntop(AF_INET6, &data[25], ip_dst, sizeof(ip_dst));
+        sum = sum16(sum, &data[9], 2*16); // XXX
         break;
     }
 
-    gt_log("%s: version=%i size=%zi proto=%zi src=%s dst=%s\n", sockname, ip_version, ip_size, ip_proto, ip_src, ip_dst);
-
-    if (ip_hdr_size<=0)
-        return;
-
-    if (ip_proto==6) {
+    if (ip_proto==IPPROTO_TCP) {
         struct tcphdr tcp;
 
         byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
+
+        uint16_t tcp_sum = ntohs(tcp.th_sum);
+        tcp.th_sum = 0;
+
+        sum = sum16(sum, (uint8_t *)&tcp, sizeof(tcp));
+        sum = sum16(sum, &data[ip_hdr_size+sizeof(tcp)], ip_size-ip_hdr_size-sizeof(tcp));
+        uint16_t computed_sum = sum16_final(sum);
 
         tcp.th_sport = ntohs(tcp.th_sport);
         tcp.th_dport = ntohs(tcp.th_dport);
         tcp.th_seq = ntohl(tcp.th_seq);
         tcp.th_ack = ntohl(tcp.th_ack);
         tcp.th_win = ntohs(tcp.th_win);
+        tcp.th_sum = ntohs(tcp.th_sum);
 
-        gt_log("%s: tcp src=%u dst=%u seq=%u ack=%u win=%u %c%c%c%c%c%c\n",
-                sockname, tcp.th_sport, tcp.th_dport, tcp.th_seq, tcp.th_ack, tcp.th_win,
+        gt_print("proto:%zi\tsrc:%s.%u\tdst:%s.%u\tseq:%u\tack:%u\twin:%u\tsize:%zu\tflags:%c%c%c%c%c%c\tsum:%i\n",
+                ip_proto, ip_src, tcp.th_sport, ip_dst, tcp.th_dport,
+                tcp.th_seq, tcp.th_ack, tcp.th_win, ip_size-ip_hdr_size+tcp.th_off*4,
                 (tcp.th_flags&TH_FIN) ?'F':'.',
                 (tcp.th_flags&TH_SYN) ?'S':'.',
                 (tcp.th_flags&TH_RST) ?'R':'.',
                 (tcp.th_flags&TH_PUSH)?'P':'.',
                 (tcp.th_flags&TH_ACK) ?'A':'.',
-                (tcp.th_flags&TH_URG) ?'U':'.');
-    }
+                (tcp.th_flags&TH_URG) ?'U':'.',
+                (computed_sum==tcp_sum));
 
-    if (ip_proto==17) {
+    } else if (ip_proto==IPPROTO_UDP) {
         struct udphdr udp;
 
         byte_cpy(&udp, &data[ip_hdr_size], sizeof(udp));
@@ -566,8 +598,11 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size, c
         udp.uh_dport = ntohs(udp.uh_dport);
         udp.uh_ulen = ntohs(udp.uh_ulen);
 
-        gt_log("%s: udp src=%u dst=%u len=%u\n",
-                sockname, udp.uh_sport, udp.uh_dport, udp.uh_ulen);
+        gt_print("proto:%zi\tsrc:%s.%u\tdst:%s.%u\tsize:%u\n",
+                ip_proto, ip_src, udp.uh_sport, ip_dst, udp.uh_dport, udp.uh_ulen-8);
+    } else {
+        gt_print("proto:%zi\tsrc:%s\tdst:%s\tsize:%zu\n",
+                ip_proto, ip_src, ip_dst, ip_size);
     }
 }
 
@@ -1031,7 +1066,7 @@ int main (int argc, char **argv)
                     }
 
                     if _0_(debug)
-                        gt_print_hdr(ip_version, data, ip_size, sockname);
+                        gt_print_hdr(ip_version, data, ip_size);
 
                     blks[blk_write++].size = r;
                     blk_count++;
@@ -1121,6 +1156,8 @@ int main (int argc, char **argv)
                 ssize_t r = tun_write(tun.fd, tun.write.read, ip_size);
 
                 if (r>0) {
+                    if _0_(debug)
+                        gt_print_hdr(ip_version, tun.write.read, ip_size);
                     tun.write.read += r;
                 } else {
                     gt_close |= !r;
