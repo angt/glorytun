@@ -6,4 +6,6 @@
 [ -z "${VERSION}" ] && VERSION=`basename \`pwd\`` \
                     && VERSION=${VERSION#*-}
 
+[ "$1" = "major"  ] && VERSION=${VERSION%%.*}
+
 printf ${VERSION}

@@ -651,6 +651,8 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 
 static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
+    const uint8_t gt[] = {'G', 'T', VERSION_MAJOR, 0 };
+
     const size_t size = 96;
     const size_t hash_size = 32;
 
@@ -673,7 +675,7 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(&data_w[nonce_size], secret);
 
-    byte_cpy(&data_w[size-hash_size-4], "GT\0\0", 4);
+    byte_cpy(&data_w[size-hash_size-sizeof(gt)], gt, sizeof(gt));
 
     crypto_generichash(&data_w[size-hash_size], hash_size,
             data_w, size-hash_size, ctx->skey, sizeof(ctx->skey));
@@ -684,7 +686,7 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (fd_read_all(fd, data_r, size)!=size)
         return -1;
 
-    if (memcmp(&data_r[size-hash_size-4], &data_w[size-hash_size-4], 4))
+    if (memcmp(&data_r[size-hash_size-sizeof(gt)], gt, sizeof(gt)))
         return -2;
 
     crypto_generichash(hash, hash_size,
