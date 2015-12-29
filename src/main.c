@@ -576,7 +576,6 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
         tcp.th_seq = ntohl(tcp.th_seq);
         tcp.th_ack = ntohl(tcp.th_ack);
         tcp.th_win = ntohs(tcp.th_win);
-        tcp.th_sum = ntohs(tcp.th_sum);
 
         gt_print("proto:%zi\tsrc:%s.%u\tdst:%s.%u\tseq:%u\tack:%u\twin:%u\tsize:%zu\tflags:%c%c%c%c%c%c\tsum:%i\n",
                 ip_proto, ip_src, tcp.th_sport, ip_dst, tcp.th_dport,
