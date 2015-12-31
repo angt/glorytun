@@ -928,6 +928,8 @@ int main (int argc, char **argv)
 
     long retry = 0;
 
+    fd_write_str(state_fd, "INITIALIZED");
+
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {
             gt_log("couldn't %s (%d attempt%s)\n", listener?"listen":"connect",
