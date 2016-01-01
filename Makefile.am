@@ -18,7 +18,8 @@ glorytun_SOURCES = \
     src/db.h
 
 EXTRA_DIST = \
-	LICENSE \
-	README.md \
-	autogen.sh \
-	version.sh
+    LICENSE \
+    README.md \
+    VERSION \
+    autogen.sh \
+    version.sh
