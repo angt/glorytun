@@ -928,7 +928,7 @@ int main (int argc, char **argv)
 
     long retry = 0;
 
-    fd_write_str(state_fd, "INITIALIZED");
+    fd_write_str(state_fd, "INITIALIZED\n");
 
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {
@@ -995,7 +995,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        fd_write_str(state_fd, "STARTED");
+        fd_write_str(state_fd, "STARTED\n");
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1180,7 +1180,7 @@ int main (int argc, char **argv)
             sock.fd = -1;
         }
 
-        fd_write_str(state_fd, "STOPPED");
+        fd_write_str(state_fd, "STOPPED\n");
     }
 
     freeaddrinfo(ai);
