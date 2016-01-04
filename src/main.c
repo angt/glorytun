@@ -533,20 +533,17 @@ static inline uint16_t sum16_final (uint32_t sum)
     return ~(sum+(sum>>16));
 }
 
-static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
+static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
 {
-    const ssize_t ip_proto = ip_get_proto(ip_version, data, ip_size);
-    const ssize_t ip_hdr_size = ip_get_hdr_size(ip_version, data, ip_size);
-
-    if (ip_proto<0 || ip_hdr_size<=0)
+    if (!ic->hdr_size)
         return;
 
-    uint32_t sum = (size_t)ip_proto+ip_size-(size_t)ip_hdr_size;
+    uint32_t sum = ic->proto+ic->size-ic->hdr_size;
 
     char ip_src[INET6_ADDRSTRLEN];
     char ip_dst[INET6_ADDRSTRLEN];
 
-    switch (ip_version) {
+    switch (ic->version) {
     case 4:
         inet_ntop(AF_INET, &data[12], ip_src, sizeof(ip_src));
         inet_ntop(AF_INET, &data[16], ip_dst, sizeof(ip_dst));
@@ -559,16 +556,18 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
         break;
     }
 
-    if (ip_proto==IPPROTO_TCP) {
+    uint8_t *const packet = &data[ic->hdr_size];
+
+    if (ic->proto==IPPROTO_TCP) {
         struct tcphdr tcp;
 
-        byte_cpy(&tcp, &data[ip_hdr_size], sizeof(tcp));
+        byte_cpy(&tcp, packet, sizeof(tcp));
 
         uint16_t tcp_sum = ntohs(tcp.th_sum);
         tcp.th_sum = 0;
 
         sum = sum16(sum, (uint8_t *)&tcp, sizeof(tcp));
-        sum = sum16(sum, &data[ip_hdr_size+sizeof(tcp)], ip_size-ip_hdr_size-sizeof(tcp));
+        sum = sum16(sum, &packet[sizeof(tcp)], ic->size-ic->hdr_size-sizeof(tcp));
         uint16_t computed_sum = sum16_final(sum);
 
         tcp.th_sport = ntohs(tcp.th_sport);
@@ -577,9 +576,9 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
         tcp.th_ack = ntohl(tcp.th_ack);
         tcp.th_win = ntohs(tcp.th_win);
 
-        gt_print("proto:%zi\tsrc:%s.%u\tdst:%s.%u\tseq:%u\tack:%u\twin:%u\tsize:%zu\tflags:%c%c%c%c%c%c\tsum:%i\n",
-                ip_proto, ip_src, tcp.th_sport, ip_dst, tcp.th_dport,
-                tcp.th_seq, tcp.th_ack, tcp.th_win, ip_size-ip_hdr_size+tcp.th_off*4,
+        gt_print("proto:%hhu\tsrc:%s.%u\tdst:%s.%u\tseq:%u\tack:%u\twin:%u\tsize:%u\tflags:%c%c%c%c%c%c\tsum:%i\n",
+                ic->proto, ip_src, tcp.th_sport, ip_dst, tcp.th_dport,
+                tcp.th_seq, tcp.th_ack, tcp.th_win, ic->size-ic->hdr_size-tcp.th_off*4,
                 (tcp.th_flags&TH_FIN) ?'F':'.',
                 (tcp.th_flags&TH_SYN) ?'S':'.',
                 (tcp.th_flags&TH_RST) ?'R':'.',
@@ -588,20 +587,20 @@ static void gt_print_hdr (const int ip_version, uint8_t *data, size_t ip_size)
                 (tcp.th_flags&TH_URG) ?'U':'.',
                 (computed_sum==tcp_sum));
 
-    } else if (ip_proto==IPPROTO_UDP) {
+    } else if (ic->proto==IPPROTO_UDP) {
         struct udphdr udp;
 
-        byte_cpy(&udp, &data[ip_hdr_size], sizeof(udp));
+        byte_cpy(&udp, packet, sizeof(udp));
 
         udp.uh_sport = ntohs(udp.uh_sport);
         udp.uh_dport = ntohs(udp.uh_dport);
         udp.uh_ulen = ntohs(udp.uh_ulen);
 
-        gt_print("proto:%zi\tsrc:%s.%u\tdst:%s.%u\tsize:%u\n",
-                ip_proto, ip_src, udp.uh_sport, ip_dst, udp.uh_dport, udp.uh_ulen-8);
+        gt_print("proto:%hhu\tsrc:%s.%u\tdst:%s.%u\tsize:%u\n",
+                ic->proto, ip_src, udp.uh_sport, ip_dst, udp.uh_dport, udp.uh_ulen-8);
     } else {
-        gt_print("proto:%zi\tsrc:%s\tdst:%s\tsize:%zu\n",
-                ip_proto, ip_src, ip_dst, ip_size);
+        gt_print("proto:%hhu\tsrc:%s\tdst:%s\tsize:%hu\n",
+                ic->proto, ip_src, ip_dst, ic->size);
     }
 }
 
@@ -1055,13 +1054,12 @@ int main (int argc, char **argv)
                         break;
                     }
 
-                    const int ip_version = ip_get_version(data, GT_MTU_MAX);
-                    const ssize_t ip_size = ip_get_size(ip_version, data, GT_MTU_MAX);
+                    struct ip_common ic;
 
-                    if _0_(ip_size<=0)
+                    if (ip_get_common(&ic, data, GT_MTU_MAX))
                         continue;
 
-                    if _0_(ip_size!=r) {
+                    if _0_(ic.size!=r) {
                         char tmp[2*GT_MTU_MAX+1];
                         gt_tohex(tmp, sizeof(tmp), data, r);
                         gt_log("%s: DUMP %zi %s\n", sockname, r, tmp);
@@ -1069,7 +1067,7 @@ int main (int argc, char **argv)
                     }
 
                     if _0_(debug)
-                        gt_print_hdr(ip_version, data, ip_size);
+                        gt_print_hdr(&ic, data);
 
                     blks[blk_write++].size = r;
                     blk_count++;
@@ -1145,22 +1143,21 @@ int main (int argc, char **argv)
 
                 size_t size = buffer_read_size(&tun.write);
 
-                const int ip_version = ip_get_version(tun.write.read, size);
-                ssize_t ip_size = ip_get_size(ip_version, tun.write.read, size);
+                if (!size)
+                    break;
 
-                if _0_(!ip_size) {
+                struct ip_common ic;
+
+                if (ip_get_common(&ic, tun.write.read, size) || ic.size>size) {
                     gt_log("%s: bad packet!\n", sockname);
                     goto restart;
                 }
 
-                if (ip_size<0 || (size_t)ip_size>size)
-                    break;
-
-                ssize_t r = tun_write(tun.fd, tun.write.read, ip_size);
+                ssize_t r = tun_write(tun.fd, tun.write.read, ic.size);
 
                 if (r>0) {
                     if _0_(debug)
-                        gt_print_hdr(ip_version, tun.write.read, ip_size);
+                        gt_print_hdr(&ic, tun.write.read);
                     tun.write.read += r;
                 } else {
                     gt_close |= !r;
