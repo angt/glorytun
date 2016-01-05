@@ -12,7 +12,7 @@ int option_str (void *data, int argc, char **argv)
         return -1;
     }
 
-    byte_cpy(data, &argv[1], sizeof(argv[1]));
+    memcpy(data, &argv[1], sizeof(argv[1]));
 
     return 1;
 }
@@ -33,7 +33,7 @@ int option_long (void *data, int argc, char **argv)
         return -1;
     }
 
-    byte_cpy(data, &val, sizeof(val));
+    memcpy(data, &val, sizeof(val));
 
     return 1;
 }

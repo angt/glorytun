@@ -3,30 +3,8 @@
 #include "common.h"
 
 #include <unistd.h>
+#include <string.h>
 #include <errno.h>
-
-static inline void byte_set (void *dst, const char value, size_t size)
-{
-    if (!dst)
-        return;
-
-    char *restrict d = dst;
-
-    while (size--)
-        *d++ = value;
-}
-
-static inline void byte_cpy (void *dst, const void *src, size_t size)
-{
-    if (!dst)
-        return;
-
-    char *restrict d = dst;
-    const char *restrict s = src;
-
-    while (size--)
-        *d++ = *s++;
-}
 
 static inline size_t str_cpy (char *restrict dst, const char *restrict src, size_t len)
 {
@@ -94,7 +72,7 @@ static inline char *str_cat (const char *const strs[], size_t count)
 
     for (size_t i=0; i<count; i++) {
         size_t len = str_len(strs[i]);
-        byte_cpy(p, strs[i], len);
+        memcpy(p, strs[i], len);
         p += len;
     }
 
@@ -147,7 +125,7 @@ static inline void buffer_shift (buffer_t *buffer)
         const uint8_t *src = PALIGN_DOWN(buffer->read);
         const size_t size = ALIGN(buffer->write-src);
         if (buffer->data+size<src) {
-            byte_cpy(buffer->data, src, size);
+            memcpy(buffer->data, src, size);
             buffer->read  -= src-buffer->data;
             buffer->write -= src-buffer->data;
         }

@@ -36,7 +36,7 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
 
     struct ctl_info ci;
 
-    byte_set(&ci, 0, sizeof(ci));
+    memset(&ci, 0, sizeof(ci));
     str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name)-1);
 
     if (ioctl(fd, CTLIOCGINFO, &ci)) {

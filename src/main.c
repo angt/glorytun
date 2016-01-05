@@ -552,15 +552,15 @@ static int tcp_entry_set_key (struct tcp_entry *te, struct ip_common *ic, uint8_
     switch (ic->version) {
     case 4:
         size = 8;
-        byte_cpy(key, &data[12], 8);
+        memcpy(key, &data[12], 8);
         break;
     case 6:
         size = 32;
-        byte_cpy(key, &data[9], 32);
+        memcpy(key, &data[9], 32);
         break;
     }
 
-    byte_cpy(&key[size], &data[ic->hdr_size], 4);
+    memcpy(&key[size], &data[ic->hdr_size], 4);
     te->key[0] = size+4;
 
     return 0;
@@ -574,18 +574,18 @@ static int tcp_entry_set_key_rev (struct tcp_entry *te, struct ip_common *ic, ui
     switch (ic->version) {
     case 4:
         size = 8;
-        byte_cpy(key, &data[12+4], 4);
-        byte_cpy(key+4, &data[12], 4);
+        memcpy(key, &data[12+4], 4);
+        memcpy(key+4, &data[12], 4);
         break;
     case 6:
         size = 32;
-        byte_cpy(key, &data[9+16], 16);
-        byte_cpy(key+16, &data[9], 16);
+        memcpy(key, &data[9+16], 16);
+        memcpy(key+16, &data[9], 16);
         break;
     }
 
-    byte_cpy(&key[size], &data[ic->hdr_size+2], 2);
-    byte_cpy(&key[size+2], &data[ic->hdr_size], 2);
+    memcpy(&key[size], &data[ic->hdr_size+2], 2);
+    memcpy(&key[size+2], &data[ic->hdr_size], 2);
     te->key[0] = size+4;
 
     return 0;
@@ -608,7 +608,7 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
     }
 
     struct tcphdr tcp;
-    byte_cpy(&tcp, &data[ic->hdr_size], sizeof(tcp));
+    memcpy(&tcp, &data[ic->hdr_size], sizeof(tcp));
     tcp.th_seq = ntohl(tcp.th_seq);
     tcp.th_ack = ntohl(tcp.th_ack);
 
@@ -620,7 +620,7 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
         if (!r_entry)
             return 1;
 
-        byte_cpy(&r_entry->key, &entry.key, sizeof(entry.key));
+        memcpy(r_entry->key, entry.key, sizeof(entry.key));
 
         if (!db_insert(db, r_entry->key)) {
             free(r_entry);
@@ -671,7 +671,7 @@ static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
     if (ic->proto==IPPROTO_TCP) {
         struct tcphdr tcp;
 
-        byte_cpy(&tcp, packet, sizeof(tcp));
+        memcpy(&tcp, packet, sizeof(tcp));
 
         uint16_t tcp_sum = ntohs(tcp.th_sum);
         tcp.th_sum = 0;
@@ -700,7 +700,7 @@ static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
     } else if (ic->proto==IPPROTO_UDP) {
         struct udphdr udp;
 
-        byte_cpy(&udp, packet, sizeof(udp));
+        memcpy(&udp, packet, sizeof(udp));
 
         udp.uh_sport = ntohs(udp.uh_sport);
         udp.uh_dport = ntohs(udp.uh_dport);
@@ -778,13 +778,13 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 
     crypto_generichash_state state;
 
-    byte_set(data_w, 0, size);
+    memset(data_w, 0, size);
     randombytes_buf(data_w, nonce_size);
 
     randombytes_buf(secret, sizeof(secret));
     crypto_scalarmult_base(&data_w[nonce_size], secret);
 
-    byte_cpy(&data_w[size-hash_size-sizeof(gt)], gt, sizeof(gt));
+    memcpy(&data_w[size-hash_size-sizeof(gt)], gt, sizeof(gt));
 
     crypto_generichash(&data_w[size-hash_size], hash_size,
             data_w, size-hash_size, ctx->skey, sizeof(ctx->skey));
@@ -843,8 +843,8 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     sodium_memzero(shared, sizeof(shared));
     sodium_memzero(key, sizeof(key));
 
-    byte_cpy(ctx->read.nonce, data_r, nonce_size);
-    byte_cpy(ctx->write.nonce, data_w, nonce_size);
+    memcpy(ctx->read.nonce, data_r, nonce_size);
+    memcpy(ctx->write.nonce, data_w, nonce_size);
 
     return 0;
 }
@@ -1199,7 +1199,7 @@ int main (int argc, char **argv)
                         if (!size || buffer_write_size(&tun.read)<size)
                             break;
 
-                        byte_cpy(tun.read.write, blks[blk_read].data, size);
+                        memcpy(tun.read.write, blks[blk_read].data, size);
                         tun.read.write += size;
 
                         blks[blk_read].size = 0;
