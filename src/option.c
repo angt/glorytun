@@ -1,9 +1,7 @@
-#include "common-static.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "common.h"
 
 #include "option.h"
+#include "str.h"
 
 int option_str (void *data, int argc, char **argv)
 {

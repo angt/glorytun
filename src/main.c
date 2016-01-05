@@ -1,11 +1,19 @@
+#include "common.h"
+
+#include "buffer.h"
+#include "ip.h"
+#include "str.h"
+#include "option.h"
+#include "tun.h"
+#include "db.h"
+
 #include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <signal.h>
-#include <string.h>
 #include <poll.h>
+#include <fcntl.h>
 #include <sys/time.h>
-#include <sys/fcntl.h>
 #include <sys/stat.h>
 
 #ifndef __FAVOR_BSD
@@ -26,13 +34,6 @@
 #include <netdb.h>
 
 #include <sodium.h>
-
-#include "common-static.h"
-#include "ip-static.h"
-
-#include "option.h"
-#include "tun.h"
-#include "db.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0

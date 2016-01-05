@@ -2,8 +2,11 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
 
-#define COUNT(x) (sizeof(x)/sizeof(x[0]))
+#define COUNT(x)       (sizeof(x)/sizeof(x[0]))
 
 #define ALIGN_SIZE     (1<<4)
 #define ALIGN_MASK     (ALIGN_SIZE-1)
@@ -25,15 +28,6 @@
 #define _pure_         __attribute__ ((pure))
 #define _const_        __attribute__ ((const))
 #define _align_(...)   __attribute__ ((aligned(__VA_ARGS__)))
-
-typedef struct buffer buffer_t;
-
-struct buffer {
-    uint8_t *data;
-    uint8_t *read;
-    uint8_t *write;
-    uint8_t *end;
-};
 
 int  gt_print (const char *, ...) _printf_(1,2);
 void gt_log   (const char *, ...) _printf_(1,2);

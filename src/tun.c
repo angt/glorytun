@@ -1,7 +1,8 @@
-#include "common-static.h"
-#include "ip-static.h"
+#include "common.h"
 
 #include "tun.h"
+#include "str.h"
+#include "ip.h"
 
 #include <stdio.h>
 #include <fcntl.h>

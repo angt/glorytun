@@ -1,5 +1,7 @@
+#include "common.h"
+
 #include "db.h"
-#include "common-static.h"
+#include "str.h"
 
 #define CBIT(X)      (1&(intptr_t)(X))
 #define CBIT_PTR(X)  (uint8_t *)(1|(intptr_t)(X))
