@@ -32,6 +32,7 @@
 
 #include "option.h"
 #include "tun.h"
+#include "db.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
@@ -533,6 +534,115 @@ static inline uint16_t sum16_final (uint32_t sum)
     return ~(sum+(sum>>16));
 }
 
+struct tcp_entry {
+    uint8_t key[37];
+    struct {
+        uint32_t seq;
+        uint32_t ack;
+        size_t count;
+        struct timeval time;
+    } data[2];
+};
+
+static int tcp_entry_set_key (struct tcp_entry *te, struct ip_common *ic, uint8_t *data)
+{
+    uint8_t *key = &te->key[1];
+    size_t size = 0;
+
+    switch (ic->version) {
+    case 4:
+        size = 8;
+        byte_cpy(key, &data[12], 8);
+        break;
+    case 6:
+        size = 32;
+        byte_cpy(key, &data[9], 32);
+        break;
+    }
+
+    byte_cpy(&key[size], &data[ic->hdr_size], 4);
+    te->key[0] = size+4;
+
+    return 0;
+}
+
+static int tcp_entry_set_key_rev (struct tcp_entry *te, struct ip_common *ic, uint8_t *data)
+{
+    uint8_t *key = &te->key[1];
+    size_t size = 0;
+
+    switch (ic->version) {
+    case 4:
+        size = 8;
+        byte_cpy(key, &data[12+4], 4);
+        byte_cpy(key+4, &data[12], 4);
+        break;
+    case 6:
+        size = 32;
+        byte_cpy(key, &data[9+16], 16);
+        byte_cpy(key+16, &data[9], 16);
+        break;
+    }
+
+    byte_cpy(&key[size], &data[ic->hdr_size+2], 2);
+    byte_cpy(&key[size+2], &data[ic->hdr_size], 2);
+    te->key[0] = size+4;
+
+    return 0;
+}
+
+static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
+{
+    if (ic->proto!=IPPROTO_TCP)
+        return 0;
+
+    if (!ic->hdr_size)
+        return 1;
+
+    struct tcp_entry entry;
+
+    if (rev) {
+        tcp_entry_set_key_rev(&entry, ic, data);
+    } else {
+        tcp_entry_set_key(&entry, ic, data);
+    }
+
+    struct tcphdr tcp;
+    byte_cpy(&tcp, &data[ic->hdr_size], sizeof(tcp));
+    tcp.th_seq = ntohl(tcp.th_seq);
+    tcp.th_ack = ntohl(tcp.th_ack);
+
+    struct tcp_entry *r_entry = (void *)db_search(db, entry.key);
+
+    if (!r_entry) {
+        r_entry = calloc(1, sizeof(entry));
+
+        if (!r_entry)
+            return 1;
+
+        byte_cpy(&r_entry->key, &entry.key, sizeof(entry.key));
+
+        if (!db_insert(db, r_entry->key)) {
+            free(r_entry);
+            return 1;
+        }
+
+        gt_print("new tcp entry\n");
+    } else {
+        gt_print("old_seq:%u\told_ack:%u\tcount:%zu\n",
+                r_entry->data[rev].seq,
+                r_entry->data[rev].ack,
+                r_entry->data[rev].count);
+    }
+
+    r_entry->data[rev].seq = tcp.th_seq;
+    r_entry->data[rev].ack = tcp.th_ack;
+    r_entry->data[rev].count++;
+    gettimeofday(&r_entry->data[rev].time, NULL);
+
+    return 0;
+}
+
 static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
 {
     if (!ic->hdr_size)
@@ -926,6 +1036,7 @@ int main (int argc, char **argv)
     }
 
     long retry = 0;
+    uint8_t *db = NULL;
 
     fd_write_str(state_fd, "INITIALIZED\n");
 
@@ -1066,8 +1177,12 @@ int main (int argc, char **argv)
                         continue;
                     }
 
-                    if _0_(debug)
+                    if _0_(debug) {
                         gt_print_hdr(&ic, data);
+
+                        if (gt_track(&db, &ic, data, 0))
+                            continue;
+                    }
 
                     blks[blk_write++].size = r;
                     blk_count++;
@@ -1153,11 +1268,18 @@ int main (int argc, char **argv)
                     goto restart;
                 }
 
+                if _0_(debug) {
+                    gt_print_hdr(&ic, tun.write.read);
+
+                    if (gt_track(&db, &ic, tun.write.read, 1)) {
+                        tun.write.read += ic.size;
+                        continue;
+                    }
+                }
+
                 ssize_t r = tun_write(tun.fd, tun.write.read, ic.size);
 
                 if (r>0) {
-                    if _0_(debug)
-                        gt_print_hdr(&ic, tun.write.read);
                     tun.write.read += r;
                 } else {
                     gt_close |= !r;
