@@ -387,9 +387,13 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     return ret;
 }
 
-static ssize_t fd_write_str (int fd, const char *str)
+static void state_write (int fd, const char *str)
 {
-    return fd_write(fd, str, str_len(str));
+    if (fd==-1) {
+        gt_print("state: %s", str);
+    } else {
+        fd_write(fd, str, str_len(str));
+    }
 }
 
 static size_t fd_read_all (int fd, void *data, size_t size)
@@ -1035,7 +1039,7 @@ int main (int argc, char **argv)
     long retry = 0;
     uint8_t *db = NULL;
 
-    fd_write_str(state_fd, "INITIALIZED\n");
+    state_write(state_fd, "INITIALIZED\n");
 
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {
@@ -1105,7 +1109,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        fd_write_str(state_fd, "STARTED\n");
+        state_write(state_fd, "STARTED\n");
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1283,7 +1287,7 @@ int main (int argc, char **argv)
             sock.fd = -1;
         }
 
-        fd_write_str(state_fd, "STOPPED\n");
+        state_write(state_fd, "STOPPED\n");
     }
 
     freeaddrinfo(ai);
