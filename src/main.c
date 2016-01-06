@@ -1180,10 +1180,10 @@ int main (int argc, char **argv)
 
                     tun.read.write += r;
                 }
-
-                if _1_(!stop_loop)
-                    gt_encrypt(&ctx, &sock.write, &tun.read);
             }
+
+            if _1_(!stop_loop)
+                gt_encrypt(&ctx, &sock.write, &tun.read);
 
             if (buffer_read_size(&sock.write)) {
                 const ssize_t r = fd_write(sock.fd, sock.write.read,
