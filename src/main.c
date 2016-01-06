@@ -51,11 +51,6 @@ struct fdbuf {
     buffer_t write;
 };
 
-struct blk {
-    size_t size;
-    uint8_t data[GT_MTU_MAX] _align_(16);
-};
-
 struct crypto_ctx {
     struct {
         crypto_aead_aes256gcm_state state;
@@ -966,14 +961,6 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    struct blk *blks = calloc(256, sizeof(struct blk));
-    size_t blk_count = 0;
-    uint8_t blk_read = 0;
-    uint8_t blk_write = 0;
-
-    if (!blks)
-        return 1;
-
     fd_set_nonblock(tun.fd);
 
     buffer_setup(&tun.write, NULL, GT_TUNW_SIZE);
@@ -1126,7 +1113,9 @@ int main (int argc, char **argv)
                     goto restart;
                 FD_CLR(tun.fd, &rfds);
             } else {
-                if (!blks[blk_write].size) {
+                buffer_shift(&tun.read);
+
+                if (buffer_write_size(&tun.read)>=GT_MTU_MAX) {
                     FD_SET(tun.fd, &rfds);
                 } else {
                     FD_CLR(tun.fd, &rfds);
@@ -1157,9 +1146,13 @@ int main (int argc, char **argv)
          // gettimeofday(&now, NULL);
 
             if (FD_ISSET(tun.fd, &rfds)) {
-                while (!blks[blk_write].size) {
-                    uint8_t *data = blks[blk_write].data;
-                    const ssize_t r = tun_read(tun.fd, data, GT_MTU_MAX);
+                while (1) {
+                    const size_t size = buffer_write_size(&tun.read);
+
+                    if (size<GT_MTU_MAX)
+                        break;
+
+                    const ssize_t r = tun_read(tun.fd, tun.read.write, GT_MTU_MAX);
 
                     if (r<=0) {
                         gt_close |= !r;
@@ -1168,60 +1161,38 @@ int main (int argc, char **argv)
 
                     struct ip_common ic;
 
-                    if (ip_get_common(&ic, data, GT_MTU_MAX))
+                    if (ip_get_common(&ic, tun.read.write, GT_MTU_MAX))
                         continue;
 
                     if _0_(ic.size!=r) {
                         char tmp[2*GT_MTU_MAX+1];
-                        gt_tohex(tmp, sizeof(tmp), data, r);
+                        gt_tohex(tmp, sizeof(tmp), tun.read.write, r);
                         gt_log("%s: DUMP %zi %s\n", sockname, r, tmp);
                         continue;
                     }
 
                     if _0_(debug) {
-                        gt_print_hdr(&ic, data);
+                        gt_print_hdr(&ic, tun.read.write);
 
-                        if (gt_track(&db, &ic, data, 0))
+                        if (gt_track(&db, &ic, tun.read.write, 0))
                             continue;
                     }
 
-                    blks[blk_write++].size = r;
-                    blk_count++;
+                    tun.read.write += r;
                 }
+
+                if _1_(!stop_loop)
+                    gt_encrypt(&ctx, &sock.write, &tun.read);
             }
 
-            while (1) {
-                buffer_shift(&tun.read);
-
-                if _0_(!stop_loop) {
-                    for (; blk_count; blk_read++) {
-                        const size_t size = blks[blk_read].size;
-
-                        if (!size || buffer_write_size(&tun.read)<size)
-                            break;
-
-                        memcpy(tun.read.write, blks[blk_read].data, size);
-                        tun.read.write += size;
-
-                        blks[blk_read].size = 0;
-                        blk_count--;
-                    }
-
-                    gt_encrypt(&ctx, &sock.write, &tun.read);
-                }
-
-                if (!buffer_read_size(&sock.write))
-                    break;
-
+            if (buffer_read_size(&sock.write)) {
                 const ssize_t r = fd_write(sock.fd, sock.write.read,
                                            buffer_read_size(&sock.write));
 
                 if (r>0) {
                     sock.write.read += r;
-                } else {
-                    if (!r)
-                        stop_loop |= (1<<2);
-                    break;
+                } else if (!r) {
+                    stop_loop |= (1<<2);
                 }
             }
 
@@ -1304,8 +1275,6 @@ int main (int argc, char **argv)
     }
 
     freeaddrinfo(ai);
-
-    free(blks);
 
     free(sock.write.data);
     free(sock.read.data);
