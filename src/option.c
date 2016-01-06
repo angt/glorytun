@@ -5,7 +5,7 @@
 
 int option_str (void *data, int argc, char **argv)
 {
-    if (argc<2 || !argv[1]) {
+    if (argc<2 || str_empty(argv[1])) {
         gt_print("option `%s' need a string argument\n", argv[0]);
         return -1;
     }
@@ -17,7 +17,7 @@ int option_str (void *data, int argc, char **argv)
 
 int option_long (void *data, int argc, char **argv)
 {
-    if (argc<2 || !argv[1]) {
+    if (argc<2 || str_empty(argv[1])) {
         gt_print("option `%s' need an integer argument\n", argv[0]);
         return -1;
     }

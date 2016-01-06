@@ -268,7 +268,7 @@ static char *sk_get_name (int fd)
 
 static struct addrinfo *ai_create (const char *host, const char *port, int listener)
 {
-    if (!port || !port[0]) {
+    if (str_empty(port)) {
         gt_log("port is not valid\n");
         return NULL;
     }
@@ -714,7 +714,7 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 {
     const size_t size = sizeof(ctx->skey);
 
-    if (!keyfile) {
+    if (str_empty(keyfile)) {
         char buf[2*size+1];
 
         randombytes_buf(ctx->skey, size);
@@ -1055,7 +1055,7 @@ int main (int argc, char **argv)
 
         char *sockname = sk_get_name(sock.fd);
 
-        if (!sockname) {
+        if (str_empty(sockname)) {
             close(sock.fd);
             continue;
         }

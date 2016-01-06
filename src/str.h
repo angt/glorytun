@@ -44,12 +44,7 @@ static inline size_t str_len (const char *restrict str)
     if (!str)
         return 0;
 
-    size_t i = 0;
-
-    while (str[i])
-        i++;
-
-    return i;
+    return strlen(str);
 }
 
 static inline char *str_cat (const char *const strs[], size_t count)
