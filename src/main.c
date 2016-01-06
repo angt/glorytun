@@ -99,6 +99,7 @@ enum sk_opt {
     sk_defer_accept,
     sk_acceptfilter,
     sk_quickack,
+    sk_user_timeout,
 };
 
 static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
@@ -148,6 +149,11 @@ static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
         [sk_acceptfilter] = { "SO_ACCEPTFILTER",
 #ifdef SO_ACCEPTFILTER
             1, SOL_SOCKET, SO_ACCEPTFILTER,
+#endif
+        },
+        [sk_user_timeout] = { "TCP_USER_TIMEOUT",
+#ifdef TCP_USER_TIMEOUT
+            1, IPPROTO_TCP, TCP_USER_TIMEOUT,
 #endif
         },
     };
@@ -867,6 +873,8 @@ int main (int argc, char **argv)
     long retry_const = 0;
     long retry_limit = 1000000;
 
+    long user_timeout = 0;
+
     struct option ka_opts[] = {
         { "count",    &ka_count,    option_long },
         { "idle",     &ka_idle,     option_long },
@@ -883,22 +891,23 @@ int main (int argc, char **argv)
     };
 
     struct option opts[] = {
-        { "listener",    NULL,         option_option },
-        { "host",        &host,        option_str    },
-        { "port",        &port,        option_str    },
-        { "dev",         &dev,         option_str    },
-        { "keyfile",     &keyfile,     option_str    },
-        { "congestion",  &congestion,  option_str    },
-        { "delay",       NULL,         option_option },
-        { "multiqueue",  NULL,         option_option },
-        { "keepalive",   ka_opts,      option_option },
-        { "buffer-size", &buffer_size, option_long   },
-        { "noquickack",  NULL,         option_option },
-        { "retry",       &retry_opts,  option_option },
-        { "daemon",      NULL,         option_option },
-        { "statefile",   &statefile,   option_str    },
-        { "debug",       NULL,         option_option },
-        { "version",     NULL,         option_option },
+        { "listener",    NULL,          option_option },
+        { "host",        &host,         option_str    },
+        { "port",        &port,         option_str    },
+        { "dev",         &dev,          option_str    },
+        { "keyfile",     &keyfile,      option_str    },
+        { "congestion",  &congestion,   option_str    },
+        { "delay",       NULL,          option_option },
+        { "multiqueue",  NULL,          option_option },
+        { "keepalive",   ka_opts,       option_option },
+        { "buffer-size", &buffer_size,  option_long   },
+        { "noquickack",  NULL,          option_option },
+        { "retry",       &retry_opts,   option_option },
+        { "daemon",      NULL,          option_option },
+        { "statefile",   &statefile,    option_str    },
+        { "timeout",     &user_timeout, option_long   },
+        { "debug",       NULL,          option_option },
+        { "version",     NULL,          option_option },
         { NULL },
     };
 
@@ -1077,6 +1086,9 @@ int main (int argc, char **argv)
             if (ka_interval>=0 && ka_interval<=INT_MAX)
                 sk_set_int(sock.fd, sk_keepintvl, ka_interval);
         }
+
+        if (user_timeout>0 && user_timeout<=INT_MAX)
+            sk_set_int(sock.fd, sk_user_timeout, user_timeout);
 
         sk_set(sock.fd, sk_congestion, congestion, str_len(congestion));
 
