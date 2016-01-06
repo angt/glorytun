@@ -39,7 +39,7 @@
 #define O_CLOEXEC 0
 #endif
 
-#define GT_BUFFER_SIZE  (4*1024*1024)
+#define GT_BUFFER_SIZE  (64*1024)
 #define GT_TIMEOUT      (5000)
 #define GT_MTU_MAX      (1500)
 #define GT_TUNR_SIZE    (0x7FFF-16)
