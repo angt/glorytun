@@ -189,8 +189,7 @@ static int sk_listen (int fd, struct addrinfo *ai)
 #ifdef __linux__
     sk_set_int(fd, sk_defer_accept, GT_TIMEOUT/1000);
 #else
-    char data[256] = {0};
-    str_cpy(data, "dataready", sizeof(data)-1);
+    char data[256] = "dataready";
     sk_set(fd, sk_acceptfilter, &data, sizeof(data));
 #endif
 
