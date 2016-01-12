@@ -539,15 +539,152 @@ static inline uint16_t sum16_final (uint32_t sum)
     return ~(sum+(sum>>16));
 }
 
+struct seq_elem {
+    uint32_t seq;
+    uint32_t size;
+};
+
+struct seq_array {
+    struct seq_elem *elem;
+    uint32_t count;
+    uint32_t base;
+};
+
 struct tcp_entry {
     uint8_t key[37];
     struct {
-        uint32_t seq;
-        uint32_t ack;
-        size_t count;
-        struct timeval time;
+        struct seq_array sa;
+        size_t retrans;
     } data[2];
 };
+
+void sa_insert_elem (struct seq_array *sa, uint32_t i, uint32_t seq, uint32_t size)
+{
+    struct seq_elem *old = sa->elem;
+
+    sa->elem = malloc((sa->count+1)*sizeof(struct seq_elem));
+
+    memcpy(sa->elem, old, i*sizeof(struct seq_elem));
+    memcpy(&sa->elem[i+1], &old[i], (sa->count-i)*sizeof(struct seq_elem));
+
+    sa->elem[i].seq = seq;
+    sa->elem[i].size = size;
+
+    free(old);
+
+    sa->count++;
+}
+
+void sa_remove_elem (struct seq_array *sa, uint32_t i)
+{
+    struct seq_elem *old = sa->elem;
+
+    sa->elem = malloc((sa->count-1)*sizeof(struct seq_elem));
+
+    memcpy(sa->elem, old, i*sizeof(struct seq_elem));
+    memcpy(&sa->elem[i], &old[i+1], (sa->count-i-1)*sizeof(struct seq_elem));
+
+    free(old);
+
+    sa->count--;
+}
+
+int sa_have (struct seq_array *sa, uint32_t seq, uint32_t size)
+{
+    uint32_t i;
+    uint32_t seqa = seq-sa->base;
+
+    for (i=0; i<sa->count; i++) {
+        uint32_t seqb = sa->elem[i].seq-sa->base;
+
+        if (seqb>=seqa) {
+            uint32_t d = seqb-seqa;
+
+            if (d>size)
+                return 0;
+        } else {
+            uint32_t d = seqa-seqb;
+
+            if (d>=sa->elem[i].size)
+                continue;
+
+            if (d+size>sa->elem[i].size) {
+                gt_print("sa_have:part\n");
+                return 1; // XXX 0
+            }
+        }
+
+        return 1;
+    }
+
+    return 0;
+}
+
+void sa_rebase (struct seq_array *sa, uint32_t seq)
+{
+    if (!sa->count)
+        return;
+
+    if (seq==sa->base)
+        return;
+
+    if (sa->elem[0].seq+sa->elem[0].size==seq) {
+        sa_remove_elem(sa, 0);
+    } else {
+        sa->elem[0].seq = seq;
+        sa->elem[0].size -= seq-sa->base;
+    }
+
+    sa->base = seq;
+}
+
+void sa_insert (struct seq_array *sa, uint32_t seq, uint32_t size)
+{
+    uint32_t i;
+    uint32_t seqa = seq-sa->base;
+
+    for (i=0; i<sa->count; i++) {
+        uint32_t seqb = sa->elem[i].seq-sa->base;
+
+        if (seqb>=seqa) {
+            uint32_t d = seqb-seqa;
+
+            if (d>size)
+                break;
+
+            sa->elem[i].seq = seq;
+
+            uint32_t new_size = sa->elem[i].size+d;
+
+            if (new_size>size) {
+                sa->elem[i].size = new_size;
+            } else {
+                sa->elem[i].size = size;
+            }
+        } else {
+            uint32_t d = seqa-seqb;
+
+            if (d>sa->elem[i].size)
+                continue;
+
+            uint32_t new_size = size+d;
+
+            if (new_size>sa->elem[i].size)
+                sa->elem[i].size = new_size;
+        }
+
+        if (i+1<sa->count) {
+            if (seqb+sa->elem[i].size==sa->elem[i+1].seq-sa->base) {
+                sa->elem[i].size += sa->elem[i+1].size;
+                sa_remove_elem(sa, i+1);
+            }
+        }
+
+        return;
+    }
+
+    sa_insert_elem(sa, i, seq, size);
+}
 
 static int tcp_entry_set_key (struct tcp_entry *te, struct ip_common *ic, uint8_t *data)
 {
@@ -596,56 +733,36 @@ static int tcp_entry_set_key_rev (struct tcp_entry *te, struct ip_common *ic, ui
     return 0;
 }
 
-static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
+static void gt_print_entry (struct tcp_entry *te)
 {
-    if (ic->proto!=IPPROTO_TCP)
-        return 0;
+    uint8_t *key = &te->key[1];
+    size_t size = te->key[0];
 
-    if (!ic->hdr_size)
-        return 1;
+    char ip0[INET6_ADDRSTRLEN];
+    char ip1[INET6_ADDRSTRLEN];
 
-    struct tcp_entry entry;
+    uint16_t port0, port1;
 
-    if (rev) {
-        tcp_entry_set_key_rev(&entry, ic, data);
-    } else {
-        tcp_entry_set_key(&entry, ic, data);
+    switch (size) {
+    case 8+4:
+        inet_ntop(AF_INET, key, ip0, sizeof(ip0));
+        inet_ntop(AF_INET, key+4, ip1, sizeof(ip1));
+        port0 = (key[8]<<8)|key[9];
+        port1 = (key[10]<<8)|key[11];
+        break;
+    case 32+4:
+        inet_ntop(AF_INET6, key,  ip0, sizeof(ip0));
+        inet_ntop(AF_INET6, key+16, ip1, sizeof(ip1));
+        port0 = (key[32]<<8)|key[33];
+        port1 = (key[34]<<8)|key[35];
+        break;
     }
 
-    struct tcphdr tcp;
-    memcpy(&tcp, &data[ic->hdr_size], sizeof(tcp));
-    tcp.th_seq = ntohl(tcp.th_seq);
-    tcp.th_ack = ntohl(tcp.th_ack);
-
-    struct tcp_entry *r_entry = (void *)db_search(db, entry.key);
-
-    if (!r_entry) {
-        r_entry = calloc(1, sizeof(entry));
-
-        if (!r_entry)
-            return 1;
-
-        memcpy(r_entry->key, entry.key, sizeof(entry.key));
-
-        if (!db_insert(db, r_entry->key)) {
-            free(r_entry);
-            return 1;
-        }
-
-        gt_print("new tcp entry\n");
-    } else {
-        gt_print("old_seq:%u\told_ack:%u\tcount:%zu\n",
-                r_entry->data[rev].seq,
-                r_entry->data[rev].ack,
-                r_entry->data[rev].count);
-    }
-
-    r_entry->data[rev].seq = tcp.th_seq;
-    r_entry->data[rev].ack = tcp.th_ack;
-    r_entry->data[rev].count++;
-    gettimeofday(&r_entry->data[rev].time, NULL);
-
-    return 0;
+    gt_print("connection:%s.%hu-%s.%hu\t"
+             "retrans:%zu, %zu\n",
+             ip0, port0, ip1, port1,
+             te->data[0].retrans,
+             te->data[1].retrans);
 }
 
 static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
@@ -717,6 +834,74 @@ static void gt_print_hdr (struct ip_common *ic, uint8_t *data)
         gt_print("proto:%hhu\tsrc:%s\tdst:%s\tsize:%hu\n",
                 ic->proto, ip_src, ip_dst, ic->size);
     }
+}
+
+static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
+{
+    if (ic->proto!=IPPROTO_TCP)
+        return 0;
+
+    if (!ic->hdr_size)
+        return 1;
+
+    struct tcp_entry entry;
+
+    if (rev) {
+        tcp_entry_set_key_rev(&entry, ic, data);
+    } else {
+        tcp_entry_set_key(&entry, ic, data);
+    }
+
+    struct tcphdr tcp;
+    memcpy(&tcp, &data[ic->hdr_size], sizeof(tcp));
+    tcp.th_seq = ntohl(tcp.th_seq);
+    tcp.th_ack = ntohl(tcp.th_ack);
+
+    struct tcp_entry *r_entry = (void *)db_search(db, entry.key);
+
+    if (tcp.th_flags&(TH_FIN|TH_RST)) {
+        if (r_entry) {
+            gt_print_entry(r_entry);
+            free(db_remove(db, entry.key));
+        }
+        return 0;
+    }
+
+    uint32_t size = ic->size-ic->hdr_size-tcp.th_off*4;
+
+    if (size && !r_entry) {
+        r_entry = calloc(1, sizeof(entry));
+
+        if (!r_entry)
+            return 0;
+
+        memcpy(r_entry->key, entry.key, sizeof(entry.key));
+
+        if (!db_insert(db, r_entry->key)) {
+            free(r_entry);
+            return 0;
+        }
+    }
+
+    if (!r_entry)
+        return 0;
+
+    if (r_entry->data[1-rev].sa.count && (tcp.th_flags&TH_ACK))
+        sa_rebase(&r_entry->data[1-rev].sa, tcp.th_ack);
+
+    if (!size)
+        return 0;
+
+    if (r_entry->data[rev].sa.count) {
+        if (sa_have(&r_entry->data[rev].sa, tcp.th_seq, size))
+            r_entry->data[rev].retrans++;
+    } else {
+        r_entry->data[rev].sa.base = tcp.th_seq;
+    }
+
+    sa_insert(&r_entry->data[rev].sa, tcp.th_seq, size);
+
+    return 0;
 }
 
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
@@ -1187,8 +1372,6 @@ int main (int argc, char **argv)
                     }
 
                     if _0_(debug) {
-                        gt_print_hdr(&ic, tun.read.write);
-
                         if (gt_track(&db, &ic, tun.read.write, 0))
                             continue;
                     }
@@ -1256,8 +1439,6 @@ int main (int argc, char **argv)
                 }
 
                 if _0_(debug) {
-                    gt_print_hdr(&ic, tun.write.read);
-
                     if (gt_track(&db, &ic, tun.write.read, 1)) {
                         tun.write.read += ic.size;
                         continue;
