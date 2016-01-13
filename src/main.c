@@ -558,6 +558,13 @@ struct tcp_entry {
     } data[2];
 };
 
+void tcp_entry_free (struct tcp_entry *te)
+{
+    free(te->data[0].sa.elem);
+    free(te->data[1].sa.elem);
+    free(te);
+}
+
 void sa_insert_elem (struct seq_array *sa, uint32_t i, uint32_t seq, uint32_t size)
 {
     struct seq_elem *old = sa->elem;
@@ -862,7 +869,8 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
     if (tcp.th_flags&(TH_FIN|TH_RST)) {
         if (r_entry) {
             gt_print_entry(r_entry);
-            free(db_remove(db, entry.key));
+            db_remove(db, entry.key);
+            tcp_entry_free(r_entry);
         }
         return 0;
     }
