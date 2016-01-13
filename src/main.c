@@ -567,33 +567,35 @@ void tcp_entry_free (struct tcp_entry *te)
 
 void sa_insert_elem (struct seq_array *sa, uint32_t i, uint32_t seq, uint32_t size)
 {
-    struct seq_elem *old = sa->elem;
+    if (sa->count<i)
+        return;
 
-    sa->elem = malloc((sa->count+1)*sizeof(struct seq_elem));
+    if (!(sa->count&7)) {
+        struct seq_elem *tmp = realloc(sa->elem, (sa->count+8)*sizeof(struct seq_elem));
 
-    memcpy(sa->elem, old, i*sizeof(struct seq_elem));
-    memcpy(&sa->elem[i+1], &old[i], (sa->count-i)*sizeof(struct seq_elem));
+        if (!tmp) {
+            gt_log("couldn't realloc!\n");
+            return;
+        }
+
+        sa->elem = tmp;
+    }
+
+    memmove(&sa->elem[i+1], &sa->elem[i], (sa->count-i)*sizeof(struct seq_elem));
 
     sa->elem[i].seq = seq;
     sa->elem[i].size = size;
-
-    free(old);
-
     sa->count++;
 }
 
 void sa_remove_elem (struct seq_array *sa, uint32_t i)
 {
-    struct seq_elem *old = sa->elem;
-
-    sa->elem = malloc((sa->count-1)*sizeof(struct seq_elem));
-
-    memcpy(sa->elem, old, i*sizeof(struct seq_elem));
-    memcpy(&sa->elem[i], &old[i+1], (sa->count-i-1)*sizeof(struct seq_elem));
-
-    free(old);
+    if (sa->count<i+1)
+        return;
 
     sa->count--;
+
+    memmove(&sa->elem[i], &sa->elem[i+1], (sa->count-i)*sizeof(struct seq_elem));
 }
 
 int sa_have (struct seq_array *sa, uint32_t seq, uint32_t size)
