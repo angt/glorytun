@@ -1462,7 +1462,8 @@ int main (int argc, char **argv)
                 ssize_t r = tun_write(tun.fd, tun.write.read, ic.size);
 
                 if (r>0) {
-                    tun.write.read += r;
+                    if (r==ic.size)
+                        tun.write.read += r;
                 } else {
                     gt_close |= !r;
                     break;
