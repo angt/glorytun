@@ -637,11 +637,15 @@ void sa_rebase (struct seq_array *sa, uint32_t seq)
     if (seq==sa->base)
         return;
 
-    if (sa->elem[0].seq+sa->elem[0].size==seq) {
+    uint32_t size = seq-sa->elem[0].seq;
+
+    if (size==sa->elem[0].size) {
         sa_remove_elem(sa, 0);
     } else {
+        if (size>sa->elem[0].size)
+            return;
         sa->elem[0].seq = seq;
-        sa->elem[0].size -= seq-sa->base;
+        sa->elem[0].size -= size;
     }
 
     sa->base = seq;
