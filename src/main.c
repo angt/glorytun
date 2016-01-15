@@ -40,11 +40,11 @@
 #define O_CLOEXEC 0
 #endif
 
-#define GT_BUFFER_SIZE  (64*1024)
-#define GT_TIMEOUT      (5000)
-#define GT_MTU_MAX      (1500)
-#define GT_TUNR_SIZE    (0x7FFF-16)
-#define GT_TUNW_SIZE    (0x7FFF)
+#define GT_TIMEOUT   (5000)
+#define GT_MTU_MAX   (1500)
+#define GT_PKT_MAX   (32*1024)
+#define GT_TUNR_SIZE (GT_PKT_MAX-16-2)
+#define GT_TUNW_SIZE (GT_PKT_MAX)
 
 struct fdbuf {
     int fd;
@@ -1065,7 +1065,7 @@ int main (int argc, char **argv)
     char *congestion = NULL;
     char *statefile = NULL;
 
-    long buffer_size = GT_BUFFER_SIZE;
+    long buffer_size = GT_PKT_MAX;
 
     long ka_count = -1;
     long ka_idle = -1;
@@ -1128,9 +1128,9 @@ int main (int argc, char **argv)
     const int noquickack = option_is_set(opts, "noquickack");
     const int debug = option_is_set(opts, "debug");
 
-    if (buffer_size < 2048) {
-        buffer_size = 2048;
-        gt_log("buffer size must be greater than 2048\n");
+    if (buffer_size < GT_PKT_MAX) {
+        buffer_size = GT_PKT_MAX;
+        gt_log("buffer size must be greater than or equal to %li\n", buffer_size);
     }
 
     if (!listener) {
@@ -1395,6 +1395,8 @@ int main (int argc, char **argv)
                 }
             }
 
+            buffer_shift(&sock.write);
+
             if _1_(!stop_loop)
                 gt_encrypt(&ctx, &sock.write, &tun.read);
 
@@ -1416,8 +1418,6 @@ int main (int argc, char **argv)
                     gt_log("%s: shutdown\n", sockname);
                 }
             }
-
-            buffer_shift(&sock.write);
 
             if (FD_ISSET(sock.fd, &rfds)) {
                 if (noquickack)

@@ -49,15 +49,18 @@ static inline size_t buffer_read_size (buffer_t *buffer)
 
 static inline void buffer_shift (buffer_t *buffer)
 {
+    if (buffer->read==buffer->data)
+        return;
+
     if (buffer->read==buffer->write) {
         buffer_format(buffer);
-    } else {
-        const uint8_t *src = PALIGN_DOWN(buffer->read);
-        const size_t size = ALIGN(buffer->write-src);
-        if (buffer->data+size<src) {
-            memcpy(buffer->data, src, size);
-            buffer->read  -= src-buffer->data;
-            buffer->write -= src-buffer->data;
-        }
+        return;
     }
+
+    const size_t size = buffer_read_size(buffer);
+
+    memmove(buffer->data, buffer->read, size);
+
+    buffer->read  = buffer->data;
+    buffer->write = buffer->data+size;
 }
