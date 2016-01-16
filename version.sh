@@ -1,6 +1,7 @@
 #!/bin/sh
 
-[ -z "${VERSION}" ] && VERSION=`git describe --tags --always 2>/dev/null` \
+[ -z "${VERSION}" ] && VERSION=`git describe --tags --always 2>/dev/null | \
+                                fgrep .` \
                     && VERSION=${VERSION#v}
 
 [ -z "${VERSION}" ] && VERSION=`cat VERSION 2>/dev/null`
