@@ -1433,14 +1433,14 @@ int main (int argc, char **argv)
                 }
             }
 
+            buffer_shift(&tun.write);
+
+            if _0_(gt_decrypt(&ctx, &tun.write, &sock.read)) {
+                gt_log("%s: message could not be verified!\n", sockname);
+                goto restart;
+            }
+
             while (1) {
-                buffer_shift(&tun.write);
-
-                if _0_(gt_decrypt(&ctx, &tun.write, &sock.read)) {
-                    gt_log("%s: message could not be verified!\n", sockname);
-                    goto restart;
-                }
-
                 size_t size = buffer_read_size(&tun.write);
 
                 if (!size)
