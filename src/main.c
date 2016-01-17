@@ -620,7 +620,7 @@ int sa_have (struct seq_array *sa, uint32_t seq, uint32_t size)
 
             if (d+size>sa->elem[i].size) {
                 gt_print("sa_have:part\n");
-                return 1; // XXX 0
+                return 0; // XXX 0
             }
         }
 
@@ -882,39 +882,42 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
         return 0;
     }
 
-    uint32_t size = ic->size-ic->hdr_size-tcp.th_off*4;
+    if (tcp.th_flags&TH_ACK) {
+        if (!r_entry) {
+            r_entry = calloc(1, sizeof(entry));
 
-    if (size && !r_entry) {
-        r_entry = calloc(1, sizeof(entry));
+            if (!r_entry)
+                return 0;
 
-        if (!r_entry)
-            return 0;
+            memcpy(r_entry->key, entry.key, sizeof(entry.key));
 
-        memcpy(r_entry->key, entry.key, sizeof(entry.key));
+            if (!db_insert(db, r_entry->key)) {
+                free(r_entry);
+                return 0;
+            }
 
-        if (!db_insert(db, r_entry->key)) {
-            free(r_entry);
-            return 0;
+            gt_print_entry(r_entry);
+
+            r_entry->data[1-rev].sa.base = tcp.th_ack;
+            r_entry->data[rev].sa.base = tcp.th_seq;
+        } else {
+            sa_rebase(&r_entry->data[1-rev].sa, tcp.th_ack);
         }
     }
 
     if (!r_entry)
         return 0;
 
-    if (r_entry->data[1-rev].sa.count && (tcp.th_flags&TH_ACK))
-        sa_rebase(&r_entry->data[1-rev].sa, tcp.th_ack);
+    uint32_t size = ic->size-ic->hdr_size-tcp.th_off*4;
 
     if (!size)
         return 0;
 
-    if (r_entry->data[rev].sa.count) {
-        if (sa_have(&r_entry->data[rev].sa, tcp.th_seq, size))
-            r_entry->data[rev].retrans++;
+    if (sa_have(&r_entry->data[rev].sa, tcp.th_seq, size)) {
+        r_entry->data[rev].retrans++;
     } else {
-        r_entry->data[rev].sa.base = tcp.th_seq;
+        sa_insert(&r_entry->data[rev].sa, tcp.th_seq, size);
     }
-
-    sa_insert(&r_entry->data[rev].sa, tcp.th_seq, size);
 
     return 0;
 }
