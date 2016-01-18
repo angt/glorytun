@@ -1137,11 +1137,6 @@ int main (int argc, char **argv)
             retry_count = 0;
     }
 
-    if (statefile && statefile[0]!='/') {
-        gt_log("statefile must be an absolute path\n");
-        return 1;
-    }
-
     if (sodium_init()==-1) {
         gt_log("libsodium initialization has failed\n");
         return 1;
@@ -1201,8 +1196,6 @@ int main (int argc, char **argv)
         default:
             _exit(0);
         }
-
-        chdir("/");
     }
 
     if (state_init(statefile))
