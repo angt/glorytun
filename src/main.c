@@ -922,8 +922,7 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 
         randombytes_buf(ctx->skey, size);
         gt_tohex(buf, sizeof(buf), ctx->skey, size);
-
-        gt_print("new secret key: %s\n", buf);
+        state("SECRETKEY", buf);
 
         return 0;
     }
