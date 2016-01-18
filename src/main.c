@@ -1157,7 +1157,9 @@ int main (int argc, char **argv)
     struct fdbuf tun  = { .fd = -1 };
     struct fdbuf sock = { .fd = -1 };
 
-    tun.fd = tun_create(dev, option_is_set(opts, "multiqueue"));
+    char *tun_name = NULL;
+
+    tun.fd = tun_create(dev, &tun_name, option_is_set(opts, "multiqueue"));
 
     if (tun.fd==-1) {
         gt_log("couldn't create tun device\n");
@@ -1189,7 +1191,7 @@ int main (int argc, char **argv)
     long retry = 0;
     uint8_t *db = NULL;
 
-    state("INITIALIZED", NULL);
+    state("INITIALIZED", tun_name);
 
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {

@@ -131,9 +131,9 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
 
 #endif
 
-int tun_create (char *dev_name, int mq)
+int tun_create (char *dev_name, char **ret_name, int mq)
 {
-    char name[64];
+    char name[64] = {0};
     int fd = -1;
 
 #ifndef IFF_MULTI_QUEUE
@@ -148,8 +148,8 @@ int tun_create (char *dev_name, int mq)
         fd = tun_create_by_name(name, sizeof(name), dev_name, mq);
     }
 
-    if (fd!=-1)
-        gt_print("tun name: %s\n", name);
+    if (fd!=-1 && ret_name)
+        *ret_name = strdup(name);
 
     return fd;
 }
