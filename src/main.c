@@ -1151,6 +1151,9 @@ int main (int argc, char **argv)
     if (!ai)
         return 1;
 
+    if (state_init(statefile))
+        return 1;
+
     struct fdbuf tun  = { .fd = -1 };
     struct fdbuf sock = { .fd = -1 };
 
@@ -1181,9 +1184,6 @@ int main (int argc, char **argv)
     struct crypto_ctx ctx;
 
     if (gt_setup_secretkey(&ctx, keyfile))
-        return 1;
-
-    if (state_init(statefile))
         return 1;
 
     long retry = 0;
