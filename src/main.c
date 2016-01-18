@@ -6,6 +6,7 @@
 #include "option.h"
 #include "tun.h"
 #include "db.h"
+#include "state.h"
 
 #include <inttypes.h>
 #include <limits.h>
@@ -15,7 +16,6 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/stat.h>
 
 #ifndef __FAVOR_BSD
 #define __FAVOR_BSD
@@ -385,15 +385,6 @@ static ssize_t fd_write (int fd, const void *data, size_t size)
     }
 
     return ret;
-}
-
-static void state_write (int fd, const char *str)
-{
-    if (fd==-1) {
-        gt_print("state: %s", str);
-    } else {
-        fd_write(fd, str, str_len(str));
-    }
 }
 
 static size_t fd_read_all (int fd, void *data, size_t size)
@@ -1214,34 +1205,13 @@ int main (int argc, char **argv)
         chdir("/");
     }
 
-    int state_fd = -1;
-
-    if (statefile) {
-        state_fd = open(statefile, O_WRONLY);
-
-        if (state_fd==-1) {
-            if (errno!=EINTR)
-                perror("open statefile");
-            return 1;
-        }
-
-        struct stat st = {0};
-
-        if (fstat(state_fd, &st)==-1) {
-            perror("stat statefile");
-            return 1;
-        }
-
-        if (!S_ISFIFO(st.st_mode)) {
-            gt_log("`%s' is not a fifo\n", statefile);
-            return 1;
-        }
-    }
+    if (state_init(statefile))
+        return 1;
 
     long retry = 0;
     uint8_t *db = NULL;
 
-    state_write(state_fd, "INITIALIZED\n");
+    state("INITIALIZED", NULL);
 
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {
@@ -1311,7 +1281,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        state_write(state_fd, "STARTED\n");
+        state("STARTED", sockname);
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1476,17 +1446,17 @@ int main (int argc, char **argv)
         }
 
     restart:
-        if (sockname) {
-            free(sockname);
-            sockname = NULL;
-        }
-
         if (sock.fd!=-1) {
             close(sock.fd);
             sock.fd = -1;
         }
 
-        state_write(state_fd, "STOPPED\n");
+        state("STOPPED", sockname);
+
+        if (sockname) {
+            free(sockname);
+            sockname = NULL;
+        }
     }
 
     freeaddrinfo(ai);

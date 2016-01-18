@@ -16,7 +16,9 @@ glorytun_SOURCES = \
     src/tun.c \
     src/tun.h \
     src/db.c \
-    src/db.h
+    src/db.h \
+    src/state.c \
+    src/state.h
 
 EXTRA_DIST = \
     LICENSE \
