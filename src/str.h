@@ -47,7 +47,7 @@ static inline size_t str_len (const char *restrict str)
     return strlen(str);
 }
 
-static inline char *str_cat (const char *const strs[], size_t count)
+static inline char *str_cat (const char **strs, size_t count)
 {
     size_t size = 1;
 

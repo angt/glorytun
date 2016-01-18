@@ -265,7 +265,7 @@ static char *sk_get_name (int fd)
         return NULL;
     }
 
-    const char *const strs[] = {
+    const char *strs[] = {
         host, ".", port
     };
 
