@@ -1100,7 +1100,6 @@ int main (int argc, char **argv)
         { "buffer-size", &buffer_size,  option_long   },
         { "noquickack",  NULL,          option_option },
         { "retry",       &retry_opts,   option_option },
-        { "daemon",      NULL,          option_option },
         { "statefile",   &statefile,    option_str    },
         { "timeout",     &user_timeout, option_long   },
         { "debug",       NULL,          option_option },
@@ -1183,20 +1182,6 @@ int main (int argc, char **argv)
 
     if (gt_setup_secretkey(&ctx, keyfile))
         return 1;
-
-    if (option_is_set(opts, "daemon")) {
-        switch (fork()) {
-        case -1:
-            perror("fork");
-            return 1;
-        case 0:
-            if (setsid()==-1)
-                perror("setsid");
-            break;
-        default:
-            _exit(0);
-        }
-    }
 
     if (state_init(statefile))
         return 1;
