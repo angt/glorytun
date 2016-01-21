@@ -40,11 +40,14 @@
 #define O_CLOEXEC 0
 #endif
 
-#define GT_TIMEOUT   (5000)
 #define GT_MTU_MAX   (1500)
 #define GT_PKT_MAX   (32*1024)
 #define GT_TUNR_SIZE (GT_PKT_MAX-16-2)
 #define GT_TUNW_SIZE (GT_PKT_MAX)
+
+static struct {
+    int timeout;
+} gt;
 
 struct fdbuf {
     int fd;
@@ -188,7 +191,7 @@ static int sk_listen (int fd, struct addrinfo *ai)
     }
 
 #ifdef __linux__
-    sk_set_int(fd, sk_defer_accept, GT_TIMEOUT/1000);
+    sk_set_int(fd, sk_defer_accept, gt.timeout/1000);
 #else
     char data[256] = "dataready";
     sk_set(fd, sk_acceptfilter, &data, sizeof(data));
@@ -199,10 +202,34 @@ static int sk_listen (int fd, struct addrinfo *ai)
 
 static int sk_connect (int fd, struct addrinfo *ai)
 {
+    fd_set_nonblock(fd);
+
     int ret = connect(fd, ai->ai_addr, ai->ai_addrlen);
 
-    if (ret==-1 && errno==EINTR)
-        return 0;
+    if (ret==-1) {
+        if (errno==EINTR)
+            return 0;
+
+        if (errno==EINPROGRESS) {
+            struct pollfd pollfd = {
+                .fd = fd,
+                .events = POLLOUT,
+            };
+
+            if (!poll(&pollfd, 1, gt.timeout))
+                return -1;
+
+            int opt = 0;
+            socklen_t optlen = sizeof(opt);
+
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &opt, &optlen);
+
+            if (!opt)
+                return 0;
+
+            errno = opt;
+        }
+    }
 
     return ret;
 }
@@ -233,6 +260,8 @@ static int sk_accept (int fd)
 
     if (ret==-1 && errno!=EINTR)
         perror("accept");
+
+    fd_set_nonblock(ret);
 
     return ret;
 }
@@ -403,7 +432,7 @@ static size_t fd_read_all (int fd, void *data, size_t size)
                 .events = POLLIN,
             };
 
-            if (!poll(&pollfd, 1, GT_TIMEOUT))
+            if (!poll(&pollfd, 1, gt.timeout))
                 break;
 
             continue;
@@ -431,7 +460,7 @@ static size_t fd_write_all (int fd, const void *data, size_t size)
                 .events = POLLOUT,
             };
 
-            if (!poll(&pollfd, 1, GT_TIMEOUT))
+            if (!poll(&pollfd, 1, gt.timeout))
                 break;
 
             continue;
@@ -1069,7 +1098,7 @@ int main (int argc, char **argv)
     long retry_const = 0;
     long retry_limit = 1000000;
 
-    long user_timeout = 0;
+    gt.timeout = 5000;
 
     struct option ka_opts[] = {
         { "count",    &ka_count,    option_long },
@@ -1100,7 +1129,7 @@ int main (int argc, char **argv)
         { "noquickack",  NULL,          option_option },
         { "retry",       &retry_opts,   option_option },
         { "statefile",   &statefile,    option_str    },
-        { "timeout",     &user_timeout, option_long   },
+        { "timeout",     &gt.timeout,   option_long   },
         { "debug",       NULL,          option_option },
         { "version",     NULL,          option_option },
         { NULL },
@@ -1133,6 +1162,11 @@ int main (int argc, char **argv)
 
         if (!option_is_set(opts, "retry"))
             retry_count = 0;
+    }
+
+    if (gt.timeout<=0 || gt.timeout>INT_MAX) {
+        gt_log("bad timeout\n");
+        return 1;
     }
 
     if (sodium_init()==-1) {
@@ -1226,8 +1260,6 @@ int main (int argc, char **argv)
 
         gt_log("%s: connected\n", sockname);
 
-        fd_set_nonblock(sock.fd);
-
         sk_set_int(sock.fd, sk_nodelay, !delay);
         sk_set_int(sock.fd, sk_keepalive, keepalive);
 
@@ -1242,9 +1274,7 @@ int main (int argc, char **argv)
                 sk_set_int(sock.fd, sk_keepintvl, ka_interval);
         }
 
-        if (user_timeout>0 && user_timeout<=INT_MAX)
-            sk_set_int(sock.fd, sk_user_timeout, user_timeout);
-
+        sk_set_int(sock.fd, sk_user_timeout, gt.timeout);
         sk_set(sock.fd, sk_congestion, congestion, str_len(congestion));
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
