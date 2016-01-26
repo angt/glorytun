@@ -42,7 +42,7 @@
 
 #define GT_MTU_MAX   (1500)
 #define GT_PKT_MAX   (32*1024)
-#define GT_TUNR_SIZE (GT_PKT_MAX-16-2)
+#define GT_TUNR_SIZE (1500)
 #define GT_TUNW_SIZE (GT_PKT_MAX)
 
 static struct {
@@ -482,23 +482,22 @@ static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
 
     const size_t size = rs+crypto_aead_aes256gcm_ABYTES;
 
-    if (size+2>ws)
+    if (size>ws)
         return 0;
 
-    dst->write[0] = 0xFF&(size>>8);
-    dst->write[1] = 0xFF&(size);
+    memcpy(dst->write, src->read, 4);
 
     crypto_aead_aes256gcm_encrypt_afternm(
-            dst->write+2, NULL,
-            src->read, rs,
-            dst->write, 2,
+            dst->write+4, NULL,
+            src->read+4, rs-4,
+            src->read, 4,
             NULL, ctx->write.nonce,
             (const crypto_aead_aes256gcm_state *)&ctx->write.state);
 
     sodium_increment(ctx->write.nonce, crypto_aead_aes256gcm_NPUBBYTES);
 
     src->read += rs;
-    dst->write += size+2;
+    dst->write += size;
 
     return 0;
 }
@@ -511,29 +510,36 @@ static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     if (!rs || !ws)
         return 0;
 
-    if (rs<=2+crypto_aead_aes256gcm_ABYTES)
+    if (rs<=4+crypto_aead_aes256gcm_ABYTES)
         return 0;
 
-    const size_t size = (src->read[0]<<8)|src->read[1];
+    struct ip_common ic;
+
+    if (ip_get_common(&ic, src->read, GT_MTU_MAX))
+        return 0;
+
+    const size_t size = ic.size+crypto_aead_aes256gcm_ABYTES;
 
     if (size-crypto_aead_aes256gcm_ABYTES>ws)
         return 0;
 
-    if (size+2>rs)
+    if (size>rs)
         return 0;
 
+    memcpy(dst->write, src->read, 4);
+
     if (crypto_aead_aes256gcm_decrypt_afternm(
-                dst->write, NULL,
+                dst->write+4, NULL,
                 NULL,
-                src->read+2, size,
-                src->read, 2,
+                src->read+4, size-4,
+                src->read, 4,
                 ctx->read.nonce,
                 (const crypto_aead_aes256gcm_state *)&ctx->read.state))
         return -1;
 
     sodium_increment(ctx->read.nonce, crypto_aead_aes256gcm_NPUBBYTES);
 
-    src->read += size+2;
+    src->read += size;
     dst->write += size-crypto_aead_aes256gcm_ABYTES;
 
     return 0;
@@ -1417,12 +1423,12 @@ int main (int argc, char **argv)
 
             buffer_shift(&tun.write);
 
-            if _0_(gt_decrypt(&ctx, &tun.write, &sock.read)) {
-                gt_log("%s: message could not be verified!\n", sockname);
-                goto restart;
-            }
-
             while (1) {
+                if _0_(gt_decrypt(&ctx, &tun.write, &sock.read)) {
+                    gt_log("%s: message could not be verified!\n", sockname);
+                    goto restart;
+                }
+
                 size_t size = buffer_read_size(&tun.write);
 
                 if (!size)
