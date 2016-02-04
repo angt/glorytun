@@ -20,7 +20,7 @@ glorytun_SOURCES = \
     src/state.c \
     src/state.h
 
-glorytun_CFLAGS  += -Imud
+glorytun_CFLAGS  += -I$(srcdir)/mud
 glorytun_SOURCES += \
     mud/mud.h \
     mud/mud.c
