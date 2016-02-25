@@ -45,8 +45,11 @@
 #define GT_TUNR_SIZE (GT_PKT_MAX-16-2)
 #define GT_TUNW_SIZE (GT_PKT_MAX)
 
+#define MPTCP_ENABLED (26)
+
 static struct {
-    int timeout;
+    long timeout;
+    int mptcp;
 } gt;
 
 struct fdbuf {
@@ -104,6 +107,7 @@ enum sk_opt {
     sk_acceptfilter,
     sk_quickack,
     sk_user_timeout,
+    sk_mptcp,
 };
 
 static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
@@ -160,6 +164,11 @@ static void sk_set (int fd, enum sk_opt opt, const void *val, socklen_t len)
             1, IPPROTO_TCP, TCP_USER_TIMEOUT,
 #endif
         },
+        [sk_mptcp] = { "MPTCP_ENABLED",
+#ifdef MPTCP_ENABLED
+            1, IPPROTO_TCP, MPTCP_ENABLED,
+#endif
+        },
     };
 
     if (!opts[opt].present) {
@@ -179,6 +188,9 @@ static void sk_set_int (int fd, enum sk_opt opt, int val)
 static int sk_listen (int fd, struct addrinfo *ai)
 {
     sk_set_int(fd, sk_reuseaddr, 1);
+
+    if (gt.mptcp)
+        sk_set_int(fd, sk_mptcp, 1);
 
     if (bind(fd, ai->ai_addr, ai->ai_addrlen)==-1) {
         perror("bind");
@@ -203,6 +215,9 @@ static int sk_listen (int fd, struct addrinfo *ai)
 static int sk_connect (int fd, struct addrinfo *ai)
 {
     fd_set_nonblock(fd);
+
+    if (gt.mptcp)
+        sk_set_int(fd, sk_mptcp, 1);
 
     int ret = connect(fd, ai->ai_addr, ai->ai_addrlen);
 
@@ -1130,6 +1145,7 @@ int main (int argc, char **argv)
         { "retry",       &retry_opts,   option_option },
         { "statefile",   &statefile,    option_str    },
         { "timeout",     &gt.timeout,   option_long   },
+        { "mptcp",       NULL,          option_option },
         { "debug",       NULL,          option_option },
         { "version",     NULL,          option_option },
         { NULL },
@@ -1148,6 +1164,8 @@ int main (int argc, char **argv)
     const int keepalive = option_is_set(opts, "keepalive");
     const int noquickack = option_is_set(opts, "noquickack");
     const int debug = option_is_set(opts, "debug");
+
+    gt.mptcp = option_is_set(opts, "mptcp");
 
     if (buffer_size < GT_PKT_MAX) {
         buffer_size = GT_PKT_MAX;
