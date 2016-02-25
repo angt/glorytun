@@ -336,28 +336,20 @@ int main (int argc, char **argv)
     struct mud *mud = mud_create(ctx.skey, sizeof(ctx.skey));
 
     if (!mud) {
-        gt_log("unable to crate the mud !!!\n");
+        gt_log("unable to create the mud !!!\n");
         return 1;
     }
 
-    int fd1 = mud_bind(mud, host_bind, port);
-
-    if (fd1==-1)
+    if (host_bind && mud_bind(mud, host_bind))
         return 1;
 
-    int fdmax = fd1;
-
-    int fd2 = -1;
-
-    if (host_bind2) {
-        fd2 = mud_bind(mud, host_bind2, port);
-        fdmax = fd2;
-        if (fd2==-1)
-            return 1;
-    }
+    if (host_bind2 && mud_bind(mud, host_bind2))
+        return 1;
 
     if (host_peer && mud_peer(mud, host_peer, port))
         return 1;
+
+    int mud_fd = mud_get_fd(mud);
 
     state("INITIALIZED", tun_name);
 
@@ -374,16 +366,13 @@ int main (int argc, char **argv)
 
         while (!gt_close) {
             FD_SET(tun_fd, &rfds);
-            FD_SET(fd1, &rfds);
-
-            if (fd2!=-1)
-                FD_SET(fd2, &rfds);
+            FD_SET(mud_fd, &rfds);
 
             struct timeval timeout = {
                 .tv_usec = 1000,
             };
 
-            if _0_(select(fdmax+1, &rfds, NULL, NULL, &timeout)==-1) {
+            if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
                 if (errno==EINTR)
                     continue;
                 perror("select");
@@ -406,7 +395,7 @@ int main (int argc, char **argv)
 
             mud_push(mud);
 
-            if (FD_ISSET(fd2, &rfds) || FD_ISSET(fd1, &rfds))
+            if (FD_ISSET(mud_fd, &rfds))
                 mud_pull(mud);
 
             while (1) {
