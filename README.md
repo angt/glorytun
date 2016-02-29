@@ -1,6 +1,6 @@
 # Glorytun
 
-Small, Simple and Stupid TCP VPN.
+Small, Simple and Stupid VPN over [mud](https://github.com/angt/mud).
 
 #### Work In Progress
 
@@ -13,7 +13,7 @@ and needs an AES-NI capable CPU.
 
 To build and install the latest version:
 
-    $ git clone https://github.com/angt/glorytun
+    $ git clone https://github.com/angt/glorytun --recursive --branch mud
     $ cd glorytun
     $ ./autogen.sh
     $ ./configure
