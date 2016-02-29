@@ -254,10 +254,9 @@ int main (int argc, char **argv)
 {
     gt_set_signal();
 
-    char *host_bind = NULL;
-    char *host_bind2 = NULL;
-    char *host_peer = NULL;
+    char *host = NULL;
     char *port = "5000";
+    char *bind_list = NULL;
     char *dev = NULL;
     char *keyfile = NULL;
     char *statefile = NULL;
@@ -265,16 +264,14 @@ int main (int argc, char **argv)
     gt.timeout = 5000;
 
     struct option opts[] = {
-        { "bind",        &host_bind,    option_str    },
-        { "bind2",       &host_bind2,   option_str    },
-        { "peer",        &host_peer,    option_str    },
+        { "host",        &host,         option_str    },
         { "port",        &port,         option_str    },
+        { "bind",        &bind_list,    option_str    },
         { "dev",         &dev,          option_str    },
         { "keyfile",     &keyfile,      option_str    },
         { "multiqueue",  NULL,          option_option },
         { "statefile",   &statefile,    option_str    },
         { "timeout",     &gt.timeout,   option_long   },
-        { "debug",       NULL,          option_option },
         { "version",     NULL,          option_option },
         { NULL },
     };
@@ -287,16 +284,9 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    int listener = 0;
-    int debug = option_is_set(opts, "debug");
-
-    if (!host_peer) {
-        listener = 1;
-
-        if (!option_is_set(opts, "keyfile")) {
-            gt_log("keyfile option must be set\n");
-            return 1;
-        }
+    if (!option_is_set(opts, "keyfile")) {
+        gt_log("keyfile option must be set\n");
+        return 1;
     }
 
     if (gt.timeout<=0 || gt.timeout>INT_MAX) {
@@ -336,17 +326,33 @@ int main (int argc, char **argv)
     struct mud *mud = mud_create(ctx.skey, sizeof(ctx.skey));
 
     if (!mud) {
-        gt_log("unable to create the mud !!!\n");
+        gt_log("couldn't create mud\n");
         return 1;
     }
 
-    if (host_bind && mud_bind(mud, host_bind))
-        return 1;
+    if (bind_list) {
+        char tmp[1024];
+        char *name = &tmp[0];
 
-    if (host_bind2 && mud_bind(mud, host_bind2))
-        return 1;
+        size_t size = str_cpy(tmp, bind_list, sizeof(tmp)-1);
 
-    if (host_peer && mud_peer(mud, host_peer, port))
+        for (size_t i=0; i<size; i++) {
+            if (tmp[i]!=',')
+                continue;
+
+            tmp[i] = 0;
+
+            if (mud_bind(mud, name))
+                return 1;
+
+            name = &tmp[i+1];
+        }
+
+        if (name[0] && mud_bind(mud, name))
+            return 1;
+    }
+
+    if (host && mud_peer(mud, host, port))
         return 1;
 
     int mud_fd = mud_get_fd(mud);
