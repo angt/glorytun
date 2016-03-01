@@ -235,6 +235,7 @@ int main (int argc, char **argv)
     char *host = NULL;
     char *port = "5000";
     char *bind_list = NULL;
+    char *bind_port = "5000";
     char *dev = NULL;
     char *keyfile = NULL;
     char *statefile = NULL;
@@ -245,6 +246,7 @@ int main (int argc, char **argv)
         { "host",        &host,         option_str    },
         { "port",        &port,         option_str    },
         { "bind",        &bind_list,    option_str    },
+        { "bind-port",   &bind_port,    option_str    },
         { "dev",         &dev,          option_str    },
         { "keyfile",     &keyfile,      option_str    },
         { "multiqueue",  NULL,          option_option },
@@ -299,12 +301,14 @@ int main (int argc, char **argv)
     if (gt_setup_secretkey(keyfile))
         return 1;
 
-    struct mud *mud = mud_create(gt.key, sizeof(gt.key));
+    struct mud *mud = mud_create(bind_port);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
         return 1;
     }
+
+    mud_set_key(mud, gt.key, sizeof(gt.key));
 
     if (bind_list) {
         char tmp[1024];
