@@ -17,20 +17,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
-#ifndef __FAVOR_BSD
-#define __FAVOR_BSD
-#define GT_FAKE_BSD
-#endif
-
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-
-#ifdef GT_FAKE_BSD
-#undef GT_FAKE_BSD
-#undef __FAVOR_BSD
-#endif
-
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -44,18 +30,10 @@
 
 static struct {
     int timeout;
+    volatile sig_atomic_t quit;
+    volatile sig_atomic_t info;
+    uint8_t key[crypto_generichash_KEYBYTES];
 } gt;
-
-struct crypto_ctx {
-    struct {
-        crypto_aead_aes256gcm_state state;
-        uint8_t nonce[crypto_aead_aes256gcm_NPUBBYTES];
-    } write, read;
-    uint8_t skey[crypto_generichash_KEYBYTES];
-};
-
-volatile sig_atomic_t gt_close = 0;
-volatile sig_atomic_t gt_info = 0;
 
 static void fd_set_nonblock (int fd)
 {
@@ -81,10 +59,10 @@ static void gt_sa_handler (int sig)
     case SIGINT:
     case SIGQUIT:
     case SIGTERM:
-        gt_close = 1;
+        gt.quit = 1;
         break;
     case SIGUSR1:
-        gt_info = 1;
+        gt.info = 1;
         break;
     }
 }
@@ -207,15 +185,15 @@ static size_t fd_write_all (int fd, const void *data, size_t size)
     return done;
 }
 
-static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
+static int gt_setup_secretkey (char *keyfile)
 {
-    const size_t size = sizeof(ctx->skey);
+    const size_t size = sizeof(gt.key);
 
     if (str_empty(keyfile)) {
         char buf[2*size+1];
 
-        randombytes_buf(ctx->skey, size);
-        gt_tohex(buf, sizeof(buf), ctx->skey, size);
+        randombytes_buf(gt.key, size);
+        gt_tohex(buf, sizeof(buf), gt.key, size);
         state("SECRETKEY", buf);
 
         return 0;
@@ -242,7 +220,7 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
         return -1;
     }
 
-    if (gt_fromhex(ctx->skey, size, key, sizeof(key))) {
+    if (gt_fromhex(gt.key, size, key, sizeof(key))) {
         gt_log("secret key is not valid\n");
         return -1;
     }
@@ -318,12 +296,10 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun_fd);
 
-    struct crypto_ctx ctx;
-
-    if (gt_setup_secretkey(&ctx, keyfile))
+    if (gt_setup_secretkey(keyfile))
         return 1;
 
-    struct mud *mud = mud_create(ctx.skey, sizeof(ctx.skey));
+    struct mud *mud = mud_create(gt.key, sizeof(gt.key));
 
     if (!mud) {
         gt_log("couldn't create mud\n");
@@ -359,63 +335,53 @@ int main (int argc, char **argv)
 
     state("INITIALIZED", tun_name);
 
-    struct packet *packet = NULL;
+    fd_set rfds;
+    FD_ZERO(&rfds);
 
-    while (!gt_close) {
-        state("STARTED", NULL);
+    unsigned char buf[2048];
 
-        fd_set rfds;
-        FD_ZERO(&rfds);
+    while (!gt.quit) {
+        FD_SET(tun_fd, &rfds);
+        FD_SET(mud_fd, &rfds);
 
-        int stop_loop = 0;
-        unsigned char buf[2048];
+        struct timeval timeout = {
+            .tv_usec = 1000,
+        };
 
-        while (!gt_close) {
-            FD_SET(tun_fd, &rfds);
-            FD_SET(mud_fd, &rfds);
+        if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
+            if (errno==EINTR)
+                continue;
+            perror("select");
+            return 1;
+        }
 
-            struct timeval timeout = {
-                .tv_usec = 1000,
-            };
-
-            if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
-                if (errno==EINTR)
-                    continue;
-                perror("select");
-                return 1;
-            }
-
-            if (FD_ISSET(tun_fd, &rfds)) {
-                while (1) {
-                    const ssize_t r = tun_read(tun_fd, buf, sizeof(buf));
-
-                    if (r<=0)
-                        break;
-
-                    struct ip_common ic;
-
-                    if (!ip_get_common(&ic, buf, sizeof(buf)) && ic.size==r)
-                        mud_send(mud, buf, r);
-                }
-            }
-
-            mud_push(mud);
-
-            if (FD_ISSET(mud_fd, &rfds))
-                mud_pull(mud);
-
+        if (FD_ISSET(tun_fd, &rfds)) {
             while (1) {
-                const ssize_t r = mud_recv(mud, buf, sizeof(buf));
+                const ssize_t r = tun_read(tun_fd, buf, sizeof(buf));
 
                 if (r<=0)
                     break;
 
-                tun_write(tun_fd, buf, r);
+                struct ip_common ic;
+
+                if (!ip_get_common(&ic, buf, sizeof(buf)) && ic.size==r)
+                    mud_send(mud, buf, r);
             }
         }
 
-    restart:
-        state("STOPPED", NULL);
+        mud_push(mud);
+
+        if (FD_ISSET(mud_fd, &rfds))
+            mud_pull(mud);
+
+        while (1) {
+            const ssize_t r = mud_recv(mud, buf, sizeof(buf));
+
+            if (r<=0)
+                break;
+
+            tun_write(tun_fd, buf, r);
+        }
     }
 
     return 0;
