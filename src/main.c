@@ -346,7 +346,12 @@ int main (int argc, char **argv)
 
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
-        FD_SET(mud_fd, &rfds);
+
+        if (mud_can_pull(mud)) {
+            FD_SET(mud_fd, &rfds);
+        } else {
+            FD_CLR(mud_fd, &rfds);
+        }
 
         struct timeval timeout = {
             .tv_usec = 1000,
@@ -379,7 +384,7 @@ int main (int argc, char **argv)
             mud_pull(mud);
 
         while (1) {
-            const ssize_t r = mud_recv(mud, buf, sizeof(buf));
+            const int r = mud_recv(mud, buf, sizeof(buf));
 
             if (r<=0)
                 break;
