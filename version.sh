@@ -5,14 +5,9 @@
 
 [ -z "${VERSION}" ] && VERSION=`cat VERSION 2>/dev/null`
 
-[ -z "${VERSION}" ] && VERSION="0.0.0"
+[ -z "${VERSION}" ] && VERSION=0.0.0
 
 [ "$1" = "major"  ] && printf ${VERSION%%.*} \
                     && exit 0
-
-BRANCH=`git rev-parse --abbrev-ref HEAD 2>/dev/null`
-
-[ -n "${BRANCH}" ] && [ "${BRANCH}" != "master" ] \
-                   && VERSION=${VERSION}-${BRANCH}
 
 printf ${VERSION} | tee VERSION
