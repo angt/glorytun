@@ -45,6 +45,9 @@
 #define GT_TUNR_SIZE (GT_PKT_MAX-16-2)
 #define GT_TUNW_SIZE (GT_PKT_MAX)
 
+#define GT_ABYTES    (16)
+#define GT_KEYBYTES  (32)
+
 #define MPTCP_ENABLED (26)
 
 static struct {
@@ -60,10 +63,11 @@ struct fdbuf {
 
 struct crypto_ctx {
     struct {
-        crypto_aead_aes256gcm_state state;
-        uint8_t nonce[crypto_aead_aes256gcm_NPUBBYTES];
+        uint8_t key[512] _align_(16);
+        uint8_t nonce[16];
     } write, read;
     uint8_t skey[crypto_generichash_KEYBYTES];
+    int chacha;
 };
 
 volatile sig_atomic_t gt_close = 0;
@@ -495,7 +499,7 @@ static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     if (!rs || !ws)
         return 0;
 
-    const size_t size = rs+crypto_aead_aes256gcm_ABYTES;
+    const size_t size = rs+GT_ABYTES;
 
     if (size+2>ws)
         return 0;
@@ -503,14 +507,25 @@ static int gt_encrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     dst->write[0] = 0xFF&(size>>8);
     dst->write[1] = 0xFF&(size);
 
-    crypto_aead_aes256gcm_encrypt_afternm(
-            dst->write+2, NULL,
-            src->read, rs,
-            dst->write, 2,
-            NULL, ctx->write.nonce,
-            (const crypto_aead_aes256gcm_state *)&ctx->write.state);
+    if (ctx->chacha) {
+        crypto_aead_chacha20poly1305_encrypt(
+                dst->write+2, NULL,
+                src->read, rs,
+                dst->write, 2,
+                NULL, ctx->write.nonce,
+                ctx->write.key);
 
-    sodium_increment(ctx->write.nonce, crypto_aead_aes256gcm_NPUBBYTES);
+        sodium_increment(ctx->write.nonce, crypto_aead_chacha20poly1305_NPUBBYTES);
+    } else {
+        crypto_aead_aes256gcm_encrypt_afternm(
+                dst->write+2, NULL,
+                src->read, rs,
+                dst->write, 2,
+                NULL, ctx->write.nonce,
+                (const crypto_aead_aes256gcm_state *)ctx->write.key);
+
+        sodium_increment(ctx->write.nonce, crypto_aead_aes256gcm_NPUBBYTES);
+    }
 
     src->read += rs;
     dst->write += size+2;
@@ -526,30 +541,43 @@ static int gt_decrypt (struct crypto_ctx *ctx, buffer_t *dst, buffer_t *src)
     if (!rs || !ws)
         return 0;
 
-    if (rs<=2+crypto_aead_aes256gcm_ABYTES)
+    if (rs<=2+GT_ABYTES)
         return 0;
 
     const size_t size = (src->read[0]<<8)|src->read[1];
 
-    if (size-crypto_aead_aes256gcm_ABYTES>ws)
+    if (size-GT_ABYTES>ws)
         return 0;
 
     if (size+2>rs)
         return 0;
 
-    if (crypto_aead_aes256gcm_decrypt_afternm(
-                dst->write, NULL,
-                NULL,
-                src->read+2, size,
-                src->read, 2,
-                ctx->read.nonce,
-                (const crypto_aead_aes256gcm_state *)&ctx->read.state))
-        return -1;
+    if (ctx->chacha) {
+        if (crypto_aead_chacha20poly1305_decrypt(
+                    dst->write, NULL,
+                    NULL,
+                    src->read+2, size,
+                    src->read, 2,
+                    ctx->read.nonce,
+                    ctx->read.key))
+            return -1;
 
-    sodium_increment(ctx->read.nonce, crypto_aead_aes256gcm_NPUBBYTES);
+        sodium_increment(ctx->read.nonce, crypto_aead_chacha20poly1305_NPUBBYTES);
+    } else {
+        if (crypto_aead_aes256gcm_decrypt_afternm(
+                    dst->write, NULL,
+                    NULL,
+                    src->read+2, size,
+                    src->read, 2,
+                    ctx->read.nonce,
+                    (const crypto_aead_aes256gcm_state *)ctx->read.key))
+            return -1;
+
+        sodium_increment(ctx->read.nonce, crypto_aead_aes256gcm_NPUBBYTES);
+    }
 
     src->read += size+2;
-    dst->write += size-crypto_aead_aes256gcm_ABYTES;
+    dst->write += size-GT_ABYTES;
 
     return 0;
 }
@@ -787,10 +815,11 @@ static void gt_print_entry (struct tcp_entry *te)
     uint8_t *key = &te->key[1];
     size_t size = te->key[0];
 
-    char ip0[INET6_ADDRSTRLEN];
-    char ip1[INET6_ADDRSTRLEN];
+    char ip0[INET6_ADDRSTRLEN] = {0};
+    char ip1[INET6_ADDRSTRLEN] = {0};
 
-    uint16_t port0, port1;
+    uint16_t port0 = 0;
+    uint16_t port1 = 0;
 
     switch (size) {
     case 8+4:
@@ -1002,17 +1031,16 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 
 static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
 {
-    const uint8_t gt[] = {'G', 'T', VERSION_MAJOR, 0 };
+    const uint8_t proto[] = {'G', 'T', VERSION_MAJOR, (uint8_t)ctx->chacha };
 
     const size_t size = 96;
     const size_t hash_size = 32;
 
-    const size_t nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
-    const size_t public_size = crypto_scalarmult_SCALARBYTES;
-
     uint8_t secret[crypto_scalarmult_SCALARBYTES];
     uint8_t shared[crypto_scalarmult_BYTES];
-    uint8_t key[crypto_aead_aes256gcm_KEYBYTES];
+
+    uint8_t key_r[GT_KEYBYTES];
+    uint8_t key_w[GT_KEYBYTES];
 
     uint8_t data_r[size], data_w[size];
     uint8_t auth_r[hash_size], auth_w[hash_size];
@@ -1021,12 +1049,11 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     crypto_generichash_state state;
 
     memset(data_w, 0, size);
-    randombytes_buf(data_w, nonce_size);
 
     randombytes_buf(secret, sizeof(secret));
-    crypto_scalarmult_base(&data_w[nonce_size], secret);
+    crypto_scalarmult_base(data_w, secret);
 
-    memcpy(&data_w[size-hash_size-sizeof(gt)], gt, sizeof(gt));
+    memcpy(&data_w[size-hash_size-sizeof(proto)], proto, sizeof(proto));
 
     crypto_generichash(&data_w[size-hash_size], hash_size,
             data_w, size-hash_size, ctx->skey, sizeof(ctx->skey));
@@ -1037,8 +1064,11 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (fd_read_all(fd, data_r, size)!=size)
         return -1;
 
-    if (memcmp(&data_r[size-hash_size-sizeof(gt)], gt, sizeof(gt)))
+    if (memcmp(&data_r[size-hash_size-sizeof(proto)], proto, 3))
         return -2;
+
+    if (data_r[size-hash_size-sizeof(proto)+3])
+        ctx->chacha = 1;
 
     crypto_generichash(hash, hash_size,
             data_r, size-hash_size, ctx->skey, sizeof(ctx->skey));
@@ -1064,29 +1094,36 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (sodium_memcmp(auth_r, hash, hash_size))
         return -2;
 
-    if (crypto_scalarmult(shared, secret, &data_r[nonce_size]))
+    if (crypto_scalarmult(shared, secret, data_r))
         return -2;
 
-    crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
+    crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key_r));
     crypto_generichash_update(&state, shared, sizeof(shared));
     crypto_generichash_update(&state, data_r, size);
     crypto_generichash_update(&state, data_w, size);
-    crypto_generichash_final(&state, key, sizeof(key));
-    crypto_aead_aes256gcm_beforenm(&ctx->read.state, key);
+    crypto_generichash_final(&state, key_r, sizeof(key_r));
 
-    crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key));
+    crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key_w));
     crypto_generichash_update(&state, shared, sizeof(shared));
     crypto_generichash_update(&state, data_w, size);
     crypto_generichash_update(&state, data_r, size);
-    crypto_generichash_final(&state, key, sizeof(key));
-    crypto_aead_aes256gcm_beforenm(&ctx->write.state, key);
+    crypto_generichash_final(&state, key_w, sizeof(key_w));
+
+    if (ctx->chacha) {
+        memcpy(ctx->read.key, key_r, sizeof(key_r));
+        memcpy(ctx->write.key, key_w, sizeof(key_w));
+    } else {
+        crypto_aead_aes256gcm_beforenm(&ctx->read.key, key_r);
+        crypto_aead_aes256gcm_beforenm(&ctx->write.key, key_w);
+    }
 
     sodium_memzero(secret, sizeof(secret));
     sodium_memzero(shared, sizeof(shared));
-    sodium_memzero(key, sizeof(key));
+    sodium_memzero(key_r, sizeof(key_r));
+    sodium_memzero(key_w, sizeof(key_w));
 
-    memcpy(ctx->read.nonce, data_r, nonce_size);
-    memcpy(ctx->write.nonce, data_w, nonce_size);
+    memset(ctx->read.nonce, 0, sizeof(ctx->read.nonce));
+    memset(ctx->write.nonce, 0, sizeof(ctx->write.nonce));
 
     return 0;
 }
@@ -1145,6 +1182,7 @@ int main (int argc, char **argv)
         { "retry",       &retry_opts,   option_option },
         { "statefile",   &statefile,    option_str    },
         { "timeout",     &gt.timeout,   option_long   },
+        { "chacha20",    NULL,          option_option },
         { "mptcp",       NULL,          option_option },
         { "debug",       NULL,          option_option },
         { "version",     NULL,          option_option },
@@ -1164,6 +1202,8 @@ int main (int argc, char **argv)
     const int keepalive = option_is_set(opts, "keepalive");
     const int noquickack = option_is_set(opts, "noquickack");
     const int debug = option_is_set(opts, "debug");
+
+    int chacha = option_is_set(opts, "chacha20");
 
     gt.mptcp = option_is_set(opts, "mptcp");
 
@@ -1192,9 +1232,9 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    if (!crypto_aead_aes256gcm_is_available()) {
+    if (!chacha && !crypto_aead_aes256gcm_is_available()) {
         gt_na("AES-256-GCM");
-        return 1;
+        chacha = 1;
     }
 
     struct addrinfo *ai = ai_create(host, port, listener);
@@ -1294,6 +1334,8 @@ int main (int argc, char **argv)
 
         sk_set_int(sock.fd, sk_user_timeout, gt.timeout);
         sk_set(sock.fd, sk_congestion, congestion, str_len(congestion));
+
+        ctx.chacha = chacha;
 
         switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
         case -2:
