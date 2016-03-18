@@ -8,8 +8,7 @@ This code will probably format your harddisk!
 
 #### Build and Install
 
-Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4
-and needs an AES-NI capable CPU.
+Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 
 To build and install the latest version:
 
