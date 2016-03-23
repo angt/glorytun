@@ -1,4 +1,4 @@
-# Glorytun
+![glorytun](https://f.00f.net/gt.png)
 
 Small, Simple and Stupid TCP VPN.
 
