@@ -342,6 +342,7 @@ int main (int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
+    int started = 0;
     unsigned char buf[2048];
 
     while (!gt.quit) {
@@ -362,6 +363,16 @@ int main (int argc, char **argv)
                 continue;
             perror("select");
             return 1;
+        }
+
+        if (mud_is_up(mud)) {
+            if (!started) {
+                state("STARTED", NULL);
+                started = 1;
+            }
+        } else if (started) {
+            state("STOPPED", NULL);
+            started = 0;
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
