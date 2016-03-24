@@ -1,4 +1,4 @@
-# Glorytun
+# π₁(Glorytun)=ℤ²
 
 Small, Simple and Stupid VPN over [mud](https://github.com/angt/mud).
 
