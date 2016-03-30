@@ -1,4 +1,4 @@
-![glorytun](https://f.00f.net/gt.png)
+# π₁(Glorytun)=ℤ²
 
 Small, Simple and Stupid TCP VPN.
 
