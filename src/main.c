@@ -279,11 +279,6 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    if (!crypto_aead_aes256gcm_is_available()) {
-        gt_na("AES-256-GCM");
-        return 1;
-    }
-
     if (state_init(statefile))
         return 1;
 
