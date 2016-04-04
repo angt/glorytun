@@ -362,12 +362,14 @@ int main (int argc, char **argv)
 
         if (mud_is_up(mud)) {
             if (!started) {
-                state("STARTED", NULL);
+                state("STARTED", tun_name);
                 started = 1;
             }
-        } else if (started) {
-            state("STOPPED", NULL);
-            started = 0;
+        } else {
+            if (started) {
+                state("STOPPED", tun_name);
+                started = 0;
+            }
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
