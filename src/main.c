@@ -242,17 +242,26 @@ int main (int argc, char **argv)
 
     gt.timeout = 5000;
 
+    long down_timeout = 0;
+    long send_timeout = 0;
+    long pong_timeout = 0;
+    long time_tolerance = 0;
+
     struct option opts[] = {
-        { "host",        &host,         option_str    },
-        { "port",        &port,         option_str    },
-        { "bind",        &bind_list,    option_str    },
-        { "bind-port",   &bind_port,    option_str    },
-        { "dev",         &dev,          option_str    },
-        { "keyfile",     &keyfile,      option_str    },
-        { "multiqueue",  NULL,          option_option },
-        { "statefile",   &statefile,    option_str    },
-        { "timeout",     &gt.timeout,   option_long   },
-        { "version",     NULL,          option_option },
+        { "host",           &host,           option_str    },
+        { "port",           &port,           option_str    },
+        { "bind",           &bind_list,      option_str    },
+        { "bind-port",      &bind_port,      option_str    },
+        { "dev",            &dev,            option_str    },
+        { "keyfile",        &keyfile,        option_str    },
+        { "multiqueue",     NULL,            option_option },
+        { "statefile",      &statefile,      option_str    },
+        { "timeout",        &gt.timeout,     option_long   },
+        { "down-timeout",   &down_timeout,   option_long   },
+        { "send-timeout",   &send_timeout,   option_long   },
+        { "pong-timeout",   &pong_timeout,   option_long   },
+        { "time-tolerance", &time_tolerance, option_long   },
+        { "version",        NULL,            option_option },
         { NULL },
     };
 
@@ -304,6 +313,18 @@ int main (int argc, char **argv)
     }
 
     mud_set_key(mud, gt.key, sizeof(gt.key));
+
+    if (down_timeout > 0)
+        mud_set_down_timeout_msec(mud, down_timeout);
+
+    if (send_timeout > 0)
+        mud_set_send_timeout_msec(mud, send_timeout);
+
+    if (pong_timeout > 0)
+        mud_set_pong_timeout_msec(mud, pong_timeout);
+
+    if (time_tolerance > 0)
+        mud_set_time_tolerance_sec(mud, time_tolerance);
 
     if (bind_list) {
         char tmp[1024];
