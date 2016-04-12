@@ -1388,8 +1388,11 @@ int main (int argc, char **argv)
             }
 
             struct timeval timeout = {
-                .tv_usec = 1000,
+                .tv_usec = 100000,
             };
+
+            if (buffer_read_size(&sock.write))
+                timeout.tv_usec = 1000;
 
             if _0_(select(sock.fd+1, &rfds, NULL, NULL, &timeout)==-1) {
                 if (errno==EINTR)
