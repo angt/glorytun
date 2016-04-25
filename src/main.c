@@ -244,6 +244,9 @@ int main (int argc, char **argv)
 
     long time_tolerance = 0;
 
+    int v4 = 1;
+    int v6 = 1;
+
     struct option opts[] = {
         { "host",           &host,           option_str    },
         { "port",           &port,           option_str    },
@@ -255,6 +258,8 @@ int main (int argc, char **argv)
         { "statefile",      &statefile,      option_str    },
         { "timeout",        &gt.timeout,     option_long   },
         { "time-tolerance", &time_tolerance, option_long   },
+        { "v4only",         NULL,            option_option },
+        { "v6only",         NULL,            option_option },
         { "version",        NULL,            option_option },
         { NULL },
     };
@@ -265,6 +270,17 @@ int main (int argc, char **argv)
     if (option_is_set(opts, "version")) {
         gt_print(PACKAGE_STRING"\n");
         return 0;
+    }
+
+    if (option_is_set(opts, "v4only"))
+        v6 = 0;
+
+    if (option_is_set(opts, "v6only"))
+        v4 = 0;
+
+    if (!v4 && !v6) {
+        gt_log("v4only and v6only are both set\n");
+        return 1;
     }
 
     if (!option_is_set(opts, "keyfile")) {
@@ -299,7 +315,7 @@ int main (int argc, char **argv)
     if (gt_setup_secretkey(keyfile))
         return 1;
 
-    struct mud *mud = mud_create(bind_port);
+    struct mud *mud = mud_create(bind_port, v4, v6);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
