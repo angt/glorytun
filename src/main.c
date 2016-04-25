@@ -387,8 +387,10 @@ int main (int argc, char **argv)
             while (1) {
                 const ssize_t r = tun_read(tun_fd, buf, sizeof(buf));
 
-                if (r<=0)
+                if (r<=0) {
+                    gt.quit |= !r;
                     break;
+                }
 
                 struct ip_common ic;
 
@@ -403,12 +405,17 @@ int main (int argc, char **argv)
             mud_pull(mud);
 
         while (1) {
-            const int r = mud_recv(mud, buf, sizeof(buf));
+            const int size = mud_recv(mud, buf, sizeof(buf));
 
-            if (r<=0)
+            if (size<=0)
                 break;
 
-            tun_write(tun_fd, buf, r);
+            const ssize_t r = tun_write(tun_fd, buf, size);
+
+            if (r<=0) {
+                gt.quit |= !r;
+                break;
+            }
         }
     }
 
