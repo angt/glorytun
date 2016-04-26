@@ -20,8 +20,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <sodium.h>
-
 #include "mud.h"
 
 #ifndef O_CLOEXEC
@@ -29,10 +27,10 @@
 #endif
 
 static struct {
-    int timeout;
     volatile sig_atomic_t quit;
     volatile sig_atomic_t info;
-    uint8_t key[crypto_generichash_KEYBYTES];
+    int timeout;
+    int state_fd;
 } gt;
 
 static void fd_set_nonblock (int fd)
@@ -185,16 +183,16 @@ static size_t fd_write_all (int fd, const void *data, size_t size)
     return done;
 }
 
-static int gt_setup_secretkey (char *keyfile)
+static int gt_setup_secretkey (struct mud *mud, char *keyfile)
 {
-    const size_t size = sizeof(gt.key);
+    unsigned char key[32];
 
     if (str_empty(keyfile)) {
-        char buf[2*size+1];
+        char buf[2*sizeof(key)+1];
 
-        randombytes_buf(gt.key, size);
-        gt_tohex(buf, sizeof(buf), gt.key, size);
-        state("SECRETKEY", buf);
+        mud_get_key(mud, key, sizeof(key));
+        gt_tohex(buf, sizeof(buf), key, sizeof(key));
+        state_send(gt.state_fd, "SECRETKEY", buf);
 
         return 0;
     }
@@ -210,20 +208,22 @@ static int gt_setup_secretkey (char *keyfile)
         return -1;
     }
 
-    char key[2*size];
-    size_t r = fd_read_all(fd, key, sizeof(key));
+    char buf[2*sizeof(key)];
+    size_t r = fd_read_all(fd, buf, sizeof(buf));
 
     close(fd);
 
-    if (r!=sizeof(key)) {
+    if (r!=sizeof(buf)) {
         gt_log("unable to read secret key\n");
         return -1;
     }
 
-    if (gt_fromhex(gt.key, size, key, sizeof(key))) {
+    if (gt_fromhex(key, sizeof(key), buf, sizeof(buf))) {
         gt_log("secret key is not valid\n");
         return -1;
     }
+
+    mud_set_key(mud, key, sizeof(key));
 
     return 0;
 }
@@ -283,7 +283,7 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    if (!option_is_set(opts, "keyfile")) {
+    if (host && !option_is_set(opts, "keyfile")) {
         gt_log("keyfile option must be set\n");
         return 1;
     }
@@ -293,12 +293,9 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    if (sodium_init()==-1) {
-        gt_log("libsodium initialization has failed\n");
-        return 1;
-    }
+    gt.state_fd = state_create(statefile);
 
-    if (state_init(statefile))
+    if (statefile && gt.state_fd==-1)
         return 1;
 
     char *tun_name = NULL;
@@ -312,9 +309,6 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun_fd);
 
-    if (gt_setup_secretkey(keyfile))
-        return 1;
-
     struct mud *mud = mud_create(bind_port, v4, v6);
 
     if (!mud) {
@@ -322,7 +316,8 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    mud_set_key(mud, gt.key, sizeof(gt.key));
+    if (gt_setup_secretkey(mud, keyfile))
+        return 1;
 
     mud_set_send_timeout_msec(mud, gt.timeout);
 
@@ -356,7 +351,7 @@ int main (int argc, char **argv)
 
     int mud_fd = mud_get_fd(mud);
 
-    state("INITIALIZED", tun_name);
+    state_send(gt.state_fd, "INITIALIZED", tun_name);
 
     fd_set rfds;
     FD_ZERO(&rfds);
@@ -389,12 +384,12 @@ int main (int argc, char **argv)
 
         if (mud_is_up(mud)) {
             if (!started) {
-                state("STARTED", tun_name);
+                state_send(gt.state_fd, "STARTED", tun_name);
                 started = 1;
             }
         } else {
             if (started) {
-                state("STOPPED", tun_name);
+                state_send(gt.state_fd, "STOPPED", tun_name);
                 started = 0;
             }
         }
