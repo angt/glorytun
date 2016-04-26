@@ -1,4 +1,4 @@
 #pragma once
 
-int  state_init (const char *);
-void state      (const char *, const char *);
+int  state_create (const char *);
+void state_send   (int, const char *, const char *);

@@ -53,6 +53,7 @@
 static struct {
     long timeout;
     int mptcp;
+    int state_fd;
 } gt;
 
 struct fdbuf {
@@ -995,7 +996,7 @@ static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 
         randombytes_buf(ctx->skey, size);
         gt_tohex(buf, sizeof(buf), ctx->skey, size);
-        state("SECRETKEY", buf);
+        state_send(gt.state_fd, "SECRETKEY", buf);
 
         return 0;
     }
@@ -1242,7 +1243,9 @@ int main (int argc, char **argv)
     if (!ai)
         return 1;
 
-    if (state_init(statefile))
+    gt.state_fd = state_create(statefile);
+
+    if (statefile && gt.state_fd==-1)
         return 1;
 
     struct fdbuf tun  = { .fd = -1 };
@@ -1282,7 +1285,7 @@ int main (int argc, char **argv)
     long retry = 0;
     uint8_t *db = NULL;
 
-    state("INITIALIZED", tun_name);
+    state_send(gt.state_fd, "INITIALIZED", tun_name);
 
     while (!gt_close) {
         if (retry_count>=0 && retry>=retry_count+1) {
@@ -1350,7 +1353,7 @@ int main (int argc, char **argv)
 
         retry = 0;
 
-        state("STARTED", sockname);
+        state_send(gt.state_fd, "STARTED", tun_name);
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -1523,7 +1526,7 @@ int main (int argc, char **argv)
             sock.fd = -1;
         }
 
-        state("STOPPED", sockname);
+        state_send(gt.state_fd, "STOPPED", tun_name);
 
         if (sockname) {
             free(sockname);

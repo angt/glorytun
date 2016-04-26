@@ -7,16 +7,14 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-static int state_fd = -1;
-
-int state_init (const char *filename)
+int state_create (const char *filename)
 {
     if (str_empty(filename))
-        return 0;
+        return -1;
 
-    state_fd = open(filename, O_WRONLY);
+    int fd = open(filename, O_WRONLY);
 
-    if (state_fd==-1) {
+    if (fd==-1) {
         if (errno!=EINTR)
             perror("open");
         return -1;
@@ -24,38 +22,41 @@ int state_init (const char *filename)
 
     struct stat st = {0};
 
-    if (fstat(state_fd, &st)==-1) {
+    if (fstat(fd, &st)==-1) {
         perror("fstat");
-        close(state_fd);
-        state_fd = -1;
+        close(fd);
         return -1;
     }
 
     if (!S_ISFIFO(st.st_mode)) {
         gt_log("`%s' is not a fifo\n", filename);
-        close(state_fd);
-        state_fd = -1;
+        close(fd);
         return -1;
     }
 
-    return 0;
+    return fd;
 }
 
-void state (const char *state, const char *info)
+void state_send (int fd, const char *state, const char *info)
 {
     if (str_empty(state))
         return;
 
+    if (fd==-1) {
+        gt_print("%s %s\n", state, info);
+        return;
+    }
+
     const char *strs[] = { state, " ", info, "\n" };
     char *str = str_cat(strs, COUNT(strs));
 
-    if (!str)
+    if (!str) {
+        perror("str_cat");
         return;
-
-    if (state_fd==-1) {
-        gt_print("%s", str);
-    } else {
-        if (write(state_fd, str, str_len(str))==-1 && errno!=EINTR)
-            perror("write");
     }
+
+    if (write(fd, str, str_len(str))==-1 && errno!=EINTR)
+        perror("write");
+
+    free(str);
 }
