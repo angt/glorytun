@@ -51,6 +51,8 @@
 #define MPTCP_ENABLED (26)
 
 static struct {
+    volatile sig_atomic_t quit;
+    volatile sig_atomic_t info;
     long timeout;
     int mptcp;
     int state_fd;
@@ -70,9 +72,6 @@ struct crypto_ctx {
     uint8_t skey[crypto_generichash_KEYBYTES];
     int chacha;
 };
-
-volatile sig_atomic_t gt_close = 0;
-volatile sig_atomic_t gt_info = 0;
 
 _pure_
 static int64_t dt_ms (struct timeval *ta, struct timeval *tb)
@@ -366,10 +365,10 @@ static void gt_sa_handler (int sig)
     case SIGINT:
     case SIGQUIT:
     case SIGTERM:
-        gt_close = 1;
+        gt.quit = 1;
         break;
     case SIGUSR1:
-        gt_info = 1;
+        gt.info = 1;
         break;
     }
 }
@@ -1287,7 +1286,7 @@ int main (int argc, char **argv)
 
     state_send(gt.state_fd, "INITIALIZED", tun_name);
 
-    while (!gt_close) {
+    while (!gt.quit) {
         if (retry_count>=0 && retry>=retry_count+1) {
             gt_log("couldn't %s (%d attempt%s)\n", listener?"listen":"connect",
                    (int)retry, (retry>1)?"s":"");
@@ -1364,7 +1363,7 @@ int main (int argc, char **argv)
         buffer_format(&sock.read);
 
         while (1) {
-            if _0_(gt_close)
+            if _0_(gt.quit)
                 stop_loop |= 1;
 
             if _0_(stop_loop) {
@@ -1418,7 +1417,7 @@ int main (int argc, char **argv)
                     const ssize_t r = tun_read(tun.fd, tun.read.write, GT_MTU_MAX);
 
                     if (r<=0) {
-                        gt_close |= !r;
+                        gt.quit |= !r;
                         break;
                     }
 
@@ -1514,7 +1513,7 @@ int main (int argc, char **argv)
                     if (r==ic.size)
                         tun.write.read += r;
                 } else {
-                    gt_close |= !r;
+                    gt.quit |= !r;
                     break;
                 }
             }
