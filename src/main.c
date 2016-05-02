@@ -189,9 +189,12 @@ static int gt_setup_secretkey (struct mud *mud, char *keyfile)
 
     if (str_empty(keyfile)) {
         char buf[2*sizeof(key)+1];
+        size_t size = sizeof(key);
 
-        mud_get_key(mud, key, sizeof(key));
-        gt_tohex(buf, sizeof(buf), key, sizeof(key));
+        if (mud_get_key(mud, key, &size))
+            return -1;
+
+        gt_tohex(buf, sizeof(buf), key, size);
         state_send(gt.state_fd, "SECRETKEY", buf);
 
         return 0;
@@ -324,7 +327,7 @@ int main (int argc, char **argv)
     if (time_tolerance > 0)
         mud_set_time_tolerance_sec(mud, time_tolerance);
 
-    if (bind_list) {
+    if (host && port && bind_list) {
         char tmp[1024];
         char *name = &tmp[0];
 
@@ -336,18 +339,15 @@ int main (int argc, char **argv)
 
             tmp[i] = 0;
 
-            if (mud_bind(mud, name))
+            if (mud_peer(mud, name, host, port))
                 return 1;
 
             name = &tmp[i+1];
         }
 
-        if (name[0] && mud_bind(mud, name))
+        if (name[0] && mud_peer(mud, name, host, port))
             return 1;
     }
-
-    if (host && mud_peer(mud, host, port))
-        return 1;
 
     int mud_fd = mud_get_fd(mud);
 
