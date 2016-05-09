@@ -236,9 +236,11 @@ int main (int argc, char **argv)
     gt_set_signal();
 
     char *host = NULL;
-    char *port = "5000";
+    long port = 5000;
+
     char *bind_list = NULL;
-    char *bind_port = "5000";
+    long bind_port = 5000;
+
     char *dev = NULL;
     char *keyfile = NULL;
     char *statefile = NULL;
@@ -252,9 +254,9 @@ int main (int argc, char **argv)
 
     struct option opts[] = {
         { "host",           &host,           option_str    },
-        { "port",           &port,           option_str    },
+        { "port",           &port,           option_long   },
         { "bind",           &bind_list,      option_str    },
-        { "bind-port",      &bind_port,      option_str    },
+        { "bind-port",      &bind_port,      option_long   },
         { "dev",            &dev,            option_str    },
         { "keyfile",        &keyfile,        option_str    },
         { "multiqueue",     NULL,            option_option },
