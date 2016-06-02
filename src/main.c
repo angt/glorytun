@@ -986,6 +986,53 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
     return 0;
 }
 
+static void gt_bench (int chacha)
+{
+    unsigned char npub[crypto_aead_aes256gcm_NPUBBYTES];
+    memset(npub, 0, sizeof(npub));
+
+    unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
+    memset(key,  1, sizeof(key));
+
+    crypto_aead_aes256gcm_state ctx;
+
+    if (!chacha)
+        crypto_aead_aes256gcm_beforenm(&ctx, key);
+
+    int count = 2000000;
+    size_t size = 8;
+
+    gt_print("bench: %s\n", chacha?"chacha20poly1305":"aes256gcm");
+
+    _align_(16) unsigned char buf[32*1024+crypto_aead_aes256gcm_ABYTES];
+
+    for (size_t size=8; size<=sizeof(buf); size*=2) {
+        struct timeval tv1;
+        gettimeofday(&tv1, NULL);
+
+        for (int i=0; !gt.quit && i<count; i++) {
+            if (chacha) {
+                crypto_aead_chacha20poly1305_encrypt(buf, NULL,
+                        buf, size, NULL, 0, NULL, npub, key);
+            } else {
+                crypto_aead_aes256gcm_encrypt_afternm(buf, NULL,
+                        buf, size, NULL, 0, NULL, npub,
+                        (const crypto_aead_aes256gcm_state *)&ctx);
+            }
+        }
+
+        if (gt.quit)
+            break;
+
+        struct timeval tv2;
+        gettimeofday(&tv2, NULL);
+
+        double dt = (tv2.tv_usec+tv2.tv_sec*1e6)-(tv1.tv_usec+tv1.tv_sec*1e6);
+
+        gt_print("block size: %-6zu bps: %.2f\n", size, size*count*8.0/dt);
+    }
+}
+
 static int gt_setup_secretkey (struct crypto_ctx *ctx, char *keyfile)
 {
     const size_t size = sizeof(ctx->skey);
@@ -1182,6 +1229,7 @@ int main (int argc, char **argv)
         { "retry",       &retry_opts,   option_option },
         { "statefile",   &statefile,    option_str    },
         { "timeout",     &gt.timeout,   option_long   },
+        { "bench",       NULL,          option_option },
         { "chacha20",    NULL,          option_option },
         { "mptcp",       NULL,          option_option },
         { "debug",       NULL,          option_option },
@@ -1207,6 +1255,21 @@ int main (int argc, char **argv)
 
     gt.mptcp = option_is_set(opts, "mptcp");
 
+    if (sodium_init()==-1) {
+        gt_log("libsodium initialization has failed\n");
+        return 1;
+    }
+
+    if (!chacha && !crypto_aead_aes256gcm_is_available()) {
+        gt_na("AES-256-GCM");
+        chacha = 1;
+    }
+
+    if (option_is_set(opts, "bench")) {
+        gt_bench(chacha);
+        return 0;
+    }
+
     if (buffer_size < GT_PKT_MAX) {
         buffer_size = GT_PKT_MAX;
         gt_log("buffer size must be greater than or equal to %li\n", buffer_size);
@@ -1225,16 +1288,6 @@ int main (int argc, char **argv)
     if (gt.timeout<=0 || gt.timeout>INT_MAX) {
         gt_log("bad timeout\n");
         return 1;
-    }
-
-    if (sodium_init()==-1) {
-        gt_log("libsodium initialization has failed\n");
-        return 1;
-    }
-
-    if (!chacha && !crypto_aead_aes256gcm_is_available()) {
-        gt_na("AES-256-GCM");
-        chacha = 1;
     }
 
     struct addrinfo *ai = ai_create(host, port, listener);
