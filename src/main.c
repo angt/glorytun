@@ -1111,17 +1111,26 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     if (fd_read_all(fd, data_r, size)!=size)
         return -1;
 
-    if (memcmp(&data_r[size-hash_size-sizeof(proto)], proto, 3))
+    if (memcmp(&data_r[size-hash_size-sizeof(proto)], proto, 3)) {
+        gt_log("bad packet [%02X%02X%02X] !\n",
+            &data_r[size-hash_size-sizeof(proto)+0],
+            &data_r[size-hash_size-sizeof(proto)+1],
+            &data_r[size-hash_size-sizeof(proto)+2]);
         return -2;
+    }
 
-    if (data_r[size-hash_size-sizeof(proto)+3])
+    if (data_r[size-hash_size-sizeof(proto)+3] && !ctx->chacha) {
+        gt_log("peer wants chacha20\n");
         ctx->chacha = 1;
+    }
 
     crypto_generichash(hash, hash_size,
             data_r, size-hash_size, ctx->skey, sizeof(ctx->skey));
 
-    if (sodium_memcmp(&data_r[size-hash_size], hash, hash_size))
+    if (sodium_memcmp(&data_r[size-hash_size], hash, hash_size)) {
+        gt_log("peer sends a bad hash!\n");
         return -2;
+    }
 
     if (listener && fd_write_all(fd, data_w, size)!=size)
         return -1;
@@ -1138,11 +1147,15 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
     crypto_generichash(hash, hash_size,
             data_w, size, ctx->skey, sizeof(ctx->skey));
 
-    if (sodium_memcmp(auth_r, hash, hash_size))
+    if (sodium_memcmp(auth_r, hash, hash_size)) {
+        gt_log("peer sends a bad hash (challenge-response)!\n");
         return -2;
+    }
 
-    if (crypto_scalarmult(shared, secret, data_r))
+    if (crypto_scalarmult(shared, secret, data_r)) {
+        gt_log("I'm just gonna hurt you really, really, BAD\n");
         return -2;
+    }
 
     crypto_generichash_init(&state, ctx->skey, sizeof(ctx->skey), sizeof(key_r));
     crypto_generichash_update(&state, shared, sizeof(shared));
@@ -1392,15 +1405,9 @@ int main (int argc, char **argv)
 
         ctx.chacha = chacha;
 
-        switch (gt_setup_crypto(&ctx, sock.fd, listener)) {
-        case -2:
-            gt_log("%s: key exchange could not be verified!\n", sockname);
-            goto restart;
-        case -1:
+        if (gt_setup_crypto(&ctx, sock.fd, listener)) {
             gt_log("%s: key exchange failed\n", sockname);
             goto restart;
-        default:
-            break;
         }
 
         retry = 0;
