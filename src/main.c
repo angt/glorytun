@@ -245,6 +245,8 @@ int main (int argc, char **argv)
     char *keyfile = NULL;
     char *statefile = NULL;
 
+    long mtu = 1450;
+
     gt.timeout = 5000;
 
     long time_tolerance = 0;
@@ -258,6 +260,7 @@ int main (int argc, char **argv)
         { "bind",           &bind_list,      option_str    },
         { "bind-port",      &bind_port,      option_long   },
         { "dev",            &dev,            option_str    },
+        { "mtu",            &mtu,            option_long   },
         { "keyfile",        &keyfile,        option_str    },
         { "multiqueue",     NULL,            option_option },
         { "statefile",      &statefile,      option_str    },
@@ -359,7 +362,16 @@ int main (int argc, char **argv)
     FD_ZERO(&rfds);
 
     int started = 0;
-    unsigned char buf[2048];
+
+    struct {
+        unsigned char *buf;
+    } send, recv;
+
+    send.buf = malloc(2*mtu);
+    recv.buf = malloc(mtu);
+
+    size_t send_size = 0;
+    size_t send_limit = 0;
 
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
@@ -397,8 +409,8 @@ int main (int argc, char **argv)
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
-            while (1) {
-                const ssize_t r = tun_read(tun_fd, buf, sizeof(buf));
+            while (send_size<mtu) {
+                const ssize_t r = tun_read(tun_fd, send.buf+send_size, mtu);
 
                 if (r<=0) {
                     gt.quit |= !r;
@@ -407,9 +419,23 @@ int main (int argc, char **argv)
 
                 struct ip_common ic;
 
-                if (!ip_get_common(&ic, buf, sizeof(buf)) && ic.size==r)
-                    mud_send(mud, buf, r);
+                if (ip_get_common(&ic, send.buf+send_size, mtu) || ic.size!=r) {
+                    gt_log("packet dropped: malformed\n");
+                    continue;
+                }
+
+                send_size += r;
+
+                if (send_size<=mtu)
+                    send_limit = send_size;
             }
+        }
+
+        if (send_limit && mud_send(mud, send.buf, send_limit)==send_limit) {
+            if (send_size>send_limit)
+                memmove(&send.buf[0], &send.buf[send_limit], send_size-send_limit);
+            send_size -= send_limit;
+            send_limit = send_size;
         }
 
         mud_push(mud);
@@ -417,17 +443,28 @@ int main (int argc, char **argv)
         if (FD_ISSET(mud_fd, &rfds))
             mud_pull(mud);
 
-        while (1) {
-            const int size = mud_recv(mud, buf, sizeof(buf));
+        while (!gt.quit) {
+            const int size = mud_recv(mud, recv.buf, mtu);
 
             if (size<=0)
                 break;
 
-            const ssize_t r = tun_write(tun_fd, buf, size);
+            int p = 0;
 
-            if (r<=0) {
-                gt.quit |= !r;
-                break;
+            while (p<size) {
+                struct ip_common ic;
+
+                if (ip_get_common(&ic, recv.buf+p, size-p) || ic.size>size-p)
+                    break;
+
+                const ssize_t r = tun_write(tun_fd, recv.buf+p, ic.size);
+
+                if (r<=0) {
+                    gt.quit |= !r;
+                    break;
+                }
+
+                p += ic.size;
             }
         }
     }
