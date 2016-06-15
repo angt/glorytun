@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -986,50 +987,74 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
     return 0;
 }
 
+static unsigned long long gt_now (void)
+{
+#ifdef CLOCK_MONOTONIC
+    struct timespec tv;
+    clock_gettime(CLOCK_MONOTONIC, &tv);
+    return tv.tv_sec*1000000ULL+tv.tv_nsec/1000ULL;
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec*1000000ULL+tv.tv_usec;
+#endif
+}
+
 static void gt_bench (int chacha)
 {
     unsigned char npub[crypto_aead_aes256gcm_NPUBBYTES];
     memset(npub, 0, sizeof(npub));
 
     unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
-    memset(key,  1, sizeof(key));
+    memset(key, 1, sizeof(key));
 
     crypto_aead_aes256gcm_state ctx;
 
     if (!chacha)
         crypto_aead_aes256gcm_beforenm(&ctx, key);
 
-    int count = 2000000;
-    size_t size = 8;
-
     gt_print("bench: %s\n", chacha?"chacha20poly1305":"aes256gcm");
 
     _align_(16) unsigned char buf[32*1024+crypto_aead_aes256gcm_ABYTES];
 
-    for (size_t size=8; size<=sizeof(buf); size*=2) {
-        struct timeval tv1;
-        gettimeofday(&tv1, NULL);
+    size_t bs = 8;
 
-        for (int i=0; !gt.quit && i<count; i++) {
-            if (chacha) {
-                crypto_aead_chacha20poly1305_encrypt(buf, NULL,
-                        buf, size, NULL, 0, NULL, npub, key);
-            } else {
-                crypto_aead_aes256gcm_encrypt_afternm(buf, NULL,
-                        buf, size, NULL, 0, NULL, npub,
-                        (const crypto_aead_aes256gcm_state *)&ctx);
+    while (!gt.quit && bs<=sizeof(buf)) {
+        size_t total_size = 0;
+        unsigned long long total_dt = 0.0;
+        double mbps = 0.0;
+
+        while (!gt.quit) {
+            unsigned long long now = gt_now();
+
+            size_t size = 0;
+
+            while (!gt.quit && size<16*1024*1024) {
+                if (chacha) {
+                    crypto_aead_chacha20poly1305_encrypt(buf, NULL,
+                            buf, bs, NULL, 0, NULL, npub, key);
+                } else {
+                    crypto_aead_aes256gcm_encrypt_afternm(buf, NULL,
+                            buf, bs, NULL, 0, NULL, npub,
+                            (const crypto_aead_aes256gcm_state *)&ctx);
+                }
+                size += bs;
             }
+
+            total_dt += gt_now()-now;
+            total_size += size;
+
+            double last_mbps = mbps;
+            mbps = total_size*8.0/total_dt;
+
+            double diff = mbps-last_mbps;
+
+            if (-0.1<diff && diff<0.1)
+                break;
         }
 
-        if (gt.quit)
-            break;
-
-        struct timeval tv2;
-        gettimeofday(&tv2, NULL);
-
-        double dt = (tv2.tv_usec+tv2.tv_sec*1e6)-(tv1.tv_usec+tv1.tv_sec*1e6);
-
-        gt_print("%6zu bytes %9.2f Mbps\n", size, size*count*8.0/dt);
+        gt_print("%6zu bytes %9.2f Mbps\n", bs, mbps);
+        bs *= 2;
     }
 }
 
