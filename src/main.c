@@ -37,6 +37,10 @@
 
 #include <sodium.h>
 
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#endif
+
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
@@ -989,7 +993,11 @@ static int gt_track (uint8_t **db, struct ip_common *ic, uint8_t *data, int rev)
 
 static unsigned long long gt_now (void)
 {
-#ifdef CLOCK_MONOTONIC
+#if defined __APPLE__
+    static mach_timebase_info_data_t mtid;
+    if (!mtid.denom) mach_timebase_info(&mtid);
+    return (mach_absolute_time()*mtid.numer/mtid.denom)/1000ULL;
+#elif defined CLOCK_MONOTONIC
     struct timespec tv;
     clock_gettime(CLOCK_MONOTONIC, &tv);
     return tv.tv_sec*1000000ULL+tv.tv_nsec/1000ULL;
