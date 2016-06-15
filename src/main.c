@@ -1029,7 +1029,7 @@ static void gt_bench (int chacha)
 
         double dt = (tv2.tv_usec+tv2.tv_sec*1e6)-(tv1.tv_usec+tv1.tv_sec*1e6);
 
-        gt_print("block size: %-6zu bps: %.2f\n", size, size*count*8.0/dt);
+        gt_print("%6zu bytes %9.2f Mbps\n", size, size*count*8.0/dt);
     }
 }
 
