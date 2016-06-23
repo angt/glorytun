@@ -282,8 +282,11 @@ static int sk_accept (int fd)
 
     int ret = accept(fd, (struct sockaddr *)&addr, &addr_size);
 
-    if (ret==-1 && errno!=EINTR)
-        perror("accept");
+    if (ret==-1) {
+        if (errno!=EINTR)
+            perror("accept");
+        return -1;
+    }
 
     fd_set_nonblock(ret);
 
