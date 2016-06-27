@@ -386,7 +386,7 @@ int main (int argc, char **argv)
             .tv_usec = 100000,
         };
 
-        if (mud_can_push(mud))
+        if (mud_can_push(mud) || send_size)
             timeout.tv_usec = 1000;
 
         if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
