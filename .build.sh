@@ -1,0 +1,15 @@
+#!/bin/sh
+
+export CC="gcc -static"
+
+git clone https://github.com/jedisct1/libsodium --depth=1 --branch stable
+cd libsodium || exit 1
+./autogen.sh && ./configure CFLAGS=-flto LDFLAGS=-flto --enable-minimal --disable-shared --prefix=/usr && make install
+cd ..
+
+./autogen.sh && ./configure CFLAGS=-flto LDFLAGS=-flto && make
+[ -x glorytun ] || exit 1
+
+mkdir -p deploy
+strip -s glorytun
+mv glorytun deploy/glorytun-$(cat VERSION)-$(uname -m).bin
