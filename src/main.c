@@ -268,6 +268,7 @@ int main (int argc, char **argv)
         { "time-tolerance", &time_tolerance, option_long   },
         { "v4only",         NULL,            option_option },
         { "v6only",         NULL,            option_option },
+        { "chacha20",       NULL,            option_option },
         { "version",        NULL,            option_option },
         { NULL },
     };
@@ -317,7 +318,9 @@ int main (int argc, char **argv)
 
     fd_set_nonblock(tun_fd);
 
-    struct mud *mud = mud_create(bind_port, v4, v6);
+    int chacha = option_is_set(opts, "chacha20");
+
+    struct mud *mud = mud_create(bind_port, v4, v6, !chacha);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
