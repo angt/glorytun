@@ -252,7 +252,11 @@ int main (int argc, char **argv)
     long time_tolerance = 0;
 
     int v4 = 1;
-    int v6 = 1;
+    int v6 = 0;
+
+#ifdef __linux__
+    v6 = 1;
+#endif
 
     struct option opts[] = {
         { "host",           &host,           option_str    },
@@ -281,13 +285,18 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    if (option_is_set(opts, "v4only"))
+    if (option_is_set(opts, "v4only")) {
+        v4 = 1;
         v6 = 0;
+    }
 
-    if (option_is_set(opts, "v6only"))
+    if (option_is_set(opts, "v6only")) {
         v4 = 0;
+        v6 = 1;
+    }
 
-    if (!v4 && !v6) {
+    if (option_is_set(opts, "v4only") &&
+        option_is_set(opts, "v6only")) {
         gt_log("v4only and v6only are both set\n");
         return 1;
     }
