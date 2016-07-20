@@ -1148,7 +1148,7 @@ static int gt_setup_crypto (struct crypto_ctx *ctx, int fd, int listener)
         return -1;
 
     if (memcmp(&data_r[size-hash_size-sizeof(proto)], proto, 3)) {
-        gt_log("bad packet [%02X%02X%02X] !\n",
+        gt_log("bad packet [%02"PRIX8"%02"PRIX8"%02"PRIX8"] !\n",
             &data_r[size-hash_size-sizeof(proto)+0],
             &data_r[size-hash_size-sizeof(proto)+1],
             &data_r[size-hash_size-sizeof(proto)+2]);
