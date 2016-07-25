@@ -384,6 +384,8 @@ int main (int argc, char **argv)
 
     size_t send_size = 0;
     size_t send_limit = 0;
+    int send_tc = 0;
+    int send_next_tc = 0;
 
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
@@ -438,16 +440,26 @@ int main (int argc, char **argv)
 
                 send_size += r;
 
-                if (send_size<=mtu)
+                int update_tc = (ic.tc&0xFC)>(send_tc&0xFC);
+
+                if (send_size<=mtu) {
                     send_limit = send_size;
+                    if ((ic.tc&0xFC)>(send_tc&0xFC))
+                        send_tc = ic.tc;
+                } else {
+                    if ((ic.tc&0xFC)>(send_next_tc&0xFC))
+                        send_next_tc = ic.tc;
+                }
             }
         }
 
-        if (send_limit && mud_send(mud, send.buf, send_limit)==send_limit) {
+        if (send_limit && mud_send(mud, send.buf, send_limit, send_tc)==send_limit) {
             if (send_size>send_limit)
                 memmove(&send.buf[0], &send.buf[send_limit], send_size-send_limit);
             send_size -= send_limit;
             send_limit = send_size;
+            send_tc = send_next_tc;
+            send_next_tc = 0;
         }
 
         mud_push(mud);
