@@ -453,25 +453,36 @@ int main (int argc, char **argv)
             }
         }
 
-        if (send_limit && mud_send(mud, send.buf, send_limit, send_tc)==send_limit) {
-            if (send_size>send_limit)
-                memmove(&send.buf[0], &send.buf[send_limit], send_size-send_limit);
-            send_size -= send_limit;
-            send_limit = send_size;
-            send_tc = send_next_tc;
-            send_next_tc = 0;
+        if (send_limit) {
+            int r = mud_send(mud, send.buf, send_limit, send_tc);
+            if (r==-1 && errno!=EAGAIN) {
+                perror("mud_send");
+            } else if (r==send_limit) {
+                if (send_size>send_limit)
+                    memmove(&send.buf[0], &send.buf[send_limit], send_size-send_limit);
+                send_size -= send_limit;
+                send_limit = send_size;
+                send_tc = send_next_tc;
+                send_next_tc = 0;
+            }
         }
 
-        mud_push(mud);
+        if (mud_push(mud)==-1 && errno!=EAGAIN)
+            perror("mud_push");
 
-        if (FD_ISSET(mud_fd, &rfds))
-            mud_pull(mud);
+        if (FD_ISSET(mud_fd, &rfds)) {
+            if (mud_pull(mud)==-1 && errno!=EAGAIN)
+                perror("mud_pull");
+        }
 
         while (!gt.quit) {
             const int size = mud_recv(mud, recv.buf, mtu);
 
-            if (size<=0)
+            if (size<=0) {
+                if (size==-1 && errno!=EAGAIN)
+                    perror("mud_recv");
                 break;
+            }
 
             int p = 0;
 
