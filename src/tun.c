@@ -240,3 +240,25 @@ ssize_t tun_write (int fd, const void *data, size_t size)
     return ret;
 #endif
 }
+
+int tun_set_mtu (char *dev_name, int mtu)
+{
+    struct ifreq ifr = {
+        .ifr_mtu = mtu,
+    };
+
+    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (fd==-1)
+        return -1;
+
+    int ret = ioctl(fd, SIOCSIFMTU, &ifr);
+
+    int err = errno;
+    close(fd);
+    errno = err;
+
+    return ret;
+}

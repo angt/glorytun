@@ -325,11 +325,16 @@ int main (int argc, char **argv)
         return 1;
     }
 
+    if (tun_set_mtu(tun_name, mtu)==-1) {
+        perror("tun_set_mtu");
+        return 1;
+    }
+
     fd_set_nonblock(tun_fd);
 
     int chacha = option_is_set(opts, "chacha20");
 
-    struct mud *mud = mud_create(bind_port, v4, v6, !chacha);
+    struct mud *mud = mud_create(bind_port, v4, v6, !chacha, mtu);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
@@ -440,8 +445,6 @@ int main (int argc, char **argv)
 
                 send_size += r;
 
-                int update_tc = (ic.tc&0xFC)>(send_tc&0xFC);
-
                 if (send_size<=mtu) {
                     send_limit = send_size;
                     if ((ic.tc&0xFC)>(send_tc&0xFC))
@@ -455,15 +458,55 @@ int main (int argc, char **argv)
 
         if (send_limit) {
             int r = mud_send(mud, send.buf, send_limit, send_tc);
-            if (r==-1 && errno!=EAGAIN) {
-                perror("mud_send");
-            } else if (r==send_limit) {
+
+            if (r==send_limit) {
                 if (send_size>send_limit)
-                    memmove(&send.buf[0], &send.buf[send_limit], send_size-send_limit);
+                    memmove(send.buf, &send.buf[send_limit], send_size-send_limit);
                 send_size -= send_limit;
                 send_limit = send_size;
                 send_tc = send_next_tc;
                 send_next_tc = 0;
+            } else if (r==-1) {
+                if (errno==EMSGSIZE) {
+                    long new_mtu = mud_get_mtu(mud);
+                    if (new_mtu!=mtu) {
+                        size_t total = send_size;
+
+                        if (tun_set_mtu(tun_name, new_mtu)==-1) {
+                            perror("tun_set_mtu");
+                            gt.quit |= 1;
+                            break;
+                        }
+
+                        gt_log("MTU changed: %li\n", new_mtu);
+
+                        mtu = new_mtu;
+                        send_size = 0;
+                        send_limit = 0;
+                        send_tc = 0;
+                        send_next_tc = 0;
+
+                        while (send_size<total) {
+                            struct ip_common ic;
+
+                            if (ip_get_common(&ic, send.buf+send_size, mtu))
+                                break;
+
+                            send_size += ic.size;
+
+                            if (send_size<=mtu) {
+                                send_limit = send_size;
+                                if ((ic.tc&0xFC)>(send_tc&0xFC))
+                                    send_tc = ic.tc;
+                            } else {
+                                if ((ic.tc&0xFC)>(send_next_tc&0xFC))
+                                    send_next_tc = ic.tc;
+                            }
+                        }
+                    }
+                } else if (errno!=EAGAIN) {
+                    perror("mud_send");
+                }
             }
         }
 
