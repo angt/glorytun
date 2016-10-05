@@ -266,7 +266,6 @@ int main (int argc, char **argv)
         { "dev",            &dev,            option_str    },
         { "mtu",            &mtu,            option_long   },
         { "keyfile",        &keyfile,        option_str    },
-        { "multiqueue",     NULL,            option_option },
         { "statefile",      &statefile,      option_str    },
         { "timeout",        &gt.timeout,     option_long   },
         { "time-tolerance", &time_tolerance, option_long   },
@@ -318,7 +317,7 @@ int main (int argc, char **argv)
 
     char *tun_name = NULL;
 
-    int tun_fd = tun_create(dev, &tun_name, option_is_set(opts, "multiqueue"));
+    int tun_fd = tun_create(dev, &tun_name);
 
     if (tun_fd==-1) {
         gt_log("couldn't create tun device\n");

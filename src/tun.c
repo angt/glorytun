@@ -28,7 +28,7 @@
 
 #ifdef __APPLE__
 
-static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int mq)
+static int tun_create_by_id (char *name, size_t size, unsigned id)
 {
     int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
 
@@ -63,21 +63,21 @@ static int tun_create_by_id (char *name, size_t size, unsigned id, _unused_ int 
     return fd;
 }
 
-static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
+static int tun_create_by_name (char *name, size_t size, char *dev_name)
 {
     unsigned id = 0;
 
     if (sscanf(dev_name, "utun%u", &id)!=1)
         return -1;
 
-    return tun_create_by_id(name, size, id, mq);
+    return tun_create_by_id(name, size, id);
 }
 
 #else /* not __APPLE__ */
 
 #ifdef __linux__
 
-static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
+static int tun_create_by_name (char *name, size_t size, char *dev_name)
 {
     int fd = open("/dev/net/tun", O_RDWR);
 
@@ -87,12 +87,6 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
     struct ifreq ifr = {
         .ifr_flags = IFF_TUN|IFF_NO_PI,
     };
-
-    if (mq) {
-#ifdef IFF_MULTI_QUEUE
-        ifr.ifr_flags |= IFF_MULTI_QUEUE;
-#endif
-    }
 
     str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ-1);
 
@@ -108,7 +102,7 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, int mq)
 
 #else /* not __linux__ not __APPLE__ */
 
-static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_ int mq)
+static int tun_create_by_name (char *name, size_t size, char *dev_name)
 {
     char path[64];
 
@@ -120,32 +114,27 @@ static int tun_create_by_name (char *name, size_t size, char *dev_name, _unused_
 
 #endif /* not __APPLE__ */
 
-static int tun_create_by_id (char *name, size_t size, unsigned id, int mq)
+static int tun_create_by_id (char *name, size_t size, unsigned id)
 {
     char dev_name[64];
 
     snprintf(dev_name, sizeof(dev_name), "tun%u", id);
 
-    return tun_create_by_name(name, size, dev_name, mq);
+    return tun_create_by_name(name, size, dev_name);
 }
 
 #endif
 
-int tun_create (char *dev_name, char **ret_name, int mq)
+int tun_create (char *dev_name, char **ret_name)
 {
     char name[64] = {0};
     int fd = -1;
 
-#ifndef IFF_MULTI_QUEUE
-    if (mq)
-        gt_na("IFF_MULTI_QUEUE");
-#endif
-
     if (str_empty(dev_name)) {
         for (unsigned id=0; id<32 && fd==-1; id++)
-            fd = tun_create_by_id(name, sizeof(name), id, mq);
+            fd = tun_create_by_id(name, sizeof(name), id);
     } else {
-        fd = tun_create_by_name(name, sizeof(name), dev_name, mq);
+        fd = tun_create_by_name(name, sizeof(name), dev_name);
     }
 
     if (fd!=-1 && ret_name)
