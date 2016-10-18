@@ -310,6 +310,15 @@ int main (int argc, char **argv)
         return 1;
     }
 
+    int icmp_fd = -1;
+
+    if (v4) {
+        icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+
+        if (icmp_fd==-1)
+            gt_log("couldn't create ICMP socket\n");
+    }
+
     gt.state_fd = state_create(statefile);
 
     if (statefile && gt.state_fd==-1)
@@ -394,6 +403,9 @@ int main (int argc, char **argv)
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
 
+        if (icmp_fd!=-1)
+            FD_SET(icmp_fd, &rfds);
+
         if (mud_can_pull(mud)) {
             FD_SET(mud_fd, &rfds);
         } else {
@@ -412,6 +424,24 @@ int main (int argc, char **argv)
                 continue;
             perror("select");
             return 1;
+        }
+
+        if (icmp_fd!=-1 && FD_ISSET(icmp_fd, &rfds)) {
+            uint8_t buf[1024];
+            struct sockaddr_storage ss;
+            socklen_t sl = sizeof(ss);
+            ssize_t r = recvfrom(icmp_fd, buf, sizeof(buf), 0, (struct sockaddr *)&ss, &sl);
+            if (r>=8) {
+                struct ip_common ic;
+                if (!ip_get_common(&ic, buf, r) && ic.proto==1) {
+                    unsigned char *data = &buf[ic.hdr_size];
+                    if (data[0]==3) {
+                        int new_mtu = (data[6]<<8)|data[7];
+                        gt_log("received MTU from ICMP: %i\n", new_mtu);
+                        mud_set_mtu(mud, new_mtu-50);
+                    }
+                }
+            }
         }
 
         if (mud_is_up(mud)) {
