@@ -437,8 +437,10 @@ int main (int argc, char **argv)
                     unsigned char *data = &buf[ic.hdr_size];
                     if (data[0]==3) {
                         int new_mtu = (data[6]<<8)|data[7];
-                        gt_log("received MTU from ICMP: %i\n", new_mtu);
-                        mud_set_mtu(mud, new_mtu-50);
+                        if (new_mtu) {
+                            gt_log("received MTU from ICMP: %i\n", new_mtu);
+                            mud_set_mtu(mud, new_mtu-50);
+                        }
                     }
                 }
             }
