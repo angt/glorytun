@@ -401,22 +401,19 @@ int main (int argc, char **argv)
     int send_next_tc = 0;
 
     while (!gt.quit) {
-        FD_SET(tun_fd, &rfds);
+        if (send_size<mtu)
+            FD_SET(tun_fd, &rfds);
 
         if (icmp_fd!=-1)
             FD_SET(icmp_fd, &rfds);
 
-        if (mud_can_pull(mud)) {
-            FD_SET(mud_fd, &rfds);
-        } else {
-            FD_CLR(mud_fd, &rfds);
-        }
+        FD_SET(mud_fd, &rfds);
 
         struct timeval timeout = {
             .tv_usec = 100000,
         };
 
-        if (mud_can_push(mud) || send_size)
+        if (send_size)
             timeout.tv_usec = 1000;
 
         if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
@@ -462,10 +459,8 @@ int main (int argc, char **argv)
             while (send_size<mtu) {
                 const ssize_t r = tun_read(tun_fd, send.buf+send_size, mtu);
 
-                if (r<=0) {
-                    gt.quit |= !r;
+                if (r<=0)
                     break;
-                }
 
                 struct ip_common ic;
 
@@ -490,7 +485,7 @@ int main (int argc, char **argv)
         if (send_limit) {
             int r = mud_send(mud, send.buf, send_limit, send_tc);
 
-            if (r==send_limit) {
+            if (r>0) {
                 if (send_size>send_limit)
                     memmove(send.buf, &send.buf[send_limit], send_size-send_limit);
                 send_size -= send_limit;
@@ -505,7 +500,6 @@ int main (int argc, char **argv)
 
                         if (tun_set_mtu(tun_name, new_mtu)==-1) {
                             perror("tun_set_mtu");
-                            gt.quit |= 1;
                             break;
                         }
 
@@ -541,39 +535,31 @@ int main (int argc, char **argv)
             }
         }
 
-        if (mud_push(mud)==-1 && errno!=EAGAIN)
-            perror("mud_push");
-
         if (FD_ISSET(mud_fd, &rfds)) {
-            if (mud_pull(mud)==-1 && errno!=EAGAIN)
-                perror("mud_pull");
-        }
+            while (1) {
+                const int size = mud_recv(mud, recv.buf, mtu);
 
-        while (!gt.quit) {
-            const int size = mud_recv(mud, recv.buf, mtu);
-
-            if (size<=0) {
-                if (size==-1 && errno!=EAGAIN)
-                    perror("mud_recv");
-                break;
-            }
-
-            int p = 0;
-
-            while (p<size) {
-                struct ip_common ic;
-
-                if (ip_get_common(&ic, recv.buf+p, size-p) || ic.size>size-p)
-                    break;
-
-                const ssize_t r = tun_write(tun_fd, recv.buf+p, ic.size);
-
-                if (r<=0) {
-                    gt.quit |= !r;
+                if (size<=0) {
+                    if (size==-1 && errno!=EAGAIN)
+                        perror("mud_recv");
                     break;
                 }
 
-                p += ic.size;
+                int p = 0;
+
+                while (p<size) {
+                    struct ip_common ic;
+
+                    if (ip_get_common(&ic, recv.buf+p, size-p) || ic.size>size-p)
+                        break;
+
+                    const ssize_t r = tun_write(tun_fd, recv.buf+p, ic.size);
+
+                    if (r<=0)
+                        break;
+
+                    p += ic.size;
+                }
             }
         }
     }
