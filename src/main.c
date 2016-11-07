@@ -386,8 +386,6 @@ int main (int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    int started = 0;
-
     struct {
         unsigned char *buf;
     } send, recv;
@@ -440,18 +438,6 @@ int main (int argc, char **argv)
                         }
                     }
                 }
-            }
-        }
-
-        if (mud_is_up(mud)) {
-            if (!started) {
-                state_send(gt.state_fd, "STARTED", tun_name);
-                started = 1;
-            }
-        } else {
-            if (started) {
-                state_send(gt.state_fd, "STOPPED", tun_name);
-                started = 0;
             }
         }
 
