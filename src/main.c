@@ -386,35 +386,16 @@ int main (int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    struct {
-        unsigned char *buf;
-    } send, recv;
-
-    send.buf = malloc(2*mtu);
-    recv.buf = malloc(mtu);
-
-    size_t send_size = 0;
-    size_t send_limit = 0;
-    int send_tc = 0;
-    int send_next_tc = 0;
+    unsigned char buf[8*1024];
 
     while (!gt.quit) {
-        if (send_size<mtu)
-            FD_SET(tun_fd, &rfds);
+        FD_SET(tun_fd, &rfds);
+        FD_SET(mud_fd, &rfds);
 
         if (icmp_fd!=-1)
             FD_SET(icmp_fd, &rfds);
 
-        FD_SET(mud_fd, &rfds);
-
-        struct timeval timeout = {
-            .tv_usec = 100000,
-        };
-
-        if (send_size)
-            timeout.tv_usec = 1000;
-
-        if _0_(select(mud_fd+1, &rfds, NULL, NULL, &timeout)==-1) {
+        if _0_(select(mud_fd+1, &rfds, NULL, NULL, NULL)==-1) {
             if (errno==EINTR)
                 continue;
             perror("select");
@@ -422,7 +403,6 @@ int main (int argc, char **argv)
         }
 
         if (icmp_fd!=-1 && FD_ISSET(icmp_fd, &rfds)) {
-            uint8_t buf[1024];
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
             ssize_t r = recvfrom(icmp_fd, buf, sizeof(buf), 0, (struct sockaddr *)&ss, &sl);
@@ -434,7 +414,7 @@ int main (int argc, char **argv)
                         int new_mtu = (data[6]<<8)|data[7];
                         if (new_mtu) {
                             gt_log("received MTU from ICMP: %i\n", new_mtu);
-                            mud_set_mtu(mud, new_mtu-50);
+                            mud_set_mtu(mud, new_mtu-50); // XXX
                         }
                     }
                 }
@@ -442,88 +422,70 @@ int main (int argc, char **argv)
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
-            while (send_size<mtu) {
-                const ssize_t r = tun_read(tun_fd, send.buf+send_size, mtu);
+            size_t size = 0;
+
+            while (sizeof(buf)-size>mtu) {
+                const ssize_t r = tun_read(tun_fd, &buf[size], sizeof(buf)-size);
 
                 if (r<=0)
                     break;
 
                 struct ip_common ic;
 
-                if (ip_get_common(&ic, send.buf+send_size, mtu) || ic.size!=r) {
-                    gt_log("packet dropped: malformed\n");
-                    continue;
-                }
+                if (ip_get_common(&ic, &buf[size], r) || ic.size!=r)
+                    break;
 
-                send_size += r;
-
-                if (send_size<=mtu) {
-                    send_limit = send_size;
-                    if ((ic.tc&0xFC)>(send_tc&0xFC))
-                        send_tc = ic.tc;
-                } else {
-                    if ((ic.tc&0xFC)>(send_next_tc&0xFC))
-                        send_next_tc = ic.tc;
-                }
+                size += r;
             }
-        }
 
-        if (send_limit) {
-            int r = mud_send(mud, send.buf, send_limit, send_tc);
+            int p = 0;
 
-            if (r>0) {
-                if (send_size>send_limit)
-                    memmove(send.buf, &send.buf[send_limit], send_size-send_limit);
-                send_size -= send_limit;
-                send_limit = send_size;
-                send_tc = send_next_tc;
-                send_next_tc = 0;
-            } else if (r==-1) {
-                if (errno==EMSGSIZE) {
-                    long new_mtu = mud_get_mtu(mud);
-                    if (new_mtu!=mtu) {
-                        size_t total = send_size;
+            while (p<size) {
+                int tc = 0;
+                int q = p;
 
-                        if (tun_set_mtu(tun_name, new_mtu)==-1) {
-                            perror("tun_set_mtu");
-                            break;
-                        }
+                while (q<size) {
+                    struct ip_common ic;
 
-                        gt_log("MTU changed: %li\n", new_mtu);
-
-                        mtu = new_mtu;
-                        send_size = 0;
-                        send_limit = 0;
-                        send_tc = 0;
-                        send_next_tc = 0;
-
-                        while (send_size<total) {
-                            struct ip_common ic;
-
-                            if (ip_get_common(&ic, send.buf+send_size, mtu))
-                                break;
-
-                            send_size += ic.size;
-
-                            if (send_size<=mtu) {
-                                send_limit = send_size;
-                                if ((ic.tc&0xFC)>(send_tc&0xFC))
-                                    send_tc = ic.tc;
-                            } else {
-                                if ((ic.tc&0xFC)>(send_next_tc&0xFC))
-                                    send_next_tc = ic.tc;
-                            }
-                        }
+                    if (ip_get_common(&ic, &buf[q], size-q) || ic.size>size-q) {
+                        size = q;
+                        break;
                     }
-                } else if (errno!=EAGAIN) {
-                    perror("mud_send");
+
+                    if (q+ic.size>p+mtu)
+                        break;
+
+                    q += ic.size;
+
+                    if (tc<(ic.tc&0xFC))
+                        tc = ic.tc&0xFC;
+                }
+
+                int r = mud_send(mud, &buf[p], q-p, tc);
+
+                if (r==-1 && errno==EMSGSIZE) {
+                    int new_mtu = mud_get_mtu(mud);
+
+                    if (new_mtu!=mtu) {
+                        mtu = new_mtu;
+
+                        gt_log("MTU changed: %li\n", mtu);
+
+                        if (tun_set_mtu(tun_name, mtu)==-1)
+                            perror("tun_set_mtu");
+                    }
+                } else {
+                    if (r==-1 && errno!=EAGAIN)
+                        perror("mud_send");
+
+                    p = q;
                 }
             }
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
             while (1) {
-                const int size = mud_recv(mud, recv.buf, mtu);
+                const int size = mud_recv(mud, buf, sizeof(buf));
 
                 if (size<=0) {
                     if (size==-1 && errno!=EAGAIN)
@@ -536,13 +498,10 @@ int main (int argc, char **argv)
                 while (p<size) {
                     struct ip_common ic;
 
-                    if (ip_get_common(&ic, recv.buf+p, size-p) || ic.size>size-p)
+                    if (ip_get_common(&ic, &buf[p], size-p) || ic.size>size-p)
                         break;
 
-                    const ssize_t r = tun_write(tun_fd, recv.buf+p, ic.size);
-
-                    if (r<=0)
-                        break;
+                    tun_write(tun_fd, &buf[p], ic.size);
 
                     p += ic.size;
                 }
