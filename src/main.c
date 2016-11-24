@@ -381,6 +381,8 @@ int main (int argc, char **argv)
 
     int mud_fd = mud_get_fd(mud);
 
+    fd_set_nonblock(mud_fd);
+
     state_send(gt.state_fd, "INITIALIZED", tun_name);
 
     fd_set rfds;
