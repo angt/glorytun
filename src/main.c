@@ -239,6 +239,7 @@ int main (int argc, char **argv)
     long port = 5000;
 
     char *bind_list = NULL;
+    char *bind_backup = NULL;
     long bind_port = 5000;
 
     char *dev = NULL;
@@ -262,6 +263,7 @@ int main (int argc, char **argv)
         { "host",           &host,           option_str    },
         { "port",           &port,           option_long   },
         { "bind",           &bind_list,      option_str    },
+        { "bind-backup",    &bind_backup,    option_str    },
         { "bind-port",      &bind_port,      option_long   },
         { "dev",            &dev,            option_str    },
         { "mtu",            &mtu,            option_long   },
@@ -357,26 +359,37 @@ int main (int argc, char **argv)
     if (time_tolerance > 0)
         mud_set_time_tolerance_sec(mud, time_tolerance);
 
-    if (host && port && bind_list) {
-        char tmp[1024];
-        char *name = &tmp[0];
-
-        size_t size = str_cpy(tmp, bind_list, sizeof(tmp)-1);
-
-        for (size_t i=0; i<size; i++) {
-            if (tmp[i]!=',')
-                continue;
-
-            tmp[i] = 0;
-
-            if (mud_peer(mud, name, host, port))
+    if (host && port) {
+        if (bind_backup) {
+            if (mud_peer(mud, bind_backup, host, port, 1)) {
+                perror("mud_peer (backup)");
                 return 1;
-
-            name = &tmp[i+1];
+            }
         }
 
-        if (name[0] && mud_peer(mud, name, host, port))
-            return 1;
+        if (bind_list) {
+            char tmp[1024];
+            char *name = &tmp[0];
+
+            str_cpy(tmp, bind_list, sizeof(tmp)-1);
+
+            while (*name) {
+                char *p = name;
+
+                while (*p && *p!=',')
+                    p++;
+
+                if (*p)
+                    *p++ = 0;
+
+                if (mud_peer(mud, name, host, port, 0)) {
+                    perror("mud_peer");
+                    return 1;
+                }
+
+                name = p;
+            }
+        }
     }
 
     int mud_fd = mud_get_fd(mud);
