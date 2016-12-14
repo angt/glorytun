@@ -277,6 +277,7 @@ main(int argc, char **argv)
         { "bind-port",      &bind_port,      option_long   },
         { "dev",            &dev,            option_str    },
         { "mtu",            &mtu,            option_long   },
+        { "mtu-auto",       NULL,            option_option },
         { "keyfile",        &keyfile,        option_str    },
         { "statefile",      &statefile,      option_str    },
         { "timeout",        &gt.timeout,     option_long   },
@@ -325,7 +326,7 @@ main(int argc, char **argv)
 
     int icmp_fd = -1;
 
-    if (v4) {
+    if (v4 && option_is_set(opts, "mtu-auto")) {
         icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
         if (icmp_fd == -1)
