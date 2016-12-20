@@ -134,24 +134,24 @@ fd_read_all(int fd, void *data, size_t size)
     return done;
 }
 
+static void
+gt_print_secretkey(struct mud *mud)
+{
+    unsigned char key[32];
+    size_t size = sizeof(key);
+
+    if (mud_get_key(mud, key, &size))
+        return;
+
+    char buf[2 * sizeof(key) + 1];
+
+    gt_tohex(buf, sizeof(buf), key, size);
+    gt_print("secret key: %s\n", buf);
+}
+
 static int
 gt_setup_secretkey(struct mud *mud, char *keyfile)
 {
-    unsigned char key[32];
-
-    if (str_empty(keyfile)) {
-        char buf[2 * sizeof(key) + 1];
-        size_t size = sizeof(key);
-
-        if (mud_get_key(mud, key, &size))
-            return -1;
-
-        gt_tohex(buf, sizeof(buf), key, size);
-        gt_print("secret key: %s\n", buf);
-
-        return 0;
-    }
-
     int fd;
 
     do {
@@ -163,6 +163,7 @@ gt_setup_secretkey(struct mud *mud, char *keyfile)
         return -1;
     }
 
+    unsigned char key[32];
     char buf[2 * sizeof(key)];
     size_t r = fd_read_all(fd, buf, sizeof(buf));
 
@@ -300,8 +301,12 @@ main(int argc, char **argv)
         return 1;
     }
 
-    if (gt_setup_secretkey(mud, keyfile))
-        return 1;
+    if (str_empty(keyfile)) {
+        gt_print_secretkey(mud);
+    } else {
+        if (gt_setup_secretkey(mud, keyfile))
+            return 1;
+    }
 
     mud_set_send_timeout_msec(mud, gt.timeout);
 
