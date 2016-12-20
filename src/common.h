@@ -29,6 +29,12 @@
 #define _const_        __attribute__ ((const))
 #define _align_(...)   __attribute__ ((aligned(__VA_ARGS__)))
 
+#undef MAX
+#define MAX(x,y) ({ __typeof__(x) X=(x); __typeof__(y) Y=(y); X > Y ? X : Y; })
+
+#undef MIN
+#define MIN(x,y) ({ __typeof__(x) X=(x); __typeof__(y) Y=(y); X < Y ? X : Y; })
+
 int  gt_print (const char *, ...) _printf_(1,2);
 void gt_log   (const char *, ...) _printf_(1,2);
 void gt_fatal (const char *, ...) _printf_(1,2) _noreturn_;

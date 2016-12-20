@@ -243,8 +243,6 @@ main(int argc, char **argv)
         return 1;
     }
 
-    fd_set_nonblock(tun_fd);
-
     int chacha = option_is_set(opts, "chacha20");
 
     struct mud *mud = mud_create(bind_port, v4, v6, !chacha, mtu);
@@ -301,6 +299,7 @@ main(int argc, char **argv)
 
     int mud_fd = mud_get_fd(mud);
 
+    fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
 
     gt_log("running...\n");
@@ -310,6 +309,8 @@ main(int argc, char **argv)
 
     unsigned char buf[8 * 1024];
 
+    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, icmp_fd));
+
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
         FD_SET(mud_fd, &rfds);
@@ -317,8 +318,8 @@ main(int argc, char **argv)
         if (icmp_fd != -1)
             FD_SET(icmp_fd, &rfds);
 
-        if (select(mud_fd + 1, &rfds, NULL, NULL, NULL) == -1) {
-            if (errno == EINTR)
+        if (select(last_fd, &rfds, NULL, NULL, NULL) == -1) {
+            if (errno != EBADF)
                 continue;
             perror("select");
             return 1;
