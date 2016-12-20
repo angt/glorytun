@@ -26,7 +26,6 @@
 
 static struct {
     volatile sig_atomic_t quit;
-    volatile sig_atomic_t info;
     int timeout;
 } gt;
 
@@ -50,18 +49,9 @@ fd_set_nonblock(int fd)
 }
 
 static void
-gt_sa_handler(int sig)
+gt_quit_handler(int sig)
 {
-    switch (sig) {
-    case SIGINT:
-    case SIGQUIT:
-    case SIGTERM:
-        gt.quit = 1;
-        break;
-    case SIGUSR1:
-        gt.info = 1;
-        break;
-    }
+    gt.quit = 1;
 }
 
 static void
@@ -73,15 +63,15 @@ gt_set_signal(void)
 
     sigemptyset(&sa.sa_mask);
 
-    sa.sa_handler = gt_sa_handler;
+    sa.sa_handler = gt_quit_handler;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGUSR1, &sa, NULL);
 
     sa.sa_handler = SIG_IGN;
     sigaction(SIGHUP, &sa, NULL);
     sigaction(SIGPIPE, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
 }
 
 static void
