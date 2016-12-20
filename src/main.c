@@ -206,7 +206,7 @@ main(int argc, char **argv)
 
     if (option_is_set(opts, "v4only") &&
         option_is_set(opts, "v6only")) {
-        gt_log("v4only and v6only are both set\n");
+        gt_log("v4only and v6only cannot be both set\n");
         return 1;
     }
 
@@ -215,7 +215,7 @@ main(int argc, char **argv)
         return 1;
     }
 
-    if (gt.timeout <= 0 || gt.timeout > INT_MAX) {
+    if ((int)gt.timeout <= 0) {
         gt_log("bad timeout\n");
         return 1;
     }
