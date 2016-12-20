@@ -26,8 +26,35 @@
 
 static struct {
     volatile sig_atomic_t quit;
-    int timeout;
-} gt;
+    char *dev;
+    char *keyfile;
+    char *host;
+    long port;
+    struct {
+        char *list;
+        char *backup;
+        long port;
+    } bind;
+    long mtu;
+    long timeout;
+    long time_tolerance;
+    int ipv4;
+    int ipv6;
+    int mtu_auto;
+    int chacha20;
+    int version;
+} gt = {
+    .port = 5000,
+    .bind = {
+        .port = 5000,
+    },
+    .mtu = 1450,
+    .timeout = 5000,
+    .ipv4 = 1,
+#ifdef __linux__
+    .ipv6 = 1,
+#endif
+};
 
 static void
 fd_set_nonblock(int fd)
@@ -137,80 +164,42 @@ gt_setup_secretkey(struct mud *mud, char *keyfile)
     return 0;
 }
 
-int
-main(int argc, char **argv)
+static int
+gt_setup_option(int argc, char **argv)
 {
-    gt_set_signal();
-
-    char *host = NULL;
-    long port = 5000;
-
-    char *bind_list = NULL;
-    char *bind_backup = NULL;
-    long bind_port = 5000;
-
-    char *dev = NULL;
-    char *keyfile = NULL;
-
-    long mtu = 1450;
-
-    gt.timeout = 5000;
-
-    long time_tolerance = 0;
-
-    int v4 = 1;
-    int v6 = 0;
-
-#ifdef __linux__
-    v6 = 1;
-#endif
-
     struct option opts[] = {
         // clang-format off
-        { "host",           &host,           option_str    },
-        { "port",           &port,           option_long   },
-        { "bind",           &bind_list,      option_str    },
-        { "bind-backup",    &bind_backup,    option_str    },
-        { "bind-port",      &bind_port,      option_long   },
-        { "dev",            &dev,            option_str    },
-        { "mtu",            &mtu,            option_long   },
-        { "mtu-auto",       NULL,            option_option },
-        { "keyfile",        &keyfile,        option_str    },
-        { "timeout",        &gt.timeout,     option_long   },
-        { "time-tolerance", &time_tolerance, option_long   },
-        { "v4only",         NULL,            option_option },
-        { "v6only",         NULL,            option_option },
-        { "chacha20",       NULL,            option_option },
-        { "version",        NULL,            option_option },
-        {  NULL                                            },
+        { "host",           &gt.host,           option_str    },
+        { "port",           &gt.port,           option_long   },
+        { "bind",           &gt.bind.list,      option_str    },
+        { "bind-backup",    &gt.bind.backup,    option_str    },
+        { "bind-port",      &gt.bind.port,      option_long   },
+        { "dev",            &gt.dev,            option_str    },
+        { "mtu",            &gt.mtu,            option_long   },
+        { "mtu-auto",       NULL,               option_option },
+        { "keyfile",        &gt.keyfile,        option_str    },
+        { "timeout",        &gt.timeout,        option_long   },
+        { "time-tolerance", &gt.time_tolerance, option_long   },
+        { "v4only",         NULL,               option_option },
+        { "v6only",         NULL,               option_option },
+        { "chacha20",       NULL,               option_option },
+        { "version",        NULL,               option_option },
+        {  NULL                                               },
         // clang-format on
     };
 
     if (option(opts, argc, argv))
         return 1;
 
-    if (option_is_set(opts, "version")) {
-        gt_print(PACKAGE_STRING "\n");
-        return 0;
-    }
+    int v4only = option_is_set(opts, "v4only");
+    int v6only = option_is_set(opts, "v6only");
 
-    if (option_is_set(opts, "v4only")) {
-        v4 = 1;
-        v6 = 0;
-    }
-
-    if (option_is_set(opts, "v6only")) {
-        v4 = 0;
-        v6 = 1;
-    }
-
-    if (option_is_set(opts, "v4only") &&
-        option_is_set(opts, "v6only")) {
+    if (v4only && v6only) {
         gt_log("v4only and v6only cannot be both set\n");
         return 1;
     }
 
-    if (host && !option_is_set(opts, "keyfile")) {
+    if (gt.host && !option_is_set(opts, "keyfile")) {
         gt_log("keyfile option must be set\n");
         return 1;
     }
@@ -220,9 +209,39 @@ main(int argc, char **argv)
         return 1;
     }
 
+    if (v4only) {
+        gt.ipv4 = 1;
+        gt.ipv6 = 0;
+    }
+
+    if (v6only) {
+        gt.ipv4 = 0;
+        gt.ipv6 = 1;
+    }
+
+    gt.mtu_auto = option_is_set(opts, "mtu-auto");
+    gt.chacha20 = option_is_set(opts, "chacha20");
+    gt.version = option_is_set(opts, "version");
+
+    return 0;
+}
+
+int
+main(int argc, char **argv)
+{
+    gt_set_signal();
+
+    if (gt_setup_option(argc, argv))
+        return 1;
+
+    if (gt.version) {
+        gt_print(PACKAGE_STRING "\n");
+        return 0;
+    }
+
     int icmp_fd = -1;
 
-    if (v4 && option_is_set(opts, "mtu-auto")) {
+    if (gt.ipv4 && gt.mtu_auto) {
         icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
         if (icmp_fd == -1)
@@ -231,52 +250,51 @@ main(int argc, char **argv)
 
     char *tun_name = NULL;
 
-    int tun_fd = tun_create(dev, &tun_name);
+    int tun_fd = tun_create(gt.dev, &tun_name);
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");
         return 1;
     }
 
-    if (tun_set_mtu(tun_name, mtu) == -1) {
+    if (tun_set_mtu(tun_name, gt.mtu) == -1) {
         perror("tun_set_mtu");
         return 1;
     }
 
-    int chacha = option_is_set(opts, "chacha20");
-
-    struct mud *mud = mud_create(bind_port, v4, v6, !chacha, mtu);
+    struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6,
+                                 !gt.chacha20, gt.mtu);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
         return 1;
     }
 
-    if (str_empty(keyfile)) {
+    if (str_empty(gt.keyfile)) {
         gt_print_secretkey(mud);
     } else {
-        if (gt_setup_secretkey(mud, keyfile))
+        if (gt_setup_secretkey(mud, gt.keyfile))
             return 1;
     }
 
     mud_set_send_timeout_msec(mud, gt.timeout);
 
-    if (time_tolerance > 0)
-        mud_set_time_tolerance_sec(mud, time_tolerance);
+    if (gt.time_tolerance > 0)
+        mud_set_time_tolerance_sec(mud, gt.time_tolerance);
 
-    if (host && port) {
-        if (bind_backup) {
-            if (mud_peer(mud, bind_backup, host, port, 1)) {
+    if (gt.host && gt.port) {
+        if (gt.bind.backup) {
+            if (mud_peer(mud, gt.bind.backup, gt.host, gt.port, 1)) {
                 perror("mud_peer (backup)");
                 return 1;
             }
         }
 
-        if (bind_list) {
+        if (gt.bind.list) {
             char tmp[1024];
             char *name = &tmp[0];
 
-            str_cpy(tmp, bind_list, sizeof(tmp) - 1);
+            str_cpy(tmp, gt.bind.list, sizeof(tmp) - 1);
 
             while (*name) {
                 char *p = name;
@@ -287,7 +305,7 @@ main(int argc, char **argv)
                 if (*p)
                     *p++ = 0;
 
-                if (mud_peer(mud, name, host, port, 0)) {
+                if (mud_peer(mud, name, gt.host, gt.port, 0)) {
                     perror("mud_peer");
                     return 1;
                 }
@@ -335,10 +353,10 @@ main(int argc, char **argv)
                 if (!ip_get_common(&ic, buf, r) && ic.proto == 1) {
                     unsigned char *data = &buf[ic.hdr_size];
                     if (data[0] == 3) {
-                        int new_mtu = (data[6] << 8) | data[7];
-                        if (new_mtu) {
-                            gt_log("received MTU from ICMP: %i\n", new_mtu);
-                            mud_set_mtu(mud, new_mtu - 50); // XXX
+                        int mtu = (data[6] << 8) | data[7];
+                        if (mtu) {
+                            gt_log("received MTU from ICMP: %i\n", mtu);
+                            mud_set_mtu(mud, mtu - 50); // XXX
                         }
                     }
                 }
@@ -348,7 +366,7 @@ main(int argc, char **argv)
         if (FD_ISSET(tun_fd, &rfds)) {
             size_t size = 0;
 
-            while (sizeof(buf) - size > mtu) {
+            while (sizeof(buf) - size > gt.mtu) {
                 const ssize_t r = tun_read(tun_fd, &buf[size],
                                            sizeof(buf) - size);
                 if (r <= 0)
@@ -377,7 +395,7 @@ main(int argc, char **argv)
                         break;
                     }
 
-                    if (q + ic.size > p + mtu)
+                    if (q + ic.size > p + gt.mtu)
                         break;
 
                     q += ic.size;
@@ -389,14 +407,14 @@ main(int argc, char **argv)
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
                 if (r == -1 && errno == EMSGSIZE) {
-                    int new_mtu = mud_get_mtu(mud);
+                    int mtu = mud_get_mtu(mud);
 
-                    if (new_mtu != mtu) {
-                        mtu = new_mtu;
+                    if (mtu != gt.mtu) {
+                        gt.mtu = mtu;
 
-                        gt_log("MTU changed: %li\n", mtu);
+                        gt_log("MTU changed: %li\n", gt.mtu);
 
-                        if (tun_set_mtu(tun_name, mtu) == -1)
+                        if (tun_set_mtu(tun_name, gt.mtu) == -1)
                             perror("tun_set_mtu");
                     }
                 } else {
