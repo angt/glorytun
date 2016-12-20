@@ -7,7 +7,6 @@ glorytun_LDADD = $(libsodium_LIBS)
 glorytun_SOURCES = \
     src/common.h \
     src/common.c \
-    src/buffer.h \
     src/ip.h \
     src/str.h \
     src/main.c \

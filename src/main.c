@@ -1,6 +1,5 @@
 #include "common.h"
 
-#include "buffer.h"
 #include "db.h"
 #include "ip.h"
 #include "option.h"
