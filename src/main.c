@@ -105,30 +105,6 @@ fd_read(int fd, void *data, size_t size)
     return ret;
 }
 
-static ssize_t
-fd_write(int fd, const void *data, size_t size)
-{
-    if ((fd == -1) || !size)
-        return -1;
-
-    ssize_t ret = write(fd, data, size);
-
-    if (ret == -1) {
-        if (errno == EAGAIN || errno == EINTR)
-            return -1;
-
-        if (errno == EPIPE || errno == ECONNRESET)
-            return 0;
-
-        if (errno)
-            perror("write");
-
-        return 0;
-    }
-
-    return ret;
-}
-
 static size_t
 fd_read_all(int fd, void *data, size_t size)
 {
@@ -144,35 +120,6 @@ fd_read_all(int fd, void *data, size_t size)
             struct pollfd pollfd = {
                 .fd = fd,
                 .events = POLLIN,
-            };
-
-            if (!poll(&pollfd, 1, gt.timeout))
-                break;
-
-            continue;
-        }
-
-        done += ret;
-    }
-
-    return done;
-}
-
-static size_t
-fd_write_all(int fd, const void *data, size_t size)
-{
-    size_t done = 0;
-
-    while (done < size) {
-        ssize_t ret = fd_write(fd, (const uint8_t *)data + done, size - done);
-
-        if (!ret)
-            break;
-
-        if (ret < 0) {
-            struct pollfd pollfd = {
-                .fd = fd,
-                .events = POLLOUT,
             };
 
             if (!poll(&pollfd, 1, gt.timeout))
