@@ -84,56 +84,6 @@ gt_set_signal(void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-static ssize_t
-fd_read(int fd, void *data, size_t size)
-{
-    if ((fd == -1) || !size)
-        return -1;
-
-    ssize_t ret = read(fd, data, size);
-
-    if (ret == -1) {
-        if (errno == EAGAIN || errno == EINTR)
-            return -1;
-
-        if (errno)
-            perror("read");
-
-        return 0;
-    }
-
-    return ret;
-}
-
-static size_t
-fd_read_all(int fd, void *data, size_t size)
-{
-    size_t done = 0;
-
-    while (done < size) {
-        ssize_t ret = fd_read(fd, (uint8_t *)data + done, size - done);
-
-        if (!ret)
-            break;
-
-        if (ret < 0) {
-            struct pollfd pollfd = {
-                .fd = fd,
-                .events = POLLIN,
-            };
-
-            if (!poll(&pollfd, 1, gt.timeout))
-                break;
-
-            continue;
-        }
-
-        done += ret;
-    }
-
-    return done;
-}
-
 static void
 gt_print_secretkey(struct mud *mud)
 {
@@ -165,11 +115,23 @@ gt_setup_secretkey(struct mud *mud, char *keyfile)
 
     unsigned char key[32];
     char buf[2 * sizeof(key)];
-    size_t r = fd_read_all(fd, buf, sizeof(buf));
+    size_t size = 0;
+
+    while (size < sizeof(buf)) {
+        ssize_t r = read(fd, &buf[size], sizeof(buf) - size);
+
+        if (r <= (ssize_t)0) {
+            if (r && (errno == EAGAIN || errno == EINTR))
+                continue;
+            break;
+        }
+
+        size += r;
+    }
 
     close(fd);
 
-    if (r != sizeof(buf)) {
+    if (size != sizeof(buf)) {
         gt_log("unable to read secret key\n");
         return -1;
     }
