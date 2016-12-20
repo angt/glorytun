@@ -4,7 +4,6 @@
 #include "db.h"
 #include "ip.h"
 #include "option.h"
-#include "state.h"
 #include "str.h"
 #include "tun.h"
 
@@ -30,7 +29,6 @@ static struct {
     volatile sig_atomic_t quit;
     volatile sig_atomic_t info;
     int timeout;
-    int state_fd;
 } gt;
 
 static void
@@ -203,7 +201,7 @@ gt_setup_secretkey(struct mud *mud, char *keyfile)
             return -1;
 
         gt_tohex(buf, sizeof(buf), key, size);
-        state_send(gt.state_fd, "SECRETKEY", buf);
+        gt_print("secret key: %s\n", buf);
 
         return 0;
     }
@@ -253,7 +251,6 @@ main(int argc, char **argv)
 
     char *dev = NULL;
     char *keyfile = NULL;
-    char *statefile = NULL;
 
     long mtu = 1450;
 
@@ -279,7 +276,6 @@ main(int argc, char **argv)
         { "mtu",            &mtu,            option_long   },
         { "mtu-auto",       NULL,            option_option },
         { "keyfile",        &keyfile,        option_str    },
-        { "statefile",      &statefile,      option_str    },
         { "timeout",        &gt.timeout,     option_long   },
         { "time-tolerance", &time_tolerance, option_long   },
         { "v4only",         NULL,            option_option },
@@ -332,11 +328,6 @@ main(int argc, char **argv)
         if (icmp_fd == -1)
             gt_log("couldn't create ICMP socket\n");
     }
-
-    gt.state_fd = state_create(statefile);
-
-    if (statefile && gt.state_fd == -1)
-        return 1;
 
     char *tun_name = NULL;
 
@@ -408,7 +399,7 @@ main(int argc, char **argv)
 
     fd_set_nonblock(mud_fd);
 
-    state_send(gt.state_fd, "INITIALIZED", tun_name);
+    gt_log("running...\n");
 
     fd_set rfds;
     FD_ZERO(&rfds);
