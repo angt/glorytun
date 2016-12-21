@@ -24,6 +24,8 @@
 #define O_CLOEXEC 0
 #endif
 
+#define GT_MTU(X) ((X) - 28)
+
 static struct {
     volatile sig_atomic_t quit;
     char *dev;
@@ -48,7 +50,6 @@ static struct {
     .bind = {
         .port = 5000,
     },
-    .mtu = 1450,
     .timeout = 5000,
     .ipv4 = 1,
 #ifdef __linux__
@@ -167,8 +168,9 @@ gt_setup_secretkey(struct mud *mud, char *keyfile)
 static int
 gt_setup_option(int argc, char **argv)
 {
+    // clang-format off
+
     struct option opts[] = {
-        // clang-format off
         { "host",           &gt.host,           option_str    },
         { "port",           &gt.port,           option_long   },
         { "bind",           &gt.bind.list,      option_str    },
@@ -185,8 +187,9 @@ gt_setup_option(int argc, char **argv)
         { "chacha20",       NULL,               option_option },
         { "version",        NULL,               option_option },
         {  NULL                                               },
-        // clang-format on
     };
+
+    // clang-format on
 
     if (option(opts, argc, argv))
         return 1;
@@ -257,13 +260,8 @@ main(int argc, char **argv)
         return 1;
     }
 
-    if (tun_set_mtu(tun_name, gt.mtu) == -1) {
-        perror("tun_set_mtu");
-        return 1;
-    }
-
     struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6,
-                                 !gt.chacha20, gt.mtu);
+                                 !gt.chacha20, GT_MTU(gt.mtu));
 
     if (!mud) {
         gt_log("couldn't create mud\n");
@@ -315,6 +313,13 @@ main(int argc, char **argv)
         }
     }
 
+    gt.mtu = GT_MTU(mud_get_mtu(mud));
+
+    if (tun_set_mtu(tun_name, gt.mtu) == -1) {
+        perror("tun_set_mtu");
+        return 1;
+    }
+
     int mud_fd = mud_get_fd(mud);
 
     fd_set_nonblock(tun_fd);
@@ -356,7 +361,7 @@ main(int argc, char **argv)
                         int mtu = (data[6] << 8) | data[7];
                         if (mtu) {
                             gt_log("received MTU from ICMP: %i\n", mtu);
-                            mud_set_mtu(mud, mtu - 50); // XXX
+                            mud_set_mtu(mud, GT_MTU(mtu));
                         }
                     }
                 }
@@ -407,22 +412,22 @@ main(int argc, char **argv)
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
                 if (r == -1 && errno == EMSGSIZE) {
-                    int mtu = mud_get_mtu(mud);
+                    int mtu = GT_MTU(mud_get_mtu(mud));
 
-                    if (mtu != gt.mtu) {
+                    if (mtu != (int)gt.mtu) {
                         gt.mtu = mtu;
 
-                        gt_log("MTU changed: %li\n", gt.mtu);
+                        gt_log("setup MTU to %i on interface %s\n", mtu, tun_name);
 
-                        if (tun_set_mtu(tun_name, gt.mtu) == -1)
+                        if (tun_set_mtu(tun_name, mtu) == -1)
                             perror("tun_set_mtu");
                     }
                 } else {
                     if (r == -1 && errno != EAGAIN)
                         perror("mud_send");
-
-                    p = q;
                 }
+
+                p = q;
             }
         }
 
