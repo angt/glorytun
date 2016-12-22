@@ -229,6 +229,22 @@ gt_setup_option(int argc, char **argv)
     return 0;
 }
 
+static void
+gt_setup_mtu(struct mud *mud, char *tun_name)
+{
+    int mtu = mud_get_mtu(mud);
+
+    if (mtu == (int)gt.mtu)
+        return;
+
+    gt.mtu = mtu;
+
+    gt_log("setup MTU to %i on interface %s\n", mtu, tun_name);
+
+    if (tun_set_mtu(tun_name, mtu) == -1)
+        perror("tun_set_mtu");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -313,12 +329,7 @@ main(int argc, char **argv)
         }
     }
 
-    gt.mtu = GT_MTU(mud_get_mtu(mud));
-
-    if (tun_set_mtu(tun_name, gt.mtu) == -1) {
-        perror("tun_set_mtu");
-        return 1;
-    }
+    gt_setup_mtu(mud, tun_name);
 
     int mud_fd = mud_get_fd(mud);
 
@@ -415,16 +426,7 @@ main(int argc, char **argv)
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
                 if (r == -1 && errno == EMSGSIZE) {
-                    int mtu = GT_MTU(mud_get_mtu(mud));
-
-                    if (mtu != (int)gt.mtu) {
-                        gt.mtu = mtu;
-
-                        gt_log("setup MTU to %i on interface %s\n", mtu, tun_name);
-
-                        if (tun_set_mtu(tun_name, mtu) == -1)
-                            perror("tun_set_mtu");
-                    }
+                    gt_setup_mtu(mud, tun_name);
                 } else {
                     if (r == -1 && errno != EAGAIN)
                         perror("mud_send");
