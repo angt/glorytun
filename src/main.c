@@ -325,6 +325,9 @@ main(int argc, char **argv)
     fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
 
+    if (icmp_fd != -1)
+        fd_set_nonblock(icmp_fd);
+
     gt_log("running...\n");
 
     fd_set rfds;
