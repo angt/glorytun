@@ -158,7 +158,7 @@ tun_create(char *dev_name, char **ret_name)
     return fd;
 }
 
-ssize_t
+int
 tun_read(int fd, void *data, size_t size)
 {
     if (!size)
@@ -192,7 +192,7 @@ tun_read(int fd, void *data, size_t size)
 #endif
 }
 
-ssize_t
+int
 tun_write(int fd, const void *data, size_t size)
 {
     if (!size)

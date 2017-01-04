@@ -386,8 +386,8 @@ main(int argc, char **argv)
             size_t size = 0;
 
             while (sizeof(buf) - size >= gt.mtu) {
-                const ssize_t r = tun_read(tun_fd, &buf[size],
-                                           sizeof(buf) - size);
+                const int r = tun_read(tun_fd, &buf[size],
+                                       sizeof(buf) - size);
 
                 if (r <= 0 || r > gt.mtu)
                     break;

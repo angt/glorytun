@@ -1,8 +1,6 @@
 #pragma once
 
-#include <unistd.h>
-
-int     tun_create  (char *, char **);
-ssize_t tun_read    (int, void *, size_t);
-ssize_t tun_write   (int, const void *, size_t);
-int     tun_set_mtu (char *, int);
+int tun_create  (char *, char **);
+int tun_read    (int, void *, size_t);
+int tun_write   (int, const void *, size_t);
+int tun_set_mtu (char *, int);
