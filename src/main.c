@@ -385,10 +385,11 @@ main(int argc, char **argv)
         if (FD_ISSET(tun_fd, &rfds)) {
             size_t size = 0;
 
-            while (sizeof(buf) - size > gt.mtu) {
+            while (sizeof(buf) - size >= gt.mtu) {
                 const ssize_t r = tun_read(tun_fd, &buf[size],
                                            sizeof(buf) - size);
-                if (r <= 0)
+
+                if (r <= 0 || r > gt.mtu)
                     break;
 
                 struct ip_common ic;
