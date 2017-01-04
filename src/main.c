@@ -410,10 +410,8 @@ main(int argc, char **argv)
                     struct ip_common ic;
 
                     if ((ip_get_common(&ic, &buf[q], size - q)) ||
-                        (ic.size > size - q)) {
-                        size = q;
+                        (ic.size > size - q))
                         break;
-                    }
 
                     if (q + ic.size > p + gt.mtu)
                         break;
@@ -423,6 +421,9 @@ main(int argc, char **argv)
                     if (tc < (ic.tc & 0xFC))
                         tc = ic.tc & 0xFC;
                 }
+
+                if (p == q)
+                    break;
 
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
