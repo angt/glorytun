@@ -45,7 +45,9 @@ tun_create_by_id(char *name, size_t size, unsigned id)
     str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name) - 1);
 
     if (ioctl(fd, CTLIOCGINFO, &ci)) {
+        int err = errno;
         close(fd);
+        errno = err;
         return -1;
     }
 
@@ -58,7 +60,9 @@ tun_create_by_id(char *name, size_t size, unsigned id)
     };
 
     if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))) {
+        int err = errno;
         close(fd);
+        errno = err;
         return -1;
     }
 
@@ -72,8 +76,10 @@ tun_create_by_name(char *name, size_t size, char *dev_name)
 {
     unsigned id = 0;
 
-    if (sscanf(dev_name, "utun%u", &id) != 1)
+    if (sscanf(dev_name, "utun%u", &id) != 1) {
+        errno = EINVAL;
         return -1;
+    }
 
     return tun_create_by_id(name, size, id);
 }
@@ -156,7 +162,7 @@ ssize_t
 tun_read(int fd, void *data, size_t size)
 {
     if (!size)
-        return -1;
+        return 0;
 
 #ifdef GT_BSD_TUN
     uint32_t family;
@@ -173,27 +179,16 @@ tun_read(int fd, void *data, size_t size)
     };
 
     ssize_t ret = readv(fd, iov, 2);
-#else
-    ssize_t ret = read(fd, data, size);
-#endif
 
-    if (ret == -1) {
-        if (errno == EAGAIN || errno == EINTR)
-            return -1;
+    if (ret <= (ssize_t)0)
+        return ret;
 
-        if (errno)
-            perror("tun read");
-
-        return 0;
-    }
-
-#ifdef GT_BSD_TUN
-    if (ret < (ssize_t)sizeof(family))
+    if (ret <= (ssize_t)sizeof(family))
         return 0;
 
     return ret - sizeof(family);
 #else
-    return ret;
+    return read(fd, data, size);
 #endif
 }
 
@@ -201,7 +196,7 @@ ssize_t
 tun_write(int fd, const void *data, size_t size)
 {
     if (!size)
-        return -1;
+        return 0;
 
 #ifdef GT_BSD_TUN
     uint32_t family;
@@ -214,6 +209,7 @@ tun_write(int fd, const void *data, size_t size)
         family = htonl(AF_INET6);
         break;
     default:
+        errno = EINVAL;
         return -1;
     }
 
@@ -229,27 +225,16 @@ tun_write(int fd, const void *data, size_t size)
     };
 
     ssize_t ret = writev(fd, iov, 2);
-#else
-    ssize_t ret = write(fd, data, size);
-#endif
 
-    if (ret == -1) {
-        if (errno == EAGAIN || errno == EINTR)
-            return -1;
+    if (ret <= (ssize_t)0)
+        return ret;
 
-        if (errno)
-            perror("tun write");
-
-        return 0;
-    }
-
-#ifdef GT_BSD_TUN
-    if (ret < (ssize_t)sizeof(family))
+    if (ret <= (ssize_t)sizeof(family))
         return 0;
 
     return ret - sizeof(family);
 #else
-    return ret;
+    return write(fd, data, size);
 #endif
 }
 
