@@ -30,7 +30,9 @@ ip_get_common(struct ip_common *ic, const uint8_t *data, size_t size)
         ic->proto = data[9];
         ic->hdr_size = (data[0] & 0xF) << 2;
         ic->size = ((data[2] << 8) | data[3]);
-        return 0;
+        if (ic->size >= 20)
+            return 0;
+        break;
     case 6:
         ic->tc = ((data[0] & 0xF) << 4) | (data[1] >> 4);
         ic->proto = data[6];
