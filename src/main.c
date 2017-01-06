@@ -24,7 +24,7 @@
 #define O_CLOEXEC 0
 #endif
 
-#define GT_MTU(X) ((X) - 28)
+#define GT_MTU(X) ((X)-28)
 
 static struct {
     volatile sig_atomic_t quit;
@@ -386,8 +386,7 @@ main(int argc, char **argv)
             size_t size = 0;
 
             while (sizeof(buf) - size >= gt.mtu) {
-                const int r = tun_read(tun_fd, &buf[size],
-                                       sizeof(buf) - size);
+                const int r = tun_read(tun_fd, &buf[size], sizeof(buf) - size);
 
                 if (r <= 0 || r > gt.mtu)
                     break;
@@ -422,7 +421,7 @@ main(int argc, char **argv)
                         tc = ic.tc & 0xFC;
                 }
 
-                if (p == q)
+                if (p >= q)
                     break;
 
                 int r = mud_send(mud, &buf[p], q - p, tc);
