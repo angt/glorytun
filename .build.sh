@@ -11,5 +11,8 @@ cd ..
 [ -x glorytun ] || exit 1
 
 mkdir -p deploy
+
+cp glorytun deploy/glorytun-$(cat VERSION)-$(uname -m).debug.bin
+
 strip -s glorytun
-mv glorytun deploy/glorytun-$(cat VERSION)-$(uname -m).bin
+cp glorytun deploy/glorytun-$(cat VERSION)-$(uname -m).bin
