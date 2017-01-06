@@ -50,6 +50,7 @@ static struct {
     .bind = {
         .port = 5000,
     },
+    .mtu = 1500,
     .timeout = 5000,
     .ipv4 = 1,
 #ifdef __linux__
