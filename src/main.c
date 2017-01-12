@@ -18,7 +18,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "mud.h"
+#include "../mud/mud.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0

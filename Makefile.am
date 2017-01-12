@@ -17,7 +17,6 @@ glorytun_SOURCES = \
     src/db.c \
     src/db.h
 
-glorytun_CFLAGS  += -I$(srcdir)/mud
 glorytun_SOURCES += \
     mud/mud.h \
     mud/mud.c
