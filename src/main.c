@@ -439,28 +439,32 @@ main(int argc, char **argv)
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
-            while (1) {
-                const int size = mud_recv(mud, buf, sizeof(buf));
+            size_t size = 0;
 
-                if (size <= 0) {
-                    if (size == -1 && errno != EAGAIN)
+            while (sizeof(buf) - size >= gt.mtu) {
+                const int r = mud_recv(mud, &buf[size], sizeof(buf) - size);
+
+                if (r <= 0) {
+                    if (r == -1 && errno != EAGAIN)
                         perror("mud_recv");
                     break;
                 }
 
-                int p = 0;
+                size += r;
+            }
 
-                while (p < size) {
-                    struct ip_common ic;
+            int p = 0;
 
-                    if ((ip_get_common(&ic, &buf[p], size - p)) ||
-                        (ic.size > size - p))
-                        break;
+            while (p < size) {
+                struct ip_common ic;
 
-                    tun_write(tun_fd, &buf[p], ic.size);
+                if ((ip_get_common(&ic, &buf[p], size - p)) ||
+                    (ic.size > size - p))
+                    break;
 
-                    p += ic.size;
-                }
+                tun_write(tun_fd, &buf[p], ic.size);
+
+                p += ic.size;
             }
         }
     }
