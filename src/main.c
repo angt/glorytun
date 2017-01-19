@@ -45,6 +45,10 @@ static struct {
     int mtu_auto;
     int chacha20;
     int version;
+    struct {
+        unsigned char *data;
+        long size;
+    } buf;
 } gt = {
     .port = 5000,
     .bind = {
@@ -56,6 +60,9 @@ static struct {
 #ifdef __linux__
     .ipv6 = 1,
 #endif
+    .buf = {
+        .size = 64 * 1024,
+    },
 };
 
 static void
@@ -186,6 +193,7 @@ gt_setup_option(int argc, char **argv)
         { "v4only",         NULL,               option_option },
         { "v6only",         NULL,               option_option },
         { "chacha20",       NULL,               option_option },
+        { "buf-size",       &gt.buf.size,       option_long   },
         { "version",        NULL,               option_option },
         {  NULL                                               },
     };
@@ -213,6 +221,11 @@ gt_setup_option(int argc, char **argv)
         return 1;
     }
 
+    if (gt.buf.size <= 0) {
+        gt_log("bad buf-size\n");
+        return 1;
+    }
+
     if (v4only) {
         gt.ipv4 = 1;
         gt.ipv6 = 0;
@@ -226,6 +239,8 @@ gt_setup_option(int argc, char **argv)
     gt.mtu_auto = option_is_set(opts, "mtu-auto");
     gt.chacha20 = option_is_set(opts, "chacha20");
     gt.version = option_is_set(opts, "version");
+
+    gt.buf.data = malloc(gt.buf.size);
 
     return 0;
 }
@@ -345,8 +360,6 @@ main(int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    unsigned char buf[8 * 1024];
-
     int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, icmp_fd));
 
     while (!gt.quit) {
@@ -366,12 +379,12 @@ main(int argc, char **argv)
         if (icmp_fd != -1 && FD_ISSET(icmp_fd, &rfds)) {
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
-            ssize_t r = recvfrom(icmp_fd, buf, sizeof(buf), 0,
+            ssize_t r = recvfrom(icmp_fd, gt.buf.data, gt.buf.size, 0,
                                  (struct sockaddr *)&ss, &sl);
             if (r >= 8) {
                 struct ip_common ic;
-                if (!ip_get_common(&ic, buf, r) && ic.proto == 1) {
-                    unsigned char *data = &buf[ic.hdr_size];
+                if (!ip_get_common(&ic, gt.buf.data, r) && ic.proto == 1) {
+                    unsigned char *data = &gt.buf.data[ic.hdr_size];
                     if (data[0] == 3) {
                         int mtu = (data[6] << 8) | data[7];
                         if (mtu) {
@@ -386,15 +399,15 @@ main(int argc, char **argv)
         if (FD_ISSET(tun_fd, &rfds)) {
             size_t size = 0;
 
-            while (sizeof(buf) - size >= gt.mtu) {
-                const int r = tun_read(tun_fd, &buf[size], sizeof(buf) - size);
+            while (gt.buf.size - size >= gt.mtu) {
+                const int r = tun_read(tun_fd, &gt.buf.data[size], gt.buf.size - size);
 
                 if (r <= 0 || r > gt.mtu)
                     break;
 
                 struct ip_common ic;
 
-                if (ip_get_common(&ic, &buf[size], r) || ic.size != r)
+                if (ip_get_common(&ic, &gt.buf.data[size], r) || ic.size != r)
                     break;
 
                 size += r;
@@ -409,7 +422,7 @@ main(int argc, char **argv)
                 while (q < size) {
                     struct ip_common ic;
 
-                    if ((ip_get_common(&ic, &buf[q], size - q)) ||
+                    if ((ip_get_common(&ic, &gt.buf.data[q], size - q)) ||
                         (ic.size > size - q))
                         break;
 
@@ -425,7 +438,7 @@ main(int argc, char **argv)
                 if (p >= q)
                     break;
 
-                int r = mud_send(mud, &buf[p], q - p, tc);
+                int r = mud_send(mud, &gt.buf.data[p], q - p, tc);
 
                 if (r == -1 && errno == EMSGSIZE) {
                     gt_setup_mtu(mud, tun_name);
@@ -441,8 +454,8 @@ main(int argc, char **argv)
         if (FD_ISSET(mud_fd, &rfds)) {
             size_t size = 0;
 
-            while (sizeof(buf) - size >= gt.mtu) {
-                const int r = mud_recv(mud, &buf[size], sizeof(buf) - size);
+            while (gt.buf.size - size >= gt.mtu) {
+                const int r = mud_recv(mud, &gt.buf.data[size], gt.buf.size - size);
 
                 if (r <= 0) {
                     if (r == -1 && errno != EAGAIN)
@@ -458,11 +471,11 @@ main(int argc, char **argv)
             while (p < size) {
                 struct ip_common ic;
 
-                if ((ip_get_common(&ic, &buf[p], size - p)) ||
+                if ((ip_get_common(&ic, &gt.buf.data[p], size - p)) ||
                     (ic.size > size - p))
                     break;
 
-                tun_write(tun_fd, &buf[p], ic.size);
+                tun_write(tun_fd, &gt.buf.data[p], ic.size);
 
                 p += ic.size;
             }
