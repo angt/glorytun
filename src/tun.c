@@ -265,5 +265,9 @@ tun_set_mtu(char *dev_name, int mtu)
 int
 tun_set_persist(int fd, int on)
 {
+#ifdef TUNSETPERSIST
     return ioctl(fd, TUNSETPERSIST, on);
+#else
+    return 0;
+#endif
 }
