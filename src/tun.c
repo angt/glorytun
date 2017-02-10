@@ -17,6 +17,7 @@
 #define IFF_TUN 0x0001
 #define IFF_NO_PI 0x1000
 #define TUNSETIFF _IOW('T', 202, int)
+#define TUNSETPERSIST _IOW('T', 203, int)
 #endif
 
 #ifdef __APPLE__
@@ -259,4 +260,10 @@ tun_set_mtu(char *dev_name, int mtu)
     errno = err;
 
     return ret;
+}
+
+int
+tun_set_persist(int fd, int on)
+{
+    return ioctl(fd, TUNSETPERSIST, on);
 }

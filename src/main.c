@@ -28,6 +28,7 @@
 
 static struct {
     volatile sig_atomic_t quit;
+    volatile sig_atomic_t reload;
     char *dev;
     char *keyfile;
     char *host;
@@ -87,6 +88,7 @@ fd_set_nonblock(int fd)
 static void
 gt_quit_handler(int sig)
 {
+    gt.reload = (sig == SIGHUP);
     gt.quit = 1;
 }
 
@@ -103,9 +105,9 @@ gt_set_signal(void)
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
 
     sa.sa_handler = SIG_IGN;
-    sigaction(SIGHUP, &sa, NULL);
     sigaction(SIGPIPE, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
@@ -291,6 +293,9 @@ main(int argc, char **argv)
         gt_log("couldn't create tun device\n");
         return 1;
     }
+
+    if (tun_set_persist(tun_fd, 0) == -1)
+        perror("tun_set_persist");
 
     struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6,
                                  !gt.chacha20, GT_MTU(gt.mtu));
@@ -480,6 +485,11 @@ main(int argc, char **argv)
                 p += ic.size;
             }
         }
+    }
+
+    if (gt.reload && tun_fd >= 0) {
+        if (tun_set_persist(tun_fd, 1) == -1)
+            perror("tun_set_persist");
     }
 
     return 0;
