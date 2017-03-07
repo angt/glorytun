@@ -24,6 +24,10 @@
 #define O_CLOEXEC 0
 #endif
 
+#ifndef PACKAGE_STRING
+#define PACKAGE_STRING "unknown"
+#endif
+
 #define GT_MTU(X) ((X)-28)
 
 static struct {
