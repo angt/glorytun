@@ -9,6 +9,7 @@ int gt_print (const char *fmt, ...)
     va_start(ap, fmt);
     int ret = vfprintf(stdout, fmt, ap);
     va_end(ap);
+    fflush(stdout);
 
     if (ret<0)
         return 0;
