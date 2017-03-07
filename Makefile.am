@@ -14,6 +14,8 @@ glorytun_SOURCES = \
     src/option.h \
     src/tun.c \
     src/tun.h \
+    src/iface.c \
+    src/iface.h \
     src/db.c \
     src/db.h
 

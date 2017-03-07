@@ -5,6 +5,7 @@
 #include "option.h"
 #include "str.h"
 #include "tun.h"
+#include "iface.h"
 
 #include <fcntl.h>
 #include <inttypes.h>
@@ -263,7 +264,7 @@ gt_setup_mtu(struct mud *mud, char *tun_name)
 
     gt_log("setup MTU to %i on interface %s\n", mtu, tun_name);
 
-    if (tun_set_mtu(tun_name, mtu) == -1)
+    if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
 }
 
