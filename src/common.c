@@ -26,23 +26,6 @@ gt_log(const char *fmt, ...)
     va_end(ap);
 }
 
-void
-gt_fatal(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-
-    exit(EXIT_FAILURE);
-}
-
-void
-gt_na(const char *name)
-{
-    gt_log("%s is not available on your platform\n", name);
-}
-
 int
 gt_tohex(char *dst, size_t dst_size, const uint8_t *src, size_t src_size)
 {

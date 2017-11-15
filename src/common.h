@@ -37,8 +37,6 @@
 
 int  gt_print (const char *, ...) _printf_(1,2);
 void gt_log   (const char *, ...) _printf_(1,2);
-void gt_fatal (const char *, ...) _printf_(1,2) _noreturn_;
-void gt_na    (const char *);
 
 int gt_tohex   (char *, size_t, const uint8_t *, size_t);
 int gt_fromhex (uint8_t *, size_t, const char *, size_t);
