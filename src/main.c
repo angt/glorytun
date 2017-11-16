@@ -51,6 +51,7 @@ static struct {
     int mtu_auto;
     int chacha20;
     int version;
+    int keygen;
     struct {
         unsigned char *data;
         long size;
@@ -130,7 +131,7 @@ gt_print_secretkey(struct mud *mud)
     char buf[2 * sizeof(key) + 1];
 
     gt_tohex(buf, sizeof(buf), key, size);
-    gt_print("secret key: %s\n", buf);
+    gt_print("%s\n", buf);
 }
 
 static int
@@ -195,6 +196,7 @@ gt_setup_option(int argc, char **argv)
         { "mtu",            &gt.mtu,            option_long   },
         { "mtu-auto",       NULL,               option_option },
         { "keyfile",        &gt.keyfile,        option_str    },
+        { "keygen",         NULL,               option_option },
         { "timeout",        &gt.timeout,        option_long   },
         { "time-tolerance", &gt.time_tolerance, option_long   },
         { "v4only",         NULL,               option_option },
@@ -215,11 +217,6 @@ gt_setup_option(int argc, char **argv)
 
     if (v4only && v6only) {
         gt_log("v4only and v6only cannot be both set\n");
-        return 1;
-    }
-
-    if (gt.host && !option_is_set(opts, "keyfile")) {
-        gt_log("keyfile option must be set\n");
         return 1;
     }
 
@@ -246,6 +243,7 @@ gt_setup_option(int argc, char **argv)
     gt.mtu_auto = option_is_set(opts, "mtu-auto");
     gt.chacha20 = option_is_set(opts, "chacha20");
     gt.version = option_is_set(opts, "version");
+    gt.keygen = option_is_set(opts, "keygen");
 
     gt.buf.data = malloc(gt.buf.size);
 
@@ -290,6 +288,36 @@ main(int argc, char **argv)
             gt_log("couldn't create ICMP socket\n");
     }
 
+    struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6);
+
+    if (!mud) {
+        gt_log("couldn't create mud\n");
+        return 1;
+    }
+
+    if (gt.keygen || str_empty(gt.keyfile)) {
+        if (mud_new_key(mud)) {
+            gt_log("couldn't generate a new key\n");
+            return 1;
+        }
+    }
+
+    if (gt.keygen) {
+        gt_print_secretkey(mud);
+        return 0;
+    }
+
+    if (!gt.chacha20 && mud_set_aes(mud))
+        gt_log("AES is not available\n");
+
+    if (gt.timeout > 0)
+        mud_set_send_timeout_msec(mud, gt.timeout);
+
+    if (gt.time_tolerance > 0)
+        mud_set_time_tolerance_sec(mud, gt.time_tolerance);
+
+    mud_set_mtu(mud, GT_MTU(gt.mtu));
+
     char *tun_name = NULL;
 
     int tun_fd = tun_create(gt.dev, &tun_name);
@@ -302,25 +330,13 @@ main(int argc, char **argv)
     if (tun_set_persist(tun_fd, 0) == -1)
         perror("tun_set_persist");
 
-    struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6,
-                                 !gt.chacha20, GT_MTU(gt.mtu));
-
-    if (!mud) {
-        gt_log("couldn't create mud\n");
-        return 1;
-    }
-
     if (str_empty(gt.keyfile)) {
+        gt_print("here is your new secret key:\n");
         gt_print_secretkey(mud);
     } else {
         if (gt_setup_secretkey(mud, gt.keyfile))
             return 1;
     }
-
-    mud_set_send_timeout_msec(mud, gt.timeout);
-
-    if (gt.time_tolerance > 0)
-        mud_set_time_tolerance_sec(mud, gt.time_tolerance);
 
     if (gt.host && gt.port) {
         if (gt.bind.backup) {
