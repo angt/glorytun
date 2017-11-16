@@ -245,6 +245,7 @@ tun_set_persist(int fd, int on)
 #ifdef TUNSETPERSIST
     return ioctl(fd, TUNSETPERSIST, on);
 #else
-    return 0;
+    errno = ENOSYS;
+    return -1;
 #endif
 }

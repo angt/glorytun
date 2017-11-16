@@ -52,6 +52,7 @@ static struct {
     int chacha20;
     int version;
     int keygen;
+    int persist;
     struct {
         unsigned char *data;
         long size;
@@ -193,6 +194,7 @@ gt_setup_option(int argc, char **argv)
         { "bind-backup",    &gt.bind.backup,    option_str    },
         { "bind-port",      &gt.bind.port,      option_long   },
         { "dev",            &gt.dev,            option_str    },
+        { "persist",        NULL,               option_option },
         { "mtu",            &gt.mtu,            option_long   },
         { "mtu-auto",       NULL,               option_option },
         { "keyfile",        &gt.keyfile,        option_str    },
@@ -244,6 +246,7 @@ gt_setup_option(int argc, char **argv)
     gt.chacha20 = option_is_set(opts, "chacha20");
     gt.version = option_is_set(opts, "version");
     gt.keygen = option_is_set(opts, "keygen");
+    gt.persist = option_is_set(opts, "persist");
 
     gt.buf.data = malloc(gt.buf.size);
 
@@ -327,7 +330,7 @@ main(int argc, char **argv)
         return 1;
     }
 
-    if (tun_set_persist(tun_fd, 0) == -1)
+    if (tun_set_persist(tun_fd, gt.persist) == -1)
         perror("tun_set_persist");
 
     if (str_empty(gt.keyfile)) {
