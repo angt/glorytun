@@ -11,3 +11,5 @@ build-aux
 .deps
 .dirstamp
 glorytun
+build*
+VERSION
