@@ -1,8 +1,8 @@
-# π₁(Glorytun)=0
+# Glorytun
 
 Small, Simple and Stupid VPN over [mud](https://github.com/angt/mud).
 
-#### Build and Install
+### Build and Install
 
 Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 
