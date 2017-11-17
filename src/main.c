@@ -25,8 +25,8 @@
 #define O_CLOEXEC 0
 #endif
 
-#ifndef PACKAGE_STRING
-#define PACKAGE_STRING "unknown"
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "unknown"
 #endif
 
 #define GT_MTU(X) ((X)-28)
@@ -278,7 +278,7 @@ main(int argc, char **argv)
         return 1;
 
     if (gt.version) {
-        gt_print(PACKAGE_STRING "\n");
+        gt_print(PACKAGE_VERSION "\n");
         return 0;
     }
 
