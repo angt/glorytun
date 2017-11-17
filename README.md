@@ -6,10 +6,20 @@ Small, Simple and Stupid VPN over [mud](https://github.com/angt/mud).
 
 Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 
-To build and install the latest version:
+Grab the latest release from github:
 
-    $ git clone https://github.com/angt/glorytun --recursive --branch mud
+    $ git clone https://github.com/angt/glorytun --recursive
     $ cd glorytun
+
+To build and install the latest version with [meson](http://mesonbuild.com):
+
+    $ meson --buildtype=release build
+    $ cd build
+    $ ninja
+    # ninja install
+
+Or with the more classical autotools suite:
+
     $ ./autogen.sh
     $ ./configure
     $ make
