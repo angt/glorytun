@@ -13,7 +13,7 @@ Grab the latest release from github:
 
 To build and install the latest version with [meson](http://mesonbuild.com):
 
-    $ meson --buildtype=release build
+    $ meson build
     $ cd build
     $ ninja
     # ninja install
