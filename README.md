@@ -26,7 +26,7 @@ The more classical autotools suite is also available.
 
 Just call `glorytun-setup` and follow the instructions.
 
-Fist, setup the server:
+First, setup the server:
 
     $ sudo glorytun-setup
     Config filename (tun0):
