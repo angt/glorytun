@@ -7,9 +7,8 @@ _ask() {
 	read -r "$2"
 }
 
-_NAME=tun0
-_ask "Config filename ($_NAME)" NAME
-NAME=${NAME:-$_NAME}
+_ask "Config filename (tun0)" NAME
+NAME=${NAME:-tun0}
 
 if [ -f /etc/glorytun/"$NAME" ]; then
 	echo "This config already exit!"
@@ -20,23 +19,21 @@ _ask "Server ip (enter for server conf)" HOST
 
 _ask "Server key (enter to generate a new one)" KEY
 if [ -z "$KEY" ]; then
-	KEY=$(glorytun keygen) || exit
+	KEY=$(glorytun keygen)
 	echo "Your new key: $KEY"
 fi
 
+# install files
+
 mkdir -p /etc/glorytun
-FILE="/etc/glorytun/$NAME"
+env | grep 'TABLE=\|HOST=' > /etc/glorytun/"$NAME"
+( umask 077; echo "$KEY" > /etc/glorytun/"$NAME".key )
 
-echo "${HOST:+HOST=$HOST}" > "$FILE"
-
-touch "$FILE.key"
-chmod 600 "$FILE.key"
-echo "$KEY" > "$FILE.key"
+# start services
 
 _ask "Start glorytun now ? (enter to skip)" START
-case "$START" in
-	y*|Y*)
-		systemctl restart systemd-networkd
-		systemctl start glorytun@"$NAME"
-		;;
+case "$START" in y*|Y*)
+	systemctl daemon-reload
+	systemctl start systemd-networkd
+	systemctl start glorytun@"$NAME" ;;
 esac
