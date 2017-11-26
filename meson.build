@@ -28,7 +28,7 @@ deps = [
 
 executable('glorytun', install: true, sources: src, dependencies: deps)
 
-systemd = dependency('systemd')
+systemd = dependency('systemd', required: false)
 
 if systemd.found()
   systemdutildir = systemd.get_pkgconfig_variable('systemdutildir')
