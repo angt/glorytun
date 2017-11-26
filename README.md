@@ -20,6 +20,8 @@ To build and install the latest version with [meson](http://mesonbuild.com):
     $ meson build
     $ sudo ninja -C build install
 
+The more classical autotools suite is also available.
+
 ### Easy setup with systemd
 
 Just call `glorytun-setup` and follow the instructions.
@@ -42,11 +44,10 @@ Copy the new generated key and use it when configuring the client:
     Start glorytun now ? (enter to skip): y
 
 You can check easily if it works by looking at your public ip.
-
 To stop the service:
 
     $ sudo systemctl stop glorytun@tun0
 
-
+---
 
 For feature requests and bug reports, please create an [issue](https://github.com/angt/glorytun/issues).
