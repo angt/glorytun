@@ -1,0 +1,29 @@
+#!/bin/sh
+
+if [ ! -f "$1" ]; then
+	echo "usage: $(basename "$0") FILE"
+	exit 1
+fi
+
+. "$(readlink -f "$1")"
+
+DEV="gt${HOST:+c}-$(basename "$1")"
+
+# Setting BIND is like going to 'expert mode'
+# This helper is pretty stupid and still needs some work
+if [ -n "$HOST" ] && [ -z "$BIND" ]; then
+	BIND=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
+	ip rule add from "$BIND" table main pref 32000
+	ip rule add from all table 200 pref 32001
+fi
+
+exec glorytun \
+	v4only \
+	keyfile "$1".key \
+	dev "$DEV" \
+	${HOST:+host "$HOST"} \
+	${PORT:+port "$PORT"} \
+	${BIND:+bind "$BIND"} \
+	${BIND_PORT:+bind-port "$BIND_PORT"} \
+	${MTU:+mtu "$MTU"} \
+	${MTU_AUTO:+mtu-auto}

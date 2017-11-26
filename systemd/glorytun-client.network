@@ -1,0 +1,10 @@
+[Match]
+Name=gtc-*
+
+[Network]
+Description=Glorytun client device
+DHCP=ipv4
+
+[DHCP]
+CriticalConnection=yes
+RouteTable=200

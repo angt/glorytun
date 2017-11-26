@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -e
+
+_ask() {
+	printf "%s: " "$1"
+	read -r "$2"
+}
+
+_NAME=tun0
+_ask "Config filename ($_NAME)" NAME
+NAME=${NAME:-$_NAME}
+
+if [ -f /etc/glorytun/"$NAME" ]; then
+	echo "This config already exit!"
+	exit 1
+fi
+
+_ask "Server ip (enter for server conf)" HOST
+
+_ask "Server key (enter to generate a new one)" KEY
+if [ -z "$KEY" ]; then
+	KEY=$(glorytun keygen) || exit
+	echo "Your new key: $KEY"
+fi
+
+mkdir -p /etc/glorytun
+FILE="/etc/glorytun/$NAME"
+
+echo "${HOST:+HOST=$HOST}" > "$FILE"
+
+touch "$FILE.key"
+chmod 600 "$FILE.key"
+echo "$KEY" > "$FILE.key"
+
+echo "Done"

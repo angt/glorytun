@@ -1,0 +1,14 @@
+[Match]
+Name=gt-*
+
+[Network]
+Description=Glorytun server device
+Address=0.0.0.0/24
+DHCPServer=yes
+IPMasquerade=yes
+
+[DHCPServer]
+PoolOffset=2
+PoolSize=1
+EmitDNS=yes
+DNS=9.9.9.9
