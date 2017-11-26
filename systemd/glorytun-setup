@@ -33,4 +33,10 @@ touch "$FILE.key"
 chmod 600 "$FILE.key"
 echo "$KEY" > "$FILE.key"
 
-echo "Done"
+_ask "Start glorytun now ? (enter to skip)" START
+case "$START" in
+	y*|Y*)
+		systemctl restart systemd-networkd
+		systemctl start glorytun@"$NAME"
+		;;
+esac
