@@ -43,6 +43,10 @@ Copy the new generated key and use it when configuring the client:
 
 You can check easily if it works by looking at your public ip.
 
+To stop the service:
+
+    $ sudo systemctl stop glorytun@tun0
+
 
 
 For feature requests and bug reports, please create an [issue](https://github.com/angt/glorytun/issues).
