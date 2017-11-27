@@ -32,12 +32,9 @@ EOF
 
 ( umask 077; echo "$KEY" > /etc/glorytun/"$NAME".key )
 
-# always reload
-systemctl daemon-reload
-
 # start services
 _ask "Start glorytun now ? (enter to skip)" START
 case "$START" in y*|Y*)
-	systemctl start systemd-networkd
+	systemctl restart systemd-networkd
 	systemctl start glorytun@"$NAME" ;;
 esac
