@@ -8,7 +8,7 @@ AC_DEFINE_UNQUOTED([VERSION_MAJOR], [m4_esyscmd([./version.sh major])])
 AC_CONFIG_SRCDIR([src/common.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE([1.9 -Wall -Werror foreign tar-ustar subdir-objects])
+AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign tar-ustar subdir-objects])
 AM_DEP_TRACK
 AM_SILENT_RULES([yes])
 AM_PROG_CC_C_O
