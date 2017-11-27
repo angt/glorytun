@@ -24,16 +24,20 @@ if [ -z "$KEY" ]; then
 fi
 
 # install files
-
 mkdir -p /etc/glorytun
-env | grep 'TABLE=\|HOST=' > /etc/glorytun/"$NAME"
+
+cat > /etc/glorytun/"$NAME" <<EOF
+${HOST:+HOST="$HOST"}
+EOF
+
 ( umask 077; echo "$KEY" > /etc/glorytun/"$NAME".key )
 
-# start services
+# always reload
+systemctl daemon-reload
 
+# start services
 _ask "Start glorytun now ? (enter to skip)" START
 case "$START" in y*|Y*)
-	systemctl daemon-reload
 	systemctl start systemd-networkd
 	systemctl start glorytun@"$NAME" ;;
 esac
