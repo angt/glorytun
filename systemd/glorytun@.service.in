@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 Restart=always
 ExecStart=@bindir@/glorytun-run /etc/glorytun/%i
-CapabilityBoundingSet=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
