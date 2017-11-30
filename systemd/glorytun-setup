@@ -28,6 +28,7 @@ mkdir -p /etc/glorytun
 
 cat > /etc/glorytun/"$NAME" <<EOF
 ${HOST:+HOST="$HOST"}
+MTU_AUTO=yes
 EOF
 
 ( umask 077; echo "$KEY" > /etc/glorytun/"$NAME".key )
