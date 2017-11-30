@@ -20,9 +20,9 @@ if [ -n "$HOST" ]; then
 	fi
 	if [ -z "$BIND" ]; then
 		BIND=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
-		ip rule add from "$BIND" table main pref "$((PREF-1))"
+		ip rule add from "$BIND" table main pref "$((PREF-1))" || true
 	fi
-	ip rule add from all table 200 pref "$PREF"
+	ip rule add from all table 200 pref "$PREF" || true
 fi
 
 exec glorytun \
