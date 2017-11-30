@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "str.h"
+#include "iface.h"
 
 #include <sys/ioctl.h>
 #include <net/if.h>
