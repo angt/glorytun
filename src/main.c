@@ -411,17 +411,12 @@ main(int argc, char **argv)
             socklen_t sl = sizeof(ss);
             ssize_t r = recvfrom(icmp_fd, gt.buf.data, gt.buf.size, 0,
                                  (struct sockaddr *)&ss, &sl);
-            if (r >= 8) {
-                struct ip_common ic;
-                if (!ip_get_common(&ic, gt.buf.data, r) && ic.proto == 1) {
-                    unsigned char *data = &gt.buf.data[ic.hdr_size];
-                    if (data[0] == 3) {
-                        int mtu = (data[6] << 8) | data[7];
-                        if (mtu) {
-                            gt_log("received MTU from ICMP: %i\n", mtu);
-                            mud_set_mtu(mud, GT_MTU(mtu));
-                        }
-                    }
+            struct ip_common ic;
+            if (!ip_get_common(&ic, gt.buf.data, r)) {
+                int mtu = ip_get_mtu(&ic, gt.buf.data, r);
+                if (mtu > 0) {
+                    gt_log("received MTU from ICMP: %i\n", mtu);
+                    mud_set_mtu(mud, GT_MTU(mtu));
                 }
             }
         }
