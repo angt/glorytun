@@ -16,6 +16,13 @@ if [ -f /etc/glorytun/"$NAME" ]; then
 fi
 
 _ask "Server ip (enter for server conf)" HOST
+if [ -z "$HOST" ]; then
+	_ask "Bind to port (5000)" BIND_PORT
+	BIND_PORT=${BIND_PORT:-5000}
+else
+	_ask "Server port (5000)" PORT
+	PORT=${PORT:-5000}
+fi
 
 _ask "Server key (enter to generate a new one)" KEY
 if [ -z "$KEY" ]; then
@@ -27,7 +34,9 @@ fi
 mkdir -p /etc/glorytun
 
 cat > /etc/glorytun/"$NAME" <<EOF
-${HOST:+HOST="$HOST"}
+HOST=$HOST
+BIND_PORT=$BIND_PORT
+PORT=$PORT
 MTU_AUTO=yes
 EOF
 

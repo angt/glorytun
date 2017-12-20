@@ -31,6 +31,7 @@ First, setup the server:
     $ sudo glorytun-setup
     Config filename (tun0):
     Server ip (enter for server conf):
+    Bind to port (5000):
     Server key (enter to generate a new one):
     Your new key: NEW_KEY
     Start glorytun now ? (enter to skip): y
@@ -40,6 +41,7 @@ Copy the new generated key and use it when configuring the client:
     $ sudo glorytun-setup
     Config filename (tun0):
     Server ip (enter for server conf): SERVER_IP
+    Server port (5000):
     Server key (enter to generate a new one): NEW_KEY
     Start glorytun now ? (enter to skip): y
 
