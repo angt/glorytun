@@ -16,8 +16,6 @@ glorytun_SOURCES = \
     src/tun.h \
     src/iface.c \
     src/iface.h \
-    src/db.c \
-    src/db.h \
     mud/mud.h \
     mud/mud.c
 
@@ -25,11 +23,7 @@ EXTRA_DIST = \
     LICENSE \
     README.md \
     VERSION \
-    systemd/glorytun-client.network \
-    systemd/glorytun-run \
-    systemd/glorytun-setup \
-    systemd/glorytun.network \
-    systemd/glorytun@.service.in \
+    systemd \
     mud/LICENSE \
     mud/README.md \
     meson.build \
