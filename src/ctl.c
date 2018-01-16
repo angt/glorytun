@@ -3,7 +3,6 @@
 #include "ctl.h"
 #include "str.h"
 
-#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -16,10 +15,8 @@ ctl_init(const char *dir, const char *file)
         return -1;
     }
 
-    if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-        perror("mkdir");
+    if (mkdir(dir, 0700) == -1 && errno != EEXIST)
         return -1;
-    }
 
     const char *strs[] = {dir, "/", file};
     char *path = str_cat(strs, 3);
