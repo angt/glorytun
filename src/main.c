@@ -1,33 +1,22 @@
 #include "common.h"
 
-#include "db.h"
+#include "ctl.h"
+#include "iface.h"
 #include "ip.h"
 #include "option.h"
 #include "str.h"
 #include "tun.h"
-#include "iface.h"
 
 #include <fcntl.h>
-#include <inttypes.h>
-#include <limits.h>
+#include <netinet/in.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-
-#include <arpa/inet.h>
-#include <netdb.h>
 
 #include "../mud/mud.h"
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
-#endif
-
-#ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "unknown"
 #endif
 
 #define GT_MTU(X) ((X)-28)
@@ -78,6 +67,9 @@ static void
 fd_set_nonblock(int fd)
 {
     int ret;
+
+    if (fd == -1)
+        return;
 
     do {
         ret = fcntl(fd, F_GETFL, 0);
@@ -377,24 +369,31 @@ main(int argc, char **argv)
 
     gt_setup_mtu(mud, tun_name);
 
+    int ctl_fd = ctl_init("/run/" PACKAGE_NAME, tun_name);
+
+    if (ctl_fd == -1) {
+        perror("gt_setup_ctl");
+        return 1;
+    }
+
     int mud_fd = mud_get_fd(mud);
 
     fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
-
-    if (icmp_fd != -1)
-        fd_set_nonblock(icmp_fd);
+    fd_set_nonblock(icmp_fd);
+    fd_set_nonblock(ctl_fd);
 
     gt_log("running...\n");
 
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, icmp_fd));
+    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, MAX(ctl_fd, icmp_fd)));
 
     while (!gt.quit) {
         FD_SET(tun_fd, &rfds);
         FD_SET(mud_fd, &rfds);
+        FD_SET(ctl_fd, &rfds);
 
         if (icmp_fd != -1)
             FD_SET(icmp_fd, &rfds);
@@ -407,17 +406,53 @@ main(int argc, char **argv)
         }
 
         if (icmp_fd != -1 && FD_ISSET(icmp_fd, &rfds)) {
+            struct ip_common ic;
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
+
             ssize_t r = recvfrom(icmp_fd, gt.buf.data, gt.buf.size, 0,
                                  (struct sockaddr *)&ss, &sl);
-            struct ip_common ic;
+
             if (!ip_get_common(&ic, gt.buf.data, r)) {
                 int mtu = ip_get_mtu(&ic, gt.buf.data, r);
                 if (mtu > 0) {
                     gt_log("received MTU from ICMP: %i\n", mtu);
                     mud_set_mtu(mud, GT_MTU(mtu));
                 }
+            }
+        }
+
+        if (FD_ISSET(ctl_fd, &rfds)) {
+            struct ctl_msg msg;
+            struct ctl_msg reply;
+
+            struct sockaddr_storage ss;
+            socklen_t sl = sizeof(ss);
+
+            ssize_t r = recvfrom(ctl_fd, &msg, sizeof(msg), 0,
+                                 (struct sockaddr *)&ss, &sl);
+
+            if (r == (ssize_t)sizeof(msg)) {
+                switch (msg.type) {
+                case CTL_PING:
+                    reply = (struct ctl_msg){
+                        .type = CTL_PONG,
+                    };
+                    break;
+                default:
+                    reply = (struct ctl_msg){
+                        .type = CTL_UNKNOWN,
+                        .unknown = {
+                            .type = msg.type,
+                        },
+                    };
+                    break;
+                }
+                if (sendto(ctl_fd, &reply, sizeof(reply), 0,
+                           (const struct sockaddr *)&ss, sl) == -1)
+                    perror("sendto(ctl)");
+            } else if (r == -1 && errno != EAGAIN) {
+                perror("recvfrom(ctl)");
             }
         }
 

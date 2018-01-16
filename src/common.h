@@ -6,6 +6,14 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifndef PACKAGE_NAME
+#define PACKAGE_NAME "glorytun"
+#endif
+
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "0.0.0"
+#endif
+
 #define COUNT(x)       (sizeof(x)/sizeof(x[0]))
 
 #define ALIGN_SIZE     (1<<4)
