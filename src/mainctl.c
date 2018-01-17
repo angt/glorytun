@@ -14,7 +14,9 @@
 static struct {
     char *dev;
     int version;
-} gt = {};
+} gt = {
+    .dev = "tun0",
+};
 
 static int
 gt_setup_option(int argc, char **argv)
@@ -24,7 +26,7 @@ gt_setup_option(int argc, char **argv)
     struct option opts[] = {
         { "dev",     &gt.dev, option_str    },
         { "version", NULL,    option_option },
-        {  NULL                                               },
+        {  NULL                             },
     };
 
     // clang-format on
@@ -56,7 +58,7 @@ main(int argc, char **argv)
     }
 
     if (ctl_connect(ctl_fd, "/run/" PACKAGE_NAME, gt.dev) == -1) {
-        perror("ctl_connect");
+        gt_log("couldn't connect to %s\n", gt.dev);
         return 1;
     }
 
@@ -81,10 +83,10 @@ main(int argc, char **argv)
         gt_print("PONG!\n");
         break;
     case CTL_UNKNOWN:
-        gt_print("Unknown command: %i\n", reply.unknown.type);
+        gt_print("unknown command: %i\n", reply.unknown.type);
         break;
     default:
-        gt_print("Bad reply from server: %i\n", reply.type);
+        gt_log("bad reply from server: %i\n", reply.type);
     }
 
     close(ctl_fd);
