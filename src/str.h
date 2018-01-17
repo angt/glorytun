@@ -2,22 +2,6 @@
 
 #include "common.h"
 
-static inline size_t
-str_cpy(char *restrict dst, const char *restrict src, size_t len)
-{
-    if (!dst || !src)
-        return 0;
-
-    size_t i;
-
-    for (i = 0; i < len && src[i]; i++)
-        dst[i] = src[i];
-
-    dst[i] = 0;
-
-    return i;
-}
-
 _pure_ static inline int
 str_empty(const char *restrict str)
 {
@@ -48,28 +32,37 @@ str_len(const char *restrict str)
     return strlen(str);
 }
 
-static inline char *
-str_cat(const char **strs, size_t count)
+static inline size_t
+str_cat(char *dst, const char **src, size_t count, size_t dst_len)
 {
-    size_t size = 1;
+    if (count && !src)
+        return 0;
 
-    for (size_t i = 0; i < count; i++)
-        size += str_len(strs[i]);
-
-    char *str = malloc(size);
-
-    if (!str)
-        return NULL;
-
-    char *p = str;
+    size_t len = 0;
+    size_t p = 0;
 
     for (size_t i = 0; i < count; i++) {
-        size_t len = str_len(strs[i]);
-        memcpy(p, strs[i], len);
-        p += len;
+        size_t n = str_len(src[i]);
+
+        if (!n)
+            continue;
+
+        if (dst && len + n <= dst_len) {
+            memmove(&dst[len], src[i], n);
+            p = len + n;
+        }
+
+        len += n;
     }
 
-    p[0] = 0;
+    if (dst)
+        dst[p] = 0;
 
-    return str;
+    return len;
+}
+
+static inline size_t
+str_cpy(char *dst, const char *src, size_t dst_len)
+{
+    return str_cat(dst, &src, 1, dst_len);
 }
