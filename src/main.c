@@ -372,7 +372,7 @@ main(int argc, char **argv)
     int ctl_fd = ctl_init("/run/" PACKAGE_NAME, tun_name);
 
     if (ctl_fd == -1) {
-        perror("gt_setup_ctl");
+        perror("ctl_init");
         return 1;
     }
 
