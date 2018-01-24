@@ -358,11 +358,16 @@ main(int argc, char **argv)
                     *p++ = 0;
 
                 if (mud_peer(mud, name, gt.host, gt.port, 0)) {
-                    perror("mud_peer");
+                    perror("mud_peer (bind)");
                     return 1;
                 }
 
                 name = p;
+            }
+        } else {
+            if (mud_peer(mud, NULL, gt.host, gt.port, 0)) {
+                perror("mud_peer");
+                return 1;
             }
         }
     }
