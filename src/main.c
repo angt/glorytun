@@ -335,9 +335,14 @@ main(int argc, char **argv)
     }
 
     if (gt.host && gt.port) {
+        if (mud_peer(mud, gt.host, gt.port)) {
+            perror("mud_peer");
+            return 1;
+        }
+
         if (gt.bind.backup) {
-            if (mud_peer(mud, gt.bind.backup, gt.host, gt.port, 1)) {
-                perror("mud_peer (backup)");
+            if (mud_add_path(mud, gt.bind.backup, 1)) {
+                perror("mud_add_path (backup)");
                 return 1;
             }
         }
@@ -357,17 +362,12 @@ main(int argc, char **argv)
                 if (*p)
                     *p++ = 0;
 
-                if (mud_peer(mud, name, gt.host, gt.port, 0)) {
-                    perror("mud_peer (bind)");
+                if (mud_add_path(mud, name, 0)) {
+                    perror("mud_add_path");
                     return 1;
                 }
 
                 name = p;
-            }
-        } else {
-            if (mud_peer(mud, NULL, gt.host, gt.port, 0)) {
-                perror("mud_peer");
-                return 1;
             }
         }
     }
