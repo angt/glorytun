@@ -9,8 +9,9 @@ _ask() {
 
 _ask "Config filename (tun0)" NAME
 NAME=${NAME:-tun0}
+DIR="/etc/glorytun/$NAME"
 
-if [ -f /etc/glorytun/"$NAME" ]; then
+if [ -d "$DIR" ]; then
 	echo "This config already exit!"
 	exit 1
 fi
@@ -31,16 +32,32 @@ if [ -z "$KEY" ]; then
 fi
 
 # install files
-mkdir -p /etc/glorytun
+mkdir -p "$DIR"
 
-cat > /etc/glorytun/"$NAME" <<EOF
+cat > "$DIR/env" <<EOF
+DEV=gt${HOST:+c}-$NAME
 HOST=$HOST
-BIND_PORT=$BIND_PORT
 PORT=$PORT
-MTU_AUTO=yes
+BIND_PORT=$BIND_PORT
+OPTIONS=v4only mtu-auto
 EOF
 
-( umask 077; echo "$KEY" > /etc/glorytun/"$NAME".key )
+( umask 077; echo "$KEY" > "$DIR/key" )
+
+[ "$HOST" ] && cat > "$DIR/post.sh" <<'EOF'
+#!/bin/sh
+
+PREF=32765
+TABLE=200
+
+# keep the current route to HOST
+src=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
+ip rule add from "$src" table main pref "$((PREF-1))" || true
+
+# forward everything else to the tunnel
+ip rule add from all table "$TABLE" pref "$PREF" || true
+EOF
+[ -f "$DIR/post.sh" ] && chmod u+x "$DIR/post.sh"
 
 # start services
 _ask "Start glorytun now ? (enter to skip)" START

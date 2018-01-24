@@ -5,7 +5,9 @@ After=network.target
 [Service]
 Type=simple
 Restart=always
-ExecStart=@bindir@/glorytun-run /etc/glorytun/%i
+EnvironmentFile=/etc/glorytun/%i/env
+ExecStart=@bindir@/glorytun-run keyfile /etc/glorytun/%i/key $OPTIONS
+ExecStartPost=-/etc/glorytun/%i/post.sh
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 
 [Install]
