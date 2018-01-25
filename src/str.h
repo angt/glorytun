@@ -39,24 +39,18 @@ str_cat(char *dst, const char **src, size_t count, size_t dst_len)
         return 0;
 
     size_t len = 0;
-    size_t p = 0;
 
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < count && dst_len > len; i++) {
         size_t n = str_len(src[i], dst_len - len);
 
-        if (!n)
-            continue;
-
-        if (dst && len + n <= dst_len) {
+        if (dst && n)
             memmove(&dst[len], src[i], n);
-            p = len + n;
-        }
 
         len += n;
     }
 
     if (dst)
-        dst[p] = 0;
+        dst[len] = 0;
 
     return len;
 }
