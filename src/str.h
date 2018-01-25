@@ -24,12 +24,12 @@ str_cmp(const char *restrict sa, const char *restrict sb)
 }
 
 _pure_ static inline size_t
-str_len(const char *restrict str)
+str_len(const char *restrict str, size_t len)
 {
     if (!str)
         return 0;
 
-    return strlen(str);
+    return strnlen(str, len);
 }
 
 static inline size_t
@@ -42,7 +42,7 @@ str_cat(char *dst, const char **src, size_t count, size_t dst_len)
     size_t p = 0;
 
     for (size_t i = 0; i < count; i++) {
-        size_t n = str_len(src[i]);
+        size_t n = str_len(src[i], dst_len - len);
 
         if (!n)
             continue;

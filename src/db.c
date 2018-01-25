@@ -15,7 +15,7 @@ struct node {
 _pure_ static inline size_t
 db_size(const uint8_t *a)
 {
-    return (a[0] ?: str_len((char *)a + 1)) + 1;
+    return (a[0] ?: str_len((char *)a + 1, 4096)) + 1;
 }
 
 _pure_ static inline size_t
