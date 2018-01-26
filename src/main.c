@@ -269,7 +269,7 @@ main(int argc, char **argv)
 
     int icmp_fd = -1;
 
-    if (gt.ipv4 && gt.mtu_auto) {
+    if (gt.ipv4 && gt.mtu_auto && gt.host) {
         icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
         if (icmp_fd == -1)
@@ -389,8 +389,7 @@ main(int argc, char **argv)
         }
 
         if (FD_ISSET(ctl_fd, &rfds)) {
-            struct ctl_msg msg;
-            struct ctl_msg reply;
+            struct ctl_msg msg, reply = {.type = CTL_REPLY};
 
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
@@ -400,10 +399,23 @@ main(int argc, char **argv)
 
             if (r == (ssize_t)sizeof(msg)) {
                 switch (msg.type) {
+                case CTL_PATH_ADD:
+                    gt_log("[ctl path add] addr=%s\n",
+                           &msg.path.add.addr[0]);
+                    if (mud_add_path(mud, &msg.path.add.addr[0])) {
+                        reply.reply = errno;
+                        perror("mud_add_path");
+                    }
+                    break;
+                case CTL_PATH_DEL:
+                    gt_log("[ctl path del] addr=%s\n",
+                           &msg.path.del.addr[0]);
+                    if (mud_del_path(mud, &msg.path.del.addr[0])) {
+                        reply.reply = errno;
+                        perror("mud_del_path");
+                    }
+                    break;
                 case CTL_PING:
-                    reply = (struct ctl_msg){
-                        .type = CTL_PONG,
-                    };
                     break;
                 default:
                     reply = (struct ctl_msg){

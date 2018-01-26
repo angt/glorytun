@@ -14,6 +14,12 @@
 static struct {
     char *dev;
     int version;
+    struct {
+        struct {
+            int set;
+            const char *addr;
+        } add, del;
+    } path;
 } gt = {
     .dev = "tun0",
 };
@@ -23,10 +29,18 @@ gt_setup_option(int argc, char **argv)
 {
     // clang-format off
 
+    struct option path_opts[] = {
+        { "add", &gt.path.add.addr, option_str },
+        { "del", &gt.path.del.addr, option_str },
+        {  NULL                                },
+    };
+
     struct option opts[] = {
-        { "dev",     &gt.dev, option_str    },
-        { "version", NULL,    option_option },
-        {  NULL                             },
+        { "dev",     &gt.dev,    option_str    },
+        { "path",    &path_opts, option_option },
+        { "version", NULL,       option_option },
+        {  NULL                                },
+
     };
 
     // clang-format on
@@ -34,6 +48,8 @@ gt_setup_option(int argc, char **argv)
     if (option(opts, argc, argv))
         return 1;
 
+    gt.path.add.set = option_is_set(path_opts, "add");
+    gt.path.del.set = option_is_set(path_opts, "del");
     gt.version = option_is_set(opts, "version");
 
     return 0;
@@ -62,9 +78,19 @@ main(int argc, char **argv)
         return 1;
     }
 
-    struct ctl_msg msg = {
-        .type = CTL_PING,
-    };
+    struct ctl_msg msg;
+
+    if (gt.path.add.set) {
+        msg = (struct ctl_msg){
+            .type = CTL_PATH_ADD,
+        };
+        str_cpy(msg.path.add.addr, sizeof(msg.path.add.addr) - 1, gt.path.add.addr);
+    } else if (gt.path.del.set) {
+        msg = (struct ctl_msg){
+            .type = CTL_PATH_DEL,
+        };
+        str_cpy(msg.path.del.addr, sizeof(msg.path.del.addr) - 1, gt.path.del.addr);
+    }
 
     if (send(ctl_fd, &msg, sizeof(msg), 0) == -1) {
         perror("send");
@@ -79,8 +105,11 @@ main(int argc, char **argv)
     }
 
     switch (reply.type) {
-    case CTL_PONG:
-        gt_print("PONG!\n");
+    case CTL_REPLY:
+        if (reply.reply) {
+            errno = reply.reply;
+            perror("error");
+        }
         break;
     case CTL_UNKNOWN:
         gt_print("unknown command: %i\n", reply.unknown.type);

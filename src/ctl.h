@@ -2,8 +2,10 @@
 
 enum ctl_type {
     CTL_UNKNOWN,
+    CTL_PATH_ADD,
+    CTL_PATH_DEL,
     CTL_PING,
-    CTL_PONG,
+    CTL_REPLY,
 };
 
 struct ctl_msg {
@@ -12,6 +14,12 @@ struct ctl_msg {
         struct {
             enum ctl_type type;
         } unknown;
+        struct {
+            struct {
+                char addr[256];
+            } add, del;
+        } path;
+        int reply;
     };
 };
 

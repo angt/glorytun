@@ -51,8 +51,9 @@ PREF=32765
 TABLE=200
 
 # keep the current route to HOST
-src=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
-ip rule add from "$src" table main pref "$((PREF-1))" || true
+SRC=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
+ip rule add from "$SRC" table main pref "$((PREF-1))" || true
+glorytunctl path add "$SRC" dev "$DEV"
 
 # forward everything else to the tunnel
 ip rule add from all table "$TABLE" pref "$PREF" || true
