@@ -88,6 +88,13 @@ option_option(void *data, int argc, char **argv)
             return i - 1;
     }
 
+    for (int k = 0; opts[k].name; k++) {
+        if (opts[k].mandatory && !opts[k].set) {
+            gt_print("option `%s' is mandatory\n", opts[k].name);
+            return -1;
+        }
+    }
+
     return argc;
 }
 
@@ -105,7 +112,7 @@ option_usage(struct option *opts, int slen)
             len = 0;
         }
 
-        len += gt_print(" [%s", opts[k].name);
+        len += gt_print(" %s%s", opts[k].mandatory ? "" : "[", opts[k].name);
 
         if (opts[k].call == option_option) {
             len += option_usage((struct option *)opts[k].data, slen + len);
@@ -113,7 +120,7 @@ option_usage(struct option *opts, int slen)
             len += gt_print(" ARG");
         }
 
-        len += gt_print("]");
+        len += gt_print(opts[k].mandatory ? "" : "]");
     }
 
     return len;

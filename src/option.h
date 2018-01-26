@@ -4,6 +4,7 @@ struct option {
     char *name;
     void *data;
     int (*call) (void *, int, char **);
+    int mandatory;
     int set;
 };
 
