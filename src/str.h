@@ -33,7 +33,7 @@ str_len(const char *restrict str, size_t len)
 }
 
 static inline size_t
-str_cat(char *dst, const char **src, size_t count, size_t dst_len)
+str_cat(char *dst, size_t dst_len, const char **src, size_t count)
 {
     if (count && !src)
         return 0;
@@ -56,7 +56,7 @@ str_cat(char *dst, const char **src, size_t count, size_t dst_len)
 }
 
 static inline size_t
-str_cpy(char *dst, const char *src, size_t dst_len)
+str_cpy(char *dst, size_t dst_len, const char *src)
 {
-    return str_cat(dst, &src, 1, dst_len);
+    return str_cat(dst, dst_len, &src, 1);
 }

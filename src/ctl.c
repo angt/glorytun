@@ -25,9 +25,11 @@ ctl_init(const char *dir, const char *file)
     const char *path[] = {dir, "/", file};
     const size_t len = sizeof(sun.sun_path) - 1;
 
-    if (str_cat(sun.sun_path, path, COUNT(path), len) > len) {
-        errno = EINVAL;
-        return -1;
+    if (str_cat(sun.sun_path, len, path, COUNT(path)) == len) {
+        if (str_cat(NULL, len + 1, path, COUNT(path)) > len) {
+            errno = EINVAL;
+            return -1;
+        }
     }
 
     int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -62,9 +64,11 @@ ctl_connect(int fd, const char *dir, const char *file)
     const char *path[] = {dir, "/", file};
     const size_t len = sizeof(sun.sun_path) - 1;
 
-    if (str_cat(sun.sun_path, path, COUNT(path), len) > len) {
-        errno = EINVAL;
-        return -1;
+    if (str_cat(sun.sun_path, len, path, COUNT(path)) == len) {
+        if (str_cat(NULL, len + 1, path, COUNT(path)) > len) {
+            errno = EINVAL;
+            return -1;
+        }
     }
 
     return connect(fd, (struct sockaddr *)&sun, sizeof(sun));

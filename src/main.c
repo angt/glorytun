@@ -314,9 +314,9 @@ main(int argc, char **argv)
 
     mud_set_mtu(mud, GT_MTU(gt.mtu));
 
-    char *tun_name = NULL;
+    char tun_name[64];
 
-    int tun_fd = tun_create(gt.dev, &tun_name);
+    int tun_fd = tun_create(tun_name, sizeof(tun_name) - 1, gt.dev);
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");
@@ -351,7 +351,7 @@ main(int argc, char **argv)
             char tmp[1024];
             char *name = &tmp[0];
 
-            str_cpy(tmp, gt.bind.list, sizeof(tmp) - 1);
+            str_cpy(tmp, sizeof(tmp) - 1, gt.bind.list);
 
             while (*name) {
                 char *p = name;

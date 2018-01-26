@@ -1,10 +1,10 @@
 #include "common.h"
 
-#include "str.h"
 #include "iface.h"
+#include "str.h"
 
-#include <sys/ioctl.h>
 #include <net/if.h>
+#include <sys/ioctl.h>
 
 int
 iface_set_mtu(char *dev_name, int mtu)
@@ -13,7 +13,14 @@ iface_set_mtu(char *dev_name, int mtu)
         .ifr_mtu = mtu,
     };
 
-    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
+    const size_t len = sizeof(ifr.ifr_name) - 1;
+
+    if (str_cpy(ifr.ifr_name, len, dev_name) == len) {
+        if (str_len(dev_name, len + 1) > len) {
+            errno = EINTR;
+            return -1;
+        }
+    }
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 

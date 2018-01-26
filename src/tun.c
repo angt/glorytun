@@ -33,17 +33,22 @@
 #ifdef __APPLE__
 
 static int
-tun_create_by_id(char *name, size_t size, unsigned id)
+tun_create_by_id(char *name, size_t len, unsigned id)
 {
+    int ret = snprintf(name, len + 1, "utun%u", id);
+
+    if (ret <= 0 || ret > len) {
+        errno = EINVAL;
+        return -1;
+    }
+
     int fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
 
     if (fd == -1)
         return -1;
 
-    struct ctl_info ci;
-
-    memset(&ci, 0, sizeof(ci));
-    str_cpy(ci.ctl_name, UTUN_CONTROL_NAME, sizeof(ci.ctl_name) - 1);
+    struct ctl_info ci = {0};
+    str_cpy(ci.ctl_name, sizeof(ci.ctl_name) - 1, UTUN_CONTROL_NAME);
 
     if (ioctl(fd, CTLIOCGINFO, &ci)) {
         int err = errno;
@@ -67,13 +72,11 @@ tun_create_by_id(char *name, size_t size, unsigned id)
         return -1;
     }
 
-    snprintf(name, size, "utun%u", id);
-
     return fd;
 }
 
 static int
-tun_create_by_name(char *name, size_t size, char *dev_name)
+tun_create_by_name(char *name, size_t len, char *dev_name)
 {
     unsigned id = 0;
 
@@ -82,7 +85,7 @@ tun_create_by_name(char *name, size_t size, char *dev_name)
         return -1;
     }
 
-    return tun_create_by_id(name, size, id);
+    return tun_create_by_id(name, len, id);
 }
 
 #else /* not __APPLE__ */
@@ -90,25 +93,35 @@ tun_create_by_name(char *name, size_t size, char *dev_name)
 #ifdef __linux__
 
 static int
-tun_create_by_name(char *name, size_t size, char *dev_name)
+tun_create_by_name(char *name, size_t len, char *dev_name)
 {
+    struct ifreq ifr = {
+        .ifr_flags = IFF_TUN | IFF_NO_PI,
+    };
+
+    const size_t ifr_len = sizeof(ifr.ifr_name) - 1;
+
+    if ((len < ifr_len) ||
+        (str_len(dev_name, ifr_len + 1) > ifr_len)) {
+        errno = EINVAL;
+        return -1;
+    }
+
     int fd = open("/dev/net/tun", O_RDWR);
 
     if (fd == -1)
         return -1;
 
-    struct ifreq ifr = {
-        .ifr_flags = IFF_TUN | IFF_NO_PI,
-    };
-
-    str_cpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
+    str_cpy(ifr.ifr_name, ifr_len, dev_name);
 
     if (ioctl(fd, TUNSETIFF, &ifr)) {
+        int err = errno;
         close(fd);
+        errno = err;
         return -1;
     }
 
-    str_cpy(name, ifr.ifr_name, size - 1);
+    str_cpy(name, len, ifr.ifr_name);
 
     return fd;
 }
@@ -116,45 +129,57 @@ tun_create_by_name(char *name, size_t size, char *dev_name)
 #else /* not __linux__ not __APPLE__ */
 
 static int
-tun_create_by_name(char *name, size_t size, char *dev_name)
+tun_create_by_name(char *name, size_t len, char *dev_name)
 {
-    char path[64];
+    char tmp[128];
 
-    snprintf(path, sizeof(path), "/dev/%s", dev_name);
-    str_cpy(name, dev_name, size - 1);
+    int ret = snprintf(tmp, sizeof(tmp), "/dev/%s", dev_name);
 
-    return open(path, O_RDWR);
+    if (ret <= 0 || ret >= sizeof(tmp)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (str_cpy(name, len, dev_name) == len) {
+        if (str_len(dev_name, len + 1) > len) {
+            errno = EINVAL;
+            return -1;
+        }
+    }
+
+    return open(tmp, O_RDWR);
 }
 
 #endif /* not __APPLE__ */
 
 static int
-tun_create_by_id(char *name, size_t size, unsigned id)
+tun_create_by_id(char *name, size_t len, unsigned id)
 {
-    char dev_name[64];
+    char tmp[64];
 
-    snprintf(dev_name, sizeof(dev_name), "tun%u", id);
+    int ret = snprintf(tmp, sizeof(tmp), "tun%u", id);
 
-    return tun_create_by_name(name, size, dev_name);
+    if (ret <= 0 || ret >= sizeof(tmp)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return tun_create_by_name(name, len, tmp);
 }
 
 #endif
 
 int
-tun_create(char *dev_name, char **ret_name)
+tun_create(char *name, size_t len, char *dev_name)
 {
-    char name[64] = {0};
     int fd = -1;
 
     if (str_empty(dev_name)) {
         for (unsigned id = 0; id < 32 && fd == -1; id++)
-            fd = tun_create_by_id(name, sizeof(name), id);
+            fd = tun_create_by_id(name, len, id);
     } else {
-        fd = tun_create_by_name(name, sizeof(name), dev_name);
+        fd = tun_create_by_name(name, len, dev_name);
     }
-
-    if (fd != -1 && ret_name)
-        *ret_name = strdup(name);
 
     return fd;
 }
