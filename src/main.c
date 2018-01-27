@@ -28,11 +28,7 @@ static struct {
     char *keyfile;
     char *host;
     long port;
-    struct {
-        char *list;
-        char *backup;
-        long port;
-    } bind;
+    long bind_port;
     long mtu;
     long timeout;
     long time_tolerance;
@@ -49,9 +45,7 @@ static struct {
     } buf;
 } gt = {
     .port = 5000,
-    .bind = {
-        .port = 5000,
-    },
+    .bind_port = 5000,
     .mtu = 1500,
     .timeout = 5000,
     .ipv4 = 1,
@@ -183,9 +177,7 @@ gt_setup_option(int argc, char **argv)
     struct option opts[] = {
         { "host",           &gt.host,           option_str    },
         { "port",           &gt.port,           option_long   },
-        { "bind",           &gt.bind.list,      option_str    },
-        { "bind-backup",    &gt.bind.backup,    option_str    },
-        { "bind-port",      &gt.bind.port,      option_long   },
+        { "bind-port",      &gt.bind_port,      option_long   },
         { "dev",            &gt.dev,            option_str    },
         { "persist",        NULL,               option_option },
         { "mtu",            &gt.mtu,            option_long   },
@@ -284,7 +276,7 @@ main(int argc, char **argv)
             gt_log("couldn't create ICMP socket\n");
     }
 
-    struct mud *mud = mud_create(gt.bind.port, gt.ipv4, gt.ipv6);
+    struct mud *mud = mud_create(gt.bind_port, gt.ipv4, gt.ipv6);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
@@ -338,37 +330,6 @@ main(int argc, char **argv)
         if (mud_peer(mud, gt.host, gt.port)) {
             perror("mud_peer");
             return 1;
-        }
-
-        if (gt.bind.backup) {
-            if (mud_add_path(mud, gt.bind.backup, 1)) {
-                perror("mud_add_path (backup)");
-                return 1;
-            }
-        }
-
-        if (gt.bind.list) {
-            char tmp[1024];
-            char *name = &tmp[0];
-
-            str_cpy(tmp, sizeof(tmp) - 1, gt.bind.list);
-
-            while (*name) {
-                char *p = name;
-
-                while (*p && *p != ',')
-                    p++;
-
-                if (*p)
-                    *p++ = 0;
-
-                if (mud_add_path(mud, name, 0)) {
-                    perror("mud_add_path");
-                    return 1;
-                }
-
-                name = p;
-            }
         }
     }
 
