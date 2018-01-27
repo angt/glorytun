@@ -61,6 +61,9 @@ option_option(void *data, int argc, char **argv)
         opts[k].set = 0;
 
     for (int i = 1; i < argc; i++) {
+        if (!str_cmp(argv[i], "--"))
+            return i;
+
         int found = 0;
 
         for (int k = 0; opts[k].name; k++) {
