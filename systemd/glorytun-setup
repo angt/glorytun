@@ -39,7 +39,7 @@ DEV=gt${HOST:+c}-$NAME
 HOST=$HOST
 PORT=$PORT
 BIND_PORT=$BIND_PORT
-OPTIONS=v4only mtu-auto
+OPTIONS=v4only mtu auto
 EOF
 
 ( umask 077; echo "$KEY" > "$DIR/key" )
@@ -53,7 +53,7 @@ TABLE=200
 # keep the current route to HOST
 SRC=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
 ip rule add from "$SRC" table main pref "$((PREF-1))" || true
-glorytunctl path add "$SRC" dev "$DEV"
+glorytun path up "$SRC" dev "$DEV"
 
 # forward everything else to the tunnel
 ip rule add from all table "$TABLE" pref "$PREF" || true

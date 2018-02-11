@@ -1,5 +1,4 @@
 #include "common.h"
-
 #include "ctl.h"
 #include "str.h"
 

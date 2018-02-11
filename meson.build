@@ -4,6 +4,8 @@ project('glorytun', 'c',
     default_options : [ 'buildtype=debugoptimized' ]
 )
 
+cc = meson.get_compiler('c')
+
 prefix = get_option('prefix')
 bindir = join_paths(prefix, get_option('bindir'))
 
@@ -16,25 +18,21 @@ add_global_arguments('-DPACKAGE_NAME="'+meson.project_name()+'"', language : 'c'
 
 executable('glorytun', install: true,
   sources: [
-    'src/common.c',
-    'src/iface.c',
-    'src/option.c',
-    'src/tun.c',
-    'src/ctl.c',
+    'argz/argz.c',
     'mud/mud.c',
-    'src/main.c'
+    'src/bench.c',
+    'src/bind.c',
+    'src/common.c',
+    'src/ctl.c',
+    'src/iface.c',
+    'src/keygen.c',
+    'src/main.c',
+    'src/path.c',
+    'src/tun.c',
   ],
   dependencies: [
-    dependency('libsodium', version : '>=1.0.4')
-  ]
-)
-
-executable('glorytunctl', install: true,
-  sources: [
-    'src/common.c',
-    'src/option.c',
-    'src/ctl.c',
-    'src/mainctl.c'
+    dependency('libsodium', version : '>=1.0.4'),
+    cc.find_library('m', required : false)
   ]
 )
 

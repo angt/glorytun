@@ -1,5 +1,4 @@
 #include "common.h"
-
 #include "iface.h"
 #include "str.h"
 
@@ -7,7 +6,7 @@
 #include <sys/ioctl.h>
 
 int
-iface_set_mtu(char *dev_name, int mtu)
+iface_set_mtu(const char *dev_name, int mtu)
 {
     struct ifreq ifr = {
         .ifr_mtu = mtu,

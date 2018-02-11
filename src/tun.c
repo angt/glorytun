@@ -1,16 +1,13 @@
 #include "common.h"
-
 #include "ip.h"
 #include "str.h"
 #include "tun.h"
 
 #include <fcntl.h>
 #include <stdio.h>
-
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-
 #include <net/if.h>
 
 #ifdef __linux__
@@ -76,7 +73,7 @@ tun_create_by_id(char *name, size_t len, unsigned id)
 }
 
 static int
-tun_create_by_name(char *name, size_t len, char *dev_name)
+tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
     unsigned id = 0;
 
@@ -93,7 +90,7 @@ tun_create_by_name(char *name, size_t len, char *dev_name)
 #ifdef __linux__
 
 static int
-tun_create_by_name(char *name, size_t len, char *dev_name)
+tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
     struct ifreq ifr = {
         .ifr_flags = IFF_TUN | IFF_NO_PI,
@@ -129,7 +126,7 @@ tun_create_by_name(char *name, size_t len, char *dev_name)
 #else /* not __linux__ not __APPLE__ */
 
 static int
-tun_create_by_name(char *name, size_t len, char *dev_name)
+tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
     char tmp[128];
 
@@ -170,7 +167,7 @@ tun_create_by_id(char *name, size_t len, unsigned id)
 #endif
 
 int
-tun_create(char *name, size_t len, char *dev_name)
+tun_create(char *name, size_t len, const char *dev_name)
 {
     int fd = -1;
 

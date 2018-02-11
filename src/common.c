@@ -3,20 +3,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-int
-gt_print(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    int ret = vfprintf(stdout, fmt, ap);
-    va_end(ap);
-
-    if (ret < 0)
-        return 0;
-
-    return ret;
-}
-
 void
 gt_log(const char *fmt, ...)
 {

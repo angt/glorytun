@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <errno.h>
 
 #ifndef PACKAGE_NAME
@@ -42,6 +43,10 @@
 
 #undef MIN
 #define MIN(x,y) ({ __typeof__(x) X=(x); __typeof__(y) Y=(y); X < Y ? X : Y; })
+
+extern volatile sig_atomic_t gt_alarm;
+extern volatile sig_atomic_t gt_reload;
+extern volatile sig_atomic_t gt_quit;
 
 int  gt_print (const char *, ...) _printf_(1,2);
 void gt_log   (const char *, ...) _printf_(1,2);

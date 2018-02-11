@@ -1,8 +1,6 @@
 #!/bin/sh
 
-exec glorytun "$@" \
+exec glorytun bind "$@" \
 	${DEV:+dev "$DEV"} \
-	${HOST:+host "$HOST"} \
-	${PORT:+port "$PORT"} \
-	${BIND:+bind "$BIND"} \
-	${BIND_PORT:+bind-port "$BIND_PORT"}
+	${HOST:+to "$HOST" "$PORT"} \
+	${BIND_PORT:+port "$BIND_PORT"}
