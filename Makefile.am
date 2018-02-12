@@ -7,7 +7,7 @@ glorytun_LDADD = $(libsodium_LIBS)
 glorytun_SOURCES = \
     argz/argz.c \
     argz/argz.h \
-    mud/mud.c
+    mud/mud.c \
     mud/mud.h \
     src/bench.c \
     src/bind.c \
@@ -23,7 +23,7 @@ glorytun_SOURCES = \
     src/path.c \
     src/str.h \
     src/tun.c \
-    src/tun.h \
+    src/tun.h
 
 EXTRA_DIST = \
     LICENSE \
