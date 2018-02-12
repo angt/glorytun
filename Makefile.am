@@ -21,6 +21,7 @@ glorytun_SOURCES = \
     src/keygen.c \
     src/main.c \
     src/path.c \
+    src/show.c \
     src/str.h \
     src/tun.c \
     src/tun.h

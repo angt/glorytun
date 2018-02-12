@@ -28,13 +28,11 @@ gt_path(int argc, char **argv)
     struct ctl_msg msg;
 
     if (argz_is_set(pathz, "up")) {
-        gt_log("up\n");
         msg = (struct ctl_msg){
             .type = CTL_PATH_ADD,
         };
         str_cpy(msg.path.add.addr, sizeof(msg.path.add.addr) - 1, addr);
     } else if (argz_is_set(pathz, "down")) {
-        gt_log("down\n");
         msg = (struct ctl_msg){
             .type = CTL_PATH_DEL,
         };
@@ -44,27 +42,25 @@ gt_path(int argc, char **argv)
         return 0;
     }
 
-    int ctl_fd = ctl_init("/run/" PACKAGE_NAME, "client");
+    int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
 
-    if (ctl_fd == -1) {
-        perror("ctl_init");
+    if (fd == -1) {
+        perror("ctl_create");
         return 1;
     }
 
-    if (ctl_connect(ctl_fd, "/run/" PACKAGE_NAME, dev) == -1) {
+    if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) {
         gt_log("couldn't connect to %s\n", dev);
-        return 1;
-    }
-
-    if (send(ctl_fd, &msg, sizeof(msg), 0) == -1) {
-        perror("send");
+        ctl_delete(fd);
         return 1;
     }
 
     struct ctl_msg reply;
 
-    if (recv(ctl_fd, &reply, sizeof(reply), 0) == -1) {
-        perror("recv");
+    if ((send(fd, &msg, sizeof(msg), 0) == -1) ||
+        (recv(fd, &reply, sizeof(reply), 0) == -1)) {
+        perror("send/recv");
+        ctl_delete(fd);
         return 1;
     }
 
@@ -82,7 +78,7 @@ gt_path(int argc, char **argv)
         gt_log("bad reply from server: %i\n", reply.type);
     }
 
-    close(ctl_fd);
+    ctl_delete(fd);
 
     return 0;
 }

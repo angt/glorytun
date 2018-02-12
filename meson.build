@@ -28,6 +28,7 @@ executable('glorytun', install: true,
     'src/keygen.c',
     'src/main.c',
     'src/path.c',
+    'src/show.c',
     'src/tun.c',
   ],
   dependencies: [

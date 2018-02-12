@@ -50,20 +50,7 @@ gt_version(int argc, char **argv)
     return 0;
 }
 
-int
-gt_show(int argc, char **argv)
-{
-    printf("show (todo)\n");
-    return 0;
-}
-
-int
-gt_key(int argc, char **argv)
-{
-    printf("key (todo)\n");
-    return 0;
-}
-
+int gt_show(int, char **);
 int gt_bind(int, char **);
 int gt_path(int, char **);
 int gt_keygen(int, char **);

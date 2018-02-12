@@ -199,8 +199,10 @@ gt_bind(int argc, char **argv)
             return 1;
     }
 
-    if (!chacha && mud_set_aes(mud))
+    if (!chacha && mud_set_aes(mud)) {
         gt_log("AES is not available\n");
+        chacha = 1;
+    }
 
     if (timeout && mud_set_send_timeout(mud, timeout)) {
         perror("timeout");
@@ -234,10 +236,10 @@ gt_bind(int argc, char **argv)
 
     gt_setup_mtu(mud, tun_name, &mtu);
 
-    int ctl_fd = ctl_init("/run/" PACKAGE_NAME, tun_name);
+    int ctl_fd = ctl_create("/run/" PACKAGE_NAME, tun_name);
 
     if (ctl_fd == -1) {
-        perror("ctl_init");
+        perror("ctl_create");
         return 1;
     }
 
@@ -313,7 +315,21 @@ gt_bind(int argc, char **argv)
                         perror("mud_del_path");
                     }
                     break;
-                case CTL_PING:
+                case CTL_STATUS:
+                    gt_log("[ctl status]\n");
+                    reply = (struct ctl_msg){
+                        .type = CTL_STATUS_REPLY,
+                        .status = {
+                            .mtu = mtu,
+                            .mtu_auto = (icmp_fd != -1),
+                            .chacha = chacha,
+                            .port = port,
+                            .bind_port = bind_port,
+                            .ipv4 = ipv4,
+                            .ipv6 = ipv6,
+                        },
+                    };
+                    str_cpy(reply.status.addr, sizeof(reply.status.addr) - 1, host);
                     break;
                 default:
                     reply = (struct ctl_msg){
@@ -422,6 +438,8 @@ gt_bind(int argc, char **argv)
         if (tun_set_persist(tun_fd, 1) == -1)
             perror("tun_set_persist");
     }
+
+    ctl_delete(ctl_fd);
 
     return 0;
 }
