@@ -8,6 +8,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined __APPLE__
+#include <mach/mach_time.h>
+#endif
+
 #include "../argz/argz.h"
 
 #define STR_S(X) (((X) > 1) ? "s" : "")
