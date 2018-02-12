@@ -16,6 +16,12 @@
 #define O_CLOEXEC 0
 #endif
 
+#ifdef __linux__
+#define GT_IPV6 1
+#else
+#define GT_IPV6 0
+#endif
+
 #define GT_MTU(X) ((X)-28)
 
 static void
@@ -151,7 +157,7 @@ gt_bind(int argc, char **argv)
     }
 
     int ipv4 = 1;
-    int ipv6 = !!(__linux__ + 0);
+    int ipv6 = GT_IPV6;
 
     if (argz_is_set(bindz, "v4only")) {
         ipv4 = 1;
