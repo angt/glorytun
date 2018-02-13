@@ -72,7 +72,9 @@ gt_show(int argc, char **argv)
     DIR *dp = opendir("/run/" PACKAGE_NAME);
 
     if (!dp) {
-        perror("opendir");
+        if (errno == ENOENT)
+            return 0;
+        perror("show");
         return 1;
     }
 
