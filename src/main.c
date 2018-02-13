@@ -67,22 +67,22 @@ main(int argc, char **argv)
         int (*call)(int, char **);
     } cmd[] = {
         {"show", "show all running tunnels", gt_show},
-        {"bind", "start a new tunnel", gt_bind},
-        {"path", "manage paths", gt_path},
-        {"keygen", "generate a new secret key", gt_keygen},
         {"bench", "start a crypto bench", gt_bench},
+        {"bind", "start a new tunnel", gt_bind},
+        {"keygen", "generate a new secret key", gt_keygen},
+        {"path", "manage paths", gt_path},
         {"version", "show version", gt_version},
         {}};
 
-    if (argc > 1) {
-        for (int k = 0; cmd[k].name; k++) {
-            if (!str_cmp(cmd[k].name, argv[1]))
-                return cmd[k].call(argc - 1, argv + 1);
-        }
-        printf("unknown command %s\n", argv[1]);
+    if (argc < 2)
+        return gt_show(argc, argv);
+
+    for (int k = 0; cmd[k].name; k++) {
+        if (!str_cmp(cmd[k].name, argv[1]))
+            return cmd[k].call(argc - 1, argv + 1);
     }
 
-    printf("\navailable commands:\n");
+    printf("unknown command `%s', available commands:\n\n", argv[1]);
 
     int len = 0;
 
@@ -94,5 +94,5 @@ main(int argc, char **argv)
 
     printf("\n");
 
-    return argc != 1;
+    return 1;
 }
