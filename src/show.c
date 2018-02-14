@@ -11,7 +11,7 @@ static int
 gt_show_tunnel(int fd, const char *dev)
 {
     if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) {
-        perror("connect");
+        perror(dev);
         return -1;
     }
 
@@ -21,7 +21,7 @@ gt_show_tunnel(int fd, const char *dev)
 
     if ((send(fd, &msg, sizeof(msg), 0) == -1) ||
         (recv(fd, &reply, sizeof(reply), 0) == -1)) {
-        perror("send/recv");
+        perror(dev);
         return -1;
     }
 
