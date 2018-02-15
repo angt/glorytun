@@ -11,10 +11,10 @@ int
 gt_path(int argc, char **argv)
 {
     const char *dev = "tun0";
-    const char *addr = NULL;
+    struct sockaddr_storage addr = { 0 };
 
     struct argz actionz[] = {
-        {NULL, "IPADDR", &addr, argz_str},
+        {NULL, "IPADDR", &addr, argz_addr},
         {}};
 
     struct argz pathz[] = {
@@ -30,13 +30,13 @@ gt_path(int argc, char **argv)
     if (argz_is_set(pathz, "up")) {
         msg = (struct ctl_msg){
             .type = CTL_PATH_ADD,
+            .path_addr = addr,
         };
-        str_cpy(msg.path.add.addr, sizeof(msg.path.add.addr) - 1, addr);
     } else if (argz_is_set(pathz, "down")) {
         msg = (struct ctl_msg){
             .type = CTL_PATH_DEL,
+            .path_addr = addr,
         };
-        str_cpy(msg.path.del.addr, sizeof(msg.path.del.addr) - 1, addr);
     } else {
         gt_log("nothing to do..\n");
         return 0;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/socket.h>
+
 enum ctl_type {
     CTL_UNKNOWN,
     CTL_PATH_ADD,
@@ -15,20 +17,13 @@ struct ctl_msg {
         struct {
             enum ctl_type type;
         } unknown;
-        struct {
-            struct {
-                char addr[256];
-            } add, del;
-        } path;
+        struct sockaddr_storage path_addr;
         struct {
             size_t mtu;
             int mtu_auto;
             int chacha;
-            char addr[256];
-            unsigned short port;
-            unsigned short bind_port;
-            int ipv4;
-            int ipv6;
+            struct sockaddr_storage bind;
+            struct sockaddr_storage peer;
         } status;
         int reply;
     };

@@ -25,6 +25,11 @@ else
 	PORT=${PORT:-5000}
 fi
 
+BIND=0.0.0.0
+case "$HOST" in
+	*:*) BIND=::
+esac
+
 _ask "Server key (enter to generate a new one)" KEY
 if [ -z "$KEY" ]; then
 	KEY=$(glorytun keygen)
@@ -38,8 +43,9 @@ cat > "$DIR/env" <<EOF
 DEV=gt${HOST:+c}-$NAME
 HOST=$HOST
 PORT=$PORT
+BIND=$BIND
 BIND_PORT=$BIND_PORT
-OPTIONS=v4only mtu auto
+OPTIONS="mtu auto"
 EOF
 
 ( umask 077; echo "$KEY" > "$DIR/key" )

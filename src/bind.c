@@ -16,12 +16,6 @@
 #define O_CLOEXEC 0
 #endif
 
-#ifdef __linux__
-#define GT_IPV6 1
-#else
-#define GT_IPV6 0
-#endif
-
 #define GT_MTU(X) ((X)-28)
 
 static void
@@ -109,12 +103,26 @@ gt_setup_mtu(struct mud *mud, const char *tun_name, size_t *old_mtu)
     *old_mtu = (size_t)mtu;
 }
 
+static void
+gt_setup_port(struct sockaddr_storage *ss, uint16_t port)
+{
+    switch (ss->ss_family) {
+    case AF_INET:
+        ((struct sockaddr_in *)ss)->sin_port = htons(port);
+        break;
+    case AF_INET6:
+        ((struct sockaddr_in6 *)ss)->sin6_port = htons(port);
+        break;
+    }
+}
+
 int
 gt_bind(int argc, char **argv)
 {
+    struct sockaddr_storage bind_addr = { .ss_family = AF_INET };
+    struct sockaddr_storage peer_addr = { 0 };
     unsigned short bind_port = 5000;
-    unsigned short port = bind_port;
-    const char *host = NULL;
+    unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
     unsigned long timeout = 5000;
@@ -128,15 +136,15 @@ gt_bind(int argc, char **argv)
         {}};
 
     struct argz toz[] = {
-        {NULL, "IPADDR", &host, argz_str},
-        {NULL, "PORT", &port, argz_ushort},
+        {NULL, "IPADDR", &peer_addr, argz_addr},
+        {NULL, "PORT", &peer_port, argz_ushort},
         {}};
 
     struct argz bindz[] = {
-        {"port", "PORT", &bind_port, argz_ushort},
+        {NULL, "IPADDR", &bind_addr, argz_addr},
+        {NULL, "PORT", &bind_port, argz_ushort},
         {"to", NULL, &toz, argz_option},
         {"dev", "NAME", &dev, argz_str},
-        {"v4only|v6only", NULL, NULL, argz_option},
         {"mtu", NULL, &mtuz, argz_option},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
@@ -149,24 +157,14 @@ gt_bind(int argc, char **argv)
     if (argz(bindz, argc, argv))
         return 1;
 
+    gt_setup_port(&bind_addr, bind_port);
+    gt_setup_port(&peer_addr, peer_port);
+
     unsigned char *buf = malloc(bufsize);
 
     if (!buf) {
         perror("malloc");
         return 1;
-    }
-
-    int ipv4 = 1;
-    int ipv6 = GT_IPV6;
-
-    if (argz_is_set(bindz, "v4only")) {
-        ipv4 = 1;
-        ipv6 = 0;
-    }
-
-    if (argz_is_set(bindz, "v6only")) {
-        ipv4 = 0;
-        ipv6 = 1;
     }
 
     int mtu_auto = argz_is_set(mtuz, "auto");
@@ -175,14 +173,14 @@ gt_bind(int argc, char **argv)
 
     int icmp_fd = -1;
 
-    if (ipv4 && mtu_auto && host) {
+    if (mtu_auto && (peer_addr.ss_family == AF_INET)) {
         icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
         if (icmp_fd == -1)
             gt_log("couldn't create ICMP socket\n");
     }
 
-    struct mud *mud = mud_create(bind_port, ipv4, ipv6);
+    struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
 
     if (!mud) {
         gt_log("couldn't create mud\n");
@@ -227,8 +225,8 @@ gt_bind(int argc, char **argv)
     if (tun_set_persist(tun_fd, persist) == -1)
         perror("tun_set_persist");
 
-    if (host && port) {
-        if (mud_peer(mud, host, port)) {
+    if (peer_addr.ss_family) {
+        if (mud_peer(mud, (struct sockaddr *)&peer_addr)) {
             perror("mud_peer");
             return 1;
         }
@@ -300,36 +298,28 @@ gt_bind(int argc, char **argv)
             if (r == (ssize_t)sizeof(msg)) {
                 switch (msg.type) {
                 case CTL_PATH_ADD:
-                    gt_log("[ctl path add] addr=%s\n",
-                           &msg.path.add.addr[0]);
-                    if (mud_add_path(mud, &msg.path.add.addr[0])) {
+                    if (mud_add_path(mud, (struct sockaddr *)&msg.path_addr)) {
                         reply.reply = errno;
                         perror("mud_add_path");
                     }
                     break;
                 case CTL_PATH_DEL:
-                    gt_log("[ctl path del] addr=%s\n",
-                           &msg.path.del.addr[0]);
-                    if (mud_del_path(mud, &msg.path.del.addr[0])) {
+                    if (mud_del_path(mud, (struct sockaddr *)&msg.path_addr)) {
                         reply.reply = errno;
                         perror("mud_del_path");
                     }
                     break;
                 case CTL_STATUS:
-                    gt_log("[ctl status]\n");
                     reply = (struct ctl_msg){
                         .type = CTL_STATUS_REPLY,
                         .status = {
                             .mtu = mtu,
                             .mtu_auto = (icmp_fd != -1),
                             .chacha = chacha,
-                            .port = port,
-                            .bind_port = bind_port,
-                            .ipv4 = ipv4,
-                            .ipv6 = ipv6,
+                            .bind = bind_addr,
+                            .peer = peer_addr,
                         },
                     };
-                    str_cpy(reply.status.addr, sizeof(reply.status.addr) - 1, host);
                     break;
                 default:
                     reply = (struct ctl_msg){
