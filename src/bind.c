@@ -90,17 +90,17 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
 static void
 gt_setup_mtu(struct mud *mud, const char *tun_name, size_t *old_mtu)
 {
-    int mtu = mud_get_mtu(mud);
+    size_t mtu = mud_get_mtu(mud);
 
-    if ((size_t)mtu == *old_mtu)
+    if (mtu == *old_mtu)
         return;
 
-    gt_log("setup MTU to %i on interface %s\n", mtu, tun_name);
+    gt_log("setup MTU to %zu on interface %s\n", mtu, tun_name);
 
     if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
 
-    *old_mtu = (size_t)mtu;
+    *old_mtu = mtu;
 }
 
 static void
@@ -279,9 +279,9 @@ gt_bind(int argc, char **argv)
                                  (struct sockaddr *)&ss, &sl);
 
             if (!ip_get_common(&ic, buf, r)) {
-                int mtu = ip_get_mtu(&ic, buf, r);
+                size_t mtu = ip_get_mtu(&ic, buf, r);
                 if (mtu > 0) {
-                    gt_log("received MTU from ICMP: %i\n", mtu);
+                    gt_log("received MTU from ICMP: %zu\n", mtu);
                     mud_set_mtu(mud, GT_MTU(mtu));
                 }
             }
