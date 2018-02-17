@@ -37,11 +37,11 @@ ip_read16(const uint8_t *src)
     return ret;
 }
 
-static inline int
+static inline size_t
 ip_get_mtu(struct ip_common *ic, const uint8_t *data, size_t size)
 {
     if (ic->hdr_size <= 0 || ic->hdr_size + 8 > size)
-        return -1;
+        return 0;
 
     const uint8_t *p = &data[ic->hdr_size];
 
@@ -52,7 +52,7 @@ ip_get_mtu(struct ip_common *ic, const uint8_t *data, size_t size)
     // if (ic->version == 6 && ic->proto == 58 && p[0] == 2)
     //    return ip_read32(&p[4]);
 
-    return -1;
+    return 0;
 }
 
 static inline int
