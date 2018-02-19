@@ -55,6 +55,7 @@ int gt_bind(int, char **);
 int gt_path(int, char **);
 int gt_keygen(int, char **);
 int gt_bench(int, char **);
+int gt_set(int, char **);
 
 int
 main(int argc, char **argv)
@@ -69,6 +70,7 @@ main(int argc, char **argv)
         {"show", "show all running tunnels", gt_show},
         {"bench", "start a crypto bench", gt_bench},
         {"bind", "start a new tunnel", gt_bind},
+        {"set", "change tunnel properties", gt_set},
         {"keygen", "generate a new secret key", gt_keygen},
         {"path", "manage paths", gt_path},
         {"version", "show version", gt_version},

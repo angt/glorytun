@@ -87,20 +87,17 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
     return 0;
 }
 
-static void
-gt_setup_mtu(struct mud *mud, const char *tun_name, size_t *old_mtu)
+static size_t
+gt_setup_mtu(struct mud *mud, const char *tun_name)
 {
     size_t mtu = mud_get_mtu(mud);
-
-    if (mtu == *old_mtu)
-        return;
 
     gt_log("setup MTU to %zu on interface %s\n", mtu, tun_name);
 
     if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
 
-    *old_mtu = mtu;
+    return mtu;
 }
 
 static void
@@ -125,8 +122,6 @@ gt_bind(int argc, char **argv)
     unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
-    unsigned long timeout = 5000;
-    unsigned long timetolerance = 0;
     size_t bufsize = 64 * 1024 * 1024;
     size_t mtu = 1500;
 
@@ -148,8 +143,6 @@ gt_bind(int argc, char **argv)
         {"mtu", NULL, &mtuz, argz_option},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
-        {"timeout", "SECONDS", &timeout, argz_time},
-        {"timetolerance", "SECONDS", &timetolerance, argz_time},
         {"persist", NULL, NULL, argz_option},
         {"bufsize", "BYTES", &bufsize, argz_bytes},
         {}};
@@ -202,16 +195,6 @@ gt_bind(int argc, char **argv)
         chacha = 1;
     }
 
-    if (timeout && mud_set_send_timeout(mud, timeout)) {
-        perror("timeout");
-        return 1;
-    }
-
-    if (timetolerance && mud_set_time_tolerance(mud, timetolerance)) {
-        perror("timetolerance");
-        return 1;
-    }
-
     mud_set_mtu(mud, GT_MTU(mtu));
 
     char tun_name[64];
@@ -232,7 +215,7 @@ gt_bind(int argc, char **argv)
         }
     }
 
-    gt_setup_mtu(mud, tun_name, &mtu);
+    mtu = gt_setup_mtu(mud, tun_name);
 
     int ctl_fd = ctl_create("/run/" PACKAGE_NAME, tun_name);
 
@@ -309,6 +292,16 @@ gt_bind(int argc, char **argv)
                         perror("mud_del_path");
                     }
                     break;
+                case CTL_MTU:
+                    reply.reply = (int)mud_set_mtu(mud, GT_MTU((size_t)msg.mtu));
+                    mtu = gt_setup_mtu(mud, tun_name);
+                    break;
+                case CTL_TIMEOUT:
+                    reply.reply = mud_set_send_timeout(mud, msg.timeout);
+                    break;
+                case CTL_TIMETOLERANCE:
+                    reply.reply = mud_set_time_tolerance(mud, msg.timetolerance);
+                    break;
                 case CTL_STATUS:
                     reply = (struct ctl_msg){
                         .type = CTL_STATUS_REPLY,
@@ -383,7 +376,7 @@ gt_bind(int argc, char **argv)
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
                 if (r == -1 && errno == EMSGSIZE) {
-                    gt_setup_mtu(mud, tun_name, &mtu);
+                    mtu = gt_setup_mtu(mud, tun_name);
                 } else {
                     if (r == -1 && errno != EAGAIN)
                         perror("mud_send");

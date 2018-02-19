@@ -8,6 +8,9 @@ enum ctl_type {
     CTL_PATH_DEL,
     CTL_STATUS,
     CTL_STATUS_REPLY,
+    CTL_MTU,
+    CTL_TIMEOUT,
+    CTL_TIMETOLERANCE,
     CTL_REPLY,
 };
 
@@ -25,6 +28,9 @@ struct ctl_msg {
             struct sockaddr_storage bind;
             struct sockaddr_storage peer;
         } status;
+        int mtu;
+        unsigned long timeout;
+        unsigned long timetolerance;
         int reply;
     };
 };
