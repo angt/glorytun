@@ -271,59 +271,49 @@ gt_bind(int argc, char **argv)
         }
 
         if (FD_ISSET(ctl_fd, &rfds)) {
-            struct ctl_msg msg, reply = {.type = CTL_REPLY};
+            struct ctl_msg req, res = {.reply = 1};
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
 
-            ssize_t r = recvfrom(ctl_fd, &msg, sizeof(msg), 0,
+            ssize_t r = recvfrom(ctl_fd, &req, sizeof(req), 0,
                                  (struct sockaddr *)&ss, &sl);
 
-            if (r == (ssize_t)sizeof(msg)) {
-                switch (msg.type) {
+            if (r == (ssize_t)sizeof(req)) {
+                res.type = req.type;
+
+                switch (req.type) {
+                case CTL_NONE:
+                    break;
                 case CTL_PATH_ADD:
-                    if (mud_add_path(mud, (struct sockaddr *)&msg.path_addr)) {
-                        reply.reply = errno;
-                        perror("mud_add_path");
-                    }
+                    if (mud_add_path(mud, (struct sockaddr *)&req.path_addr))
+                        res.ret = errno;
                     break;
                 case CTL_PATH_DEL:
-                    if (mud_del_path(mud, (struct sockaddr *)&msg.path_addr)) {
-                        reply.reply = errno;
-                        perror("mud_del_path");
-                    }
+                    if (mud_del_path(mud, (struct sockaddr *)&req.path_addr))
+                        res.ret = errno;
                     break;
                 case CTL_MTU:
-                    reply.reply = (int)mud_set_mtu(mud, GT_MTU((size_t)msg.mtu));
-                    mtu = gt_setup_mtu(mud, tun_name);
+                    mud_set_mtu(mud, GT_MTU((size_t)req.mtu));
+                    res.mtu = gt_setup_mtu(mud, tun_name);
+                    mtu = res.mtu;
                     break;
                 case CTL_TIMEOUT:
-                    reply.reply = mud_set_send_timeout(mud, msg.timeout);
+                    if (mud_set_send_timeout(mud, req.timeout))
+                        res.ret = errno;
                     break;
                 case CTL_TIMETOLERANCE:
-                    reply.reply = mud_set_time_tolerance(mud, msg.timetolerance);
+                    if (mud_set_time_tolerance(mud, req.timetolerance))
+                        res.ret = errno;
                     break;
                 case CTL_STATUS:
-                    reply = (struct ctl_msg){
-                        .type = CTL_STATUS_REPLY,
-                        .status = {
-                            .mtu = mtu,
-                            .mtu_auto = (icmp_fd != -1),
-                            .chacha = chacha,
-                            .bind = bind_addr,
-                            .peer = peer_addr,
-                        },
-                    };
-                    break;
-                default:
-                    reply = (struct ctl_msg){
-                        .type = CTL_UNKNOWN,
-                        .unknown = {
-                            .type = msg.type,
-                        },
-                    };
+                    res.status.mtu = mtu;
+                    res.status.mtu_auto = (icmp_fd != -1);
+                    res.status.chacha = chacha;
+                    res.status.bind = bind_addr;
+                    res.status.peer = peer_addr;
                     break;
                 }
-                if (sendto(ctl_fd, &reply, sizeof(reply), 0,
+                if (sendto(ctl_fd, &res, sizeof(res), 0,
                            (const struct sockaddr *)&ss, sl) == -1)
                     perror("sendto(ctl)");
             } else if (r == -1 && errno != EAGAIN) {

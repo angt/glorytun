@@ -44,37 +44,31 @@ gt_show_tunnel(int fd, const char *dev)
         return -1;
     }
 
-    struct ctl_msg reply, msg = {
-        .type = CTL_STATUS,
-    };
+    struct ctl_msg res, req = {.type = CTL_STATUS};
 
-    if ((send(fd, &msg, sizeof(msg), 0) == -1) ||
-        (recv(fd, &reply, sizeof(reply), 0) == -1)) {
+    if (ctl_reply(fd, &res, &req)) {
         perror(dev);
         return -1;
     }
 
-    if (reply.type != CTL_STATUS_REPLY)
-        return -1;
-
     char bindstr[INET6_ADDRSTRLEN] = {0};
     char peerstr[INET6_ADDRSTRLEN] = {0};
 
-    if (gt_ss_addr(bindstr, sizeof(bindstr), &reply.status.bind) ||
-        gt_ss_addr(peerstr, sizeof(peerstr), &reply.status.peer))
+    if (gt_ss_addr(bindstr, sizeof(bindstr), &res.status.bind) ||
+        gt_ss_addr(peerstr, sizeof(peerstr), &res.status.peer))
         return -1;
 
-    if (reply.status.peer.ss_family == 0) {
+    if (res.status.peer.ss_family == 0) {
         printf("server %s:\n"
                "  bind:      %s port %hu\n"
                "  mtu:       %zu\n"
                "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_ss_port(&reply.status.bind),
-               reply.status.mtu,
-               reply.status.mtu_auto ? "enabled" : "disabled",
-               reply.status.chacha ? "chacha20poly1305" : "aes256gcm");
+               bindstr, gt_ss_port(&res.status.bind),
+               res.status.mtu,
+               res.status.mtu_auto ? "enabled" : "disabled",
+               res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
         printf("client %s:\n"
                "  bind:      %s port %hu\n"
@@ -83,11 +77,11 @@ gt_show_tunnel(int fd, const char *dev)
                "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_ss_port(&reply.status.bind),
-               peerstr, gt_ss_port(&reply.status.peer),
-               reply.status.mtu,
-               reply.status.mtu_auto ? "enabled" : "disabled",
-               reply.status.chacha ? "chacha20poly1305" : "aes256gcm");
+               bindstr, gt_ss_port(&res.status.bind),
+               peerstr, gt_ss_port(&res.status.peer),
+               res.status.mtu,
+               res.status.mtu_auto ? "enabled" : "disabled",
+               res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     }
 
     return 0;

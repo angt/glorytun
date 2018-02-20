@@ -25,15 +25,15 @@ gt_path(int argc, char **argv)
     if (argz(pathz, argc, argv))
         return 1;
 
-    struct ctl_msg msg;
+    struct ctl_msg req, res = {0};
 
     if (argz_is_set(pathz, "up")) {
-        msg = (struct ctl_msg){
+        req = (struct ctl_msg){
             .type = CTL_PATH_ADD,
             .path_addr = addr,
         };
     } else if (argz_is_set(pathz, "down")) {
-        msg = (struct ctl_msg){
+        req = (struct ctl_msg){
             .type = CTL_PATH_DEL,
             .path_addr = addr,
         };
@@ -55,30 +55,14 @@ gt_path(int argc, char **argv)
         return 1;
     }
 
-    struct ctl_msg reply;
+    int ret = 0;
 
-    if ((send(fd, &msg, sizeof(msg), 0) == -1) ||
-        (recv(fd, &reply, sizeof(reply), 0) == -1)) {
-        perror("send/recv");
-        ctl_delete(fd);
-        return 1;
-    }
-
-    switch (reply.type) {
-    case CTL_REPLY:
-        if (reply.reply) {
-            errno = reply.reply;
-            perror("error");
-        }
-        break;
-    case CTL_UNKNOWN:
-        printf("unknown command: %i\n", reply.unknown.type);
-        break;
-    default:
-        gt_log("bad reply from server: %i\n", reply.type);
+    if (ctl_reply(fd, &res, &req)) {
+        perror(dev);
+        ret = 1;
     }
 
     ctl_delete(fd);
 
-    return 0;
+    return ret;
 }

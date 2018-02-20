@@ -7,30 +7,6 @@
 
 #include "../argz/argz.h"
 
-static ssize_t
-gt_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
-{
-    if ((send(fd, req, sizeof(struct ctl_msg), 0) == -1) ||
-        (recv(fd, res, sizeof(struct ctl_msg), 0) == -1)) {
-        int err = errno;
-        ctl_delete(fd);
-        errno = err;
-        return -1;
-    }
-
-    if (res->type == CTL_REPLY) {
-        if (res->reply < 0) {
-            errno = res->reply;
-            return -1;
-        }
-    } else {
-        errno = EINTR;
-        return -1;
-    }
-
-    return 0;
-}
-
 static int
 gt_set_mtu(int fd, size_t mtu)
 {
@@ -39,10 +15,10 @@ gt_set_mtu(int fd, size_t mtu)
         .mtu = mtu,
     };
 
-    int ret = gt_reply(fd, &res, &req);
+    int ret = ctl_reply(fd, &res, &req);
 
     if (!ret)
-        printf("new mtu: %i\n", res.reply);
+        printf("new mtu: %i\n", res.mtu);
 
     return ret;
 }
@@ -55,7 +31,7 @@ gt_set_timeout(int fd, unsigned long timeout)
         .timeout = timeout,
     };
 
-    return gt_reply(fd, &res, &req);
+    return ctl_reply(fd, &res, &req);
 }
 
 static int
@@ -66,7 +42,7 @@ gt_set_timetolerance(int fd, unsigned long timetolerance)
         .timetolerance = timetolerance,
     };
 
-    return gt_reply(fd, &res, &req);
+    return ctl_reply(fd, &res, &req);
 }
 
 int
@@ -100,22 +76,24 @@ gt_set(int argc, char **argv)
         return 1;
     }
 
+    int ret = 0;
+
     if (mtu && gt_set_mtu(fd, mtu)) {
         perror("mtu");
-        return 1;
+        ret = 1;
     }
 
-    if (timeout && gt_set_timeout(fd, timeout)) {
+    if (!ret && timeout && gt_set_timeout(fd, timeout)) {
         perror("timeout");
-        return 1;
+        ret = 1;
     }
 
-    if (timetolerance && gt_set_timetolerance(fd, timetolerance)) {
+    if (!ret && timetolerance && gt_set_timetolerance(fd, timetolerance)) {
         perror("timetolerance");
-        return 1;
+        ret = 1;
     }
 
     ctl_delete(fd);
 
-    return 0;
+    return ret;
 }
