@@ -15,12 +15,12 @@ gt_path(int argc, char **argv)
 
     struct argz actionz[] = {
         {NULL, "IPADDR", &addr, argz_addr},
-        {}};
+        {NULL}};
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
         {"up|down", NULL, &actionz, argz_option},
-        {}};
+        {NULL}};
 
     if (argz(pathz, argc, argv))
         return 1;

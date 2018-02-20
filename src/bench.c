@@ -47,7 +47,7 @@ gt_bench(int argc, char **argv)
         {"precision", "EXPONENT", &precision, argz_ulong},
         {"bufsize", "BYTES", &bufsize, argz_bytes},
         {"duration", "SECONDS", &duration, argz_time},
-        {}};
+        {NULL}};
 
     if (argz(bench_argz, argc, argv))
         return 1;

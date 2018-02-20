@@ -128,12 +128,12 @@ gt_bind(int argc, char **argv)
     struct argz mtuz[] = {
         {"auto", NULL, NULL, argz_option},
         {NULL, "BYTES", &mtu, argz_bytes},
-        {}};
+        {NULL}};
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
         {NULL, "PORT", &peer_port, argz_ushort},
-        {}};
+        {NULL}};
 
     struct argz bindz[] = {
         {NULL, "IPADDR", &bind_addr, argz_addr},
@@ -145,7 +145,7 @@ gt_bind(int argc, char **argv)
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
         {"bufsize", "BYTES", &bufsize, argz_bytes},
-        {}};
+        {NULL}};
 
     if (argz(bindz, argc, argv))
         return 1;

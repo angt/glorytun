@@ -82,7 +82,7 @@ gt_set(int argc, char **argv)
         {"mtu", "BYTES", &mtu, argz_bytes},
         {"timeout", "SECONDS", &timeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
-        {}};
+        {NULL}};
 
     if (argz(pathz, argc, argv))
         return 1;

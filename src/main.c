@@ -74,7 +74,7 @@ main(int argc, char **argv)
         {"keygen", "generate a new secret key", gt_keygen},
         {"path", "manage paths", gt_path},
         {"version", "show version", gt_version},
-        {}};
+        {NULL}};
 
     if (argc < 2)
         return gt_show(argc, argv);
