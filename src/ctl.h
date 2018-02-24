@@ -1,11 +1,12 @@
 #pragma once
 
+#include "../mud/mud.h"
+
 #include <sys/socket.h>
 
 enum ctl_type {
     CTL_NONE = 0,
-    CTL_PATH_ADD,
-    CTL_PATH_DEL,
+    CTL_STATE,
     CTL_STATUS,
     CTL_MTU,
     CTL_TIMEOUT,
@@ -16,7 +17,10 @@ struct ctl_msg {
     enum ctl_type type;
     int reply, ret;
     union {
-        struct sockaddr_storage path_addr;
+        struct {
+            struct sockaddr_storage addr;
+            enum mud_state state;
+        } path;
         struct {
             size_t mtu;
             int mtu_auto;

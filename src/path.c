@@ -11,32 +11,25 @@ int
 gt_path(int argc, char **argv)
 {
     const char *dev = "tun0";
-    struct sockaddr_storage addr = { 0 };
+
+    struct ctl_msg req = {
+        .type = CTL_STATE,
+        .path = {.state = MUD_UP},
+    }, res = {0};
 
     struct argz pathz[] = {
-        {NULL, "IPADDR", &addr, argz_addr},
+        {NULL, "IPADDR", &req.path.addr, argz_addr},
         {"dev", "NAME", &dev, argz_str},
-        {"up|down", NULL, NULL, argz_option},
+        {"up|backup|down", NULL, NULL, argz_option},
         {NULL}};
 
     if (argz(pathz, argc, argv))
         return 1;
 
-    struct ctl_msg req, res = {0};
-
-    if (argz_is_set(pathz, "up")) {
-        req = (struct ctl_msg){
-            .type = CTL_PATH_ADD,
-            .path_addr = addr,
-        };
+    if (argz_is_set(pathz, "backup")) {
+        req.path.state = MUD_BACKUP;
     } else if (argz_is_set(pathz, "down")) {
-        req = (struct ctl_msg){
-            .type = CTL_PATH_DEL,
-            .path_addr = addr,
-        };
-    } else {
-        gt_log("nothing to do..\n");
-        return 0;
+        req.path.state = MUD_DOWN;
     }
 
     int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
