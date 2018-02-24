@@ -13,13 +13,10 @@ gt_path(int argc, char **argv)
     const char *dev = "tun0";
     struct sockaddr_storage addr = { 0 };
 
-    struct argz actionz[] = {
-        {NULL, "IPADDR", &addr, argz_addr},
-        {NULL}};
-
     struct argz pathz[] = {
+        {NULL, "IPADDR", &addr, argz_addr},
         {"dev", "NAME", &dev, argz_str},
-        {"up|down", NULL, &actionz, argz_option},
+        {"up|down", NULL, NULL, argz_option},
         {NULL}};
 
     if (argz(pathz, argc, argv))
