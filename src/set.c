@@ -48,7 +48,7 @@ gt_set_timetolerance(int fd, unsigned long timetolerance)
 int
 gt_set(int argc, char **argv)
 {
-    const char *dev = "tun0";
+    const char *dev = NULL;
     unsigned long timetolerance = 0;
     unsigned long timeout = 0;
     size_t mtu = 0;
@@ -66,12 +66,12 @@ gt_set(int argc, char **argv)
     int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
 
     if (fd == -1) {
-        perror("ctl_create");
+        perror("set");
         return 1;
     }
 
     if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) {
-        gt_log("couldn't connect to %s\n", dev);
+        perror("set");
         ctl_delete(fd);
         return 1;
     }

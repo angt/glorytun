@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -125,9 +126,33 @@ ctl_create(const char *dir, const char *file)
 int
 ctl_connect(int fd, const char *dir, const char *file)
 {
-    if (fd < 0 || str_empty(dir) || str_empty(file)) {
+    if (fd < 0 || str_empty(dir)) {
         errno = EINVAL;
         return -1;
+    }
+
+    if (!file) {
+        DIR *dp = opendir(dir);
+
+        if (!dp)
+            return -1;
+
+        struct dirent *d = NULL;
+
+        while (d = readdir(dp), d) {
+            if (d->d_name[0] == '.')
+                continue;
+
+            if (file) {
+                closedir(dp);
+                errno = ENOENT;
+                return -1;
+            }
+
+            file = &d->d_name[0];
+        }
+
+        closedir(dp);
     }
 
     struct sockaddr_un sun;

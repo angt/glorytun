@@ -10,11 +10,10 @@
 int
 gt_path(int argc, char **argv)
 {
-    const char *dev = "tun0";
+    const char *dev = NULL;
 
     struct ctl_msg req = {
         .type = CTL_STATE,
-        .path = {.state = MUD_UP},
     }, res = {0};
 
     struct argz pathz[] = {
@@ -26,33 +25,34 @@ gt_path(int argc, char **argv)
     if (argz(pathz, argc, argv))
         return 1;
 
-    if (argz_is_set(pathz, "backup")) {
+    if (!req.path.addr.ss_family) {
+        return 0; // TODO
+    }
+
+    if (argz_is_set(pathz, "up")) {
+        req.path.state = MUD_UP;
+    } else if (argz_is_set(pathz, "backup")) {
         req.path.state = MUD_BACKUP;
     } else if (argz_is_set(pathz, "down")) {
         req.path.state = MUD_DOWN;
+    } else {
+        return 0; // TODO
     }
 
     int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
 
     if (fd == -1) {
-        perror("ctl_create");
+        perror("path");
         return 1;
     }
 
-    if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) {
-        gt_log("couldn't connect to %s\n", dev);
+    if ((ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) ||
+        (ctl_reply(fd, &res, &req))) {
+        perror("path");
         ctl_delete(fd);
         return 1;
     }
 
-    int ret = 0;
-
-    if (ctl_reply(fd, &res, &req)) {
-        perror(dev);
-        ret = 1;
-    }
-
     ctl_delete(fd);
-
-    return ret;
+    return 0;
 }
