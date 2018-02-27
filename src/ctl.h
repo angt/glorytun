@@ -9,6 +9,7 @@ enum ctl_type {
     CTL_STATE,
     CTL_STATUS,
     CTL_MTU,
+    CTL_TC,
     CTL_TIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_PATH_STATUS,
@@ -31,6 +32,7 @@ struct ctl_msg {
             struct sockaddr_storage peer;
         } status;
         int mtu;
+        int tc;
         unsigned long timeout;
         unsigned long timetolerance;
     };

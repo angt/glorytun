@@ -315,6 +315,10 @@ gt_bind(int argc, char **argv)
                     res.mtu = gt_setup_mtu(mud, tun_name);
                     mtu = res.mtu;
                     break;
+                case CTL_TC:
+                    if (mud_set_tc(mud, req.tc))
+                        res.ret = errno;
+                    break;
                 case CTL_TIMEOUT:
                     if (mud_set_send_timeout(mud, req.timeout))
                         res.ret = errno;
