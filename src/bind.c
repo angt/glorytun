@@ -288,6 +288,28 @@ gt_bind(int argc, char **argv)
                     if (mud_set_state(mud, (struct sockaddr *)&req.path.addr, req.path.state))
                         res.ret = errno;
                     break;
+                case CTL_PATH_STATUS:
+                    {
+                        unsigned count = 0;
+                        struct mud_path *paths = mud_get_paths(mud, &count);
+
+                        if (!paths) {
+                            res.ret = errno;
+                            break;
+                        }
+
+                        res.ret = EAGAIN;
+
+                        for (unsigned i = 0; i < count; i++) {
+                            if (i && sendto(ctl_fd, &res, sizeof(res), 0,
+                                            (const struct sockaddr *)&ss, sl) == -1)
+                                perror("sendto(ctl)");
+                            memcpy(&res.path_status, &paths[i], sizeof(struct mud_path));
+                        }
+
+                        res.ret = 0;
+                    }
+                    break;
                 case CTL_MTU:
                     mud_set_mtu(mud, GT_MTU((size_t)req.mtu));
                     res.mtu = gt_setup_mtu(mud, tun_name);

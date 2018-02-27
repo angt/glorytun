@@ -11,6 +11,7 @@ enum ctl_type {
     CTL_MTU,
     CTL_TIMEOUT,
     CTL_TIMETOLERANCE,
+    CTL_PATH_STATUS,
 };
 
 struct ctl_msg {
@@ -21,6 +22,7 @@ struct ctl_msg {
             struct sockaddr_storage addr;
             enum mud_state state;
         } path;
+        struct mud_path path_status;
         struct {
             size_t mtu;
             int mtu_auto;
