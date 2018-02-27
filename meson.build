@@ -1,7 +1,10 @@
 project('glorytun', 'c',
     version: run_command('./version.sh').stdout(),
     license: 'BSD-3-Clause',
-    default_options : [ 'buildtype=debugoptimized' ]
+    default_options : [
+      'buildtype=debugoptimized'
+      'c_std=gnu99'
+    ]
 )
 
 cc = meson.get_compiler('c')
