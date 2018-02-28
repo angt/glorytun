@@ -127,16 +127,10 @@ gt_set(int argc, char **argv)
     if (argz(pathz, argc, argv))
         return 1;
 
-    int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
+    int fd = ctl_connect("/run/" PACKAGE_NAME, dev);
 
     if (fd == -1) {
         perror("set");
-        return 1;
-    }
-
-    if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) {
-        perror("set");
-        ctl_delete(fd);
         return 1;
     }
 

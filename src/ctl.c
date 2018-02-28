@@ -9,9 +9,16 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 
+#define CTL_BIND_MAX 64
+
 int
 ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
 {
+    if (fd == -1) {
+        errno = EINVAL;
+        return -1;
+    }
+
     if ((send(fd, req, sizeof(struct ctl_msg), 0) == -1) ||
         (recv(fd, res, sizeof(struct ctl_msg), 0) == -1))
         return -1;
@@ -58,7 +65,7 @@ ctl_bind(int fd, const char *dir, const char *file)
     struct sockaddr_un sun;
 
     if (str_empty(file)) {
-        for (int i = 0; i < 64; i++) {
+        for (int i = 0; i < CTL_BIND_MAX; i++) {
             if (snprintf(tmp, sizeof(tmp), ".%i", i) >= sizeof(tmp))
                 return -1;
 
@@ -124,9 +131,9 @@ ctl_create(const char *dir, const char *file)
 }
 
 int
-ctl_connect(int fd, const char *dir, const char *file)
+ctl_connect(const char *dir, const char *file)
 {
-    if (fd < 0 || str_empty(dir)) {
+    if (str_empty(dir)) {
         errno = EINVAL;
         return -1;
     }
@@ -160,5 +167,17 @@ ctl_connect(int fd, const char *dir, const char *file)
     if (ctl_setsun(&sun, dir, file))
         return -1;
 
-    return connect(fd, (struct sockaddr *)&sun, sizeof(sun));
+    int fd = ctl_create(dir, NULL);
+
+    if (fd == -1)
+        return -1;
+
+    if (connect(fd, (struct sockaddr *)&sun, sizeof(sun))) {
+        int err = errno;
+        ctl_delete(fd);
+        errno = err;
+        return -1;
+    }
+
+    return fd;
 }

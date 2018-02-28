@@ -41,9 +41,6 @@ gt_ss_addr(char *str, size_t size, struct sockaddr_storage *ss)
 static int
 gt_show_dev_status(int fd, const char *dev)
 {
-    if (ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1)
-        return -1;
-
     struct ctl_msg res, req = {.type = CTL_STATUS};
 
     if (ctl_reply(fd, &res, &req))
@@ -89,9 +86,9 @@ gt_show_dev_status(int fd, const char *dev)
 static int
 gt_show_dev(const char *dev)
 {
-    int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
+    int fd = ctl_connect("/run/" PACKAGE_NAME, dev);
 
-    if (fd < 0) {
+    if (fd == -1) {
         perror(dev);
         return -1;
     }

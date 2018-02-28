@@ -39,15 +39,14 @@ gt_path(int argc, char **argv)
         return 0; // TODO
     }
 
-    int fd = ctl_create("/run/" PACKAGE_NAME, NULL);
+    int fd = ctl_connect("/run/" PACKAGE_NAME, dev);
 
     if (fd == -1) {
         perror("path");
         return 1;
     }
 
-    if ((ctl_connect(fd, "/run/" PACKAGE_NAME, dev) == -1) ||
-        (ctl_reply(fd, &res, &req))) {
+    if (ctl_reply(fd, &res, &req)) {
         perror("path");
         ctl_delete(fd);
         return 1;
