@@ -50,13 +50,6 @@ gt_version(int argc, char **argv)
     return 0;
 }
 
-int gt_show(int, char **);
-int gt_bind(int, char **);
-int gt_path(int, char **);
-int gt_keygen(int, char **);
-int gt_bench(int, char **);
-int gt_set(int, char **);
-
 int
 main(int argc, char **argv)
 {

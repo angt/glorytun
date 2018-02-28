@@ -63,3 +63,10 @@ int gt_fromhex (uint8_t *, size_t, const char *, size_t);
 void     gt_set_port (struct sockaddr *, uint16_t);
 uint16_t gt_get_port (struct sockaddr *);
 int      gt_toaddr   (char *, size_t, struct sockaddr *);
+
+int gt_show   (int, char **);
+int gt_bind   (int, char **);
+int gt_path   (int, char **);
+int gt_keygen (int, char **);
+int gt_bench  (int, char **);
+int gt_set    (int, char **);
