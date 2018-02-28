@@ -1,7 +1,6 @@
 #include "common.h"
 #include "ctl.h"
 #include "str.h"
-#include "ssutils.h"
 
 #include "../argz/argz.h"
 
@@ -22,32 +21,34 @@ gt_show_dev_status(int fd, const char *dev)
     char bindstr[INET6_ADDRSTRLEN] = {0};
     char peerstr[INET6_ADDRSTRLEN] = {0};
 
-    if (gt_ss_addr(bindstr, sizeof(bindstr), &res.status.bind))
+    if (gt_toaddr(bindstr, sizeof(bindstr),
+                  (struct sockaddr *)&res.status.bind))
         return -2;
 
-    int server = gt_ss_addr(peerstr, sizeof(peerstr), &res.status.peer);
+    int server = gt_toaddr(peerstr, sizeof(peerstr),
+                           (struct sockaddr *)&res.status.peer);
 
     if (server) {
         printf("server %s:\n"
-               "  bind:      %s port %hu\n"
+               "  bind:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
                "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_ss_port(&res.status.bind),
+               bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
                res.status.mtu,
                res.status.mtu_auto ? "enabled" : "disabled",
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
         printf("client %s:\n"
-               "  bind:      %s port %hu\n"
-               "  peer:      %s port %hu\n"
+               "  bind:      %s port %"PRIu16"\n"
+               "  peer:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
                "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_ss_port(&res.status.bind),
-               peerstr, gt_ss_port(&res.status.peer),
+               bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
+               peerstr, gt_get_port((struct sockaddr *)&res.status.peer),
                res.status.mtu,
                res.status.mtu_auto ? "enabled" : "disabled",
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");

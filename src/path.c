@@ -1,7 +1,6 @@
 #include "common.h"
 #include "ctl.h"
 #include "str.h"
-#include "ssutils.h"
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -25,8 +24,10 @@ gt_path_status(int fd)
         char bindstr[INET6_ADDRSTRLEN] = {0};
         char peerstr[INET6_ADDRSTRLEN] = {0};
 
-        if (gt_ss_addr(bindstr, sizeof(bindstr), &res.path_status.local_addr) ||
-            gt_ss_addr(peerstr, sizeof(peerstr), &res.path_status.addr))
+        if (gt_toaddr(bindstr, sizeof(bindstr),
+                      (struct sockaddr *)&res.path_status.local_addr) ||
+            gt_toaddr(peerstr, sizeof(peerstr),
+                      (struct sockaddr *)&res.path_status.addr))
             return -2;
 
         const char *statestr = NULL;

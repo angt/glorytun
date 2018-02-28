@@ -100,19 +100,6 @@ gt_setup_mtu(struct mud *mud, const char *tun_name)
     return mtu;
 }
 
-static void
-gt_setup_port(struct sockaddr_storage *ss, uint16_t port)
-{
-    switch (ss->ss_family) {
-    case AF_INET:
-        ((struct sockaddr_in *)ss)->sin_port = htons(port);
-        break;
-    case AF_INET6:
-        ((struct sockaddr_in6 *)ss)->sin6_port = htons(port);
-        break;
-    }
-}
-
 int
 gt_bind(int argc, char **argv)
 {
@@ -150,8 +137,8 @@ gt_bind(int argc, char **argv)
     if (argz(bindz, argc, argv))
         return 1;
 
-    gt_setup_port(&bind_addr, bind_port);
-    gt_setup_port(&peer_addr, peer_port);
+    gt_set_port((struct sockaddr *)&bind_addr, bind_port);
+    gt_set_port((struct sockaddr *)&peer_addr, peer_port);
 
     unsigned char *buf = malloc(bufsize);
 

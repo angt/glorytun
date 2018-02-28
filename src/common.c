@@ -69,3 +69,44 @@ gt_fromhex(uint8_t *dst, size_t dst_size, const char *src, size_t src_size)
 
     return 0;
 }
+
+void
+gt_set_port(struct sockaddr *sa, uint16_t port)
+{
+    switch (sa->sa_family) {
+    case AF_INET:
+        ((struct sockaddr_in *)sa)->sin_port = htons(port);
+        break;
+    case AF_INET6:
+        ((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+        break;
+    }
+}
+
+uint16_t
+gt_get_port(struct sockaddr *sa)
+{
+    switch (sa->sa_family) {
+    case AF_INET:
+        return ntohs(((struct sockaddr_in *)sa)->sin_port);
+    case AF_INET6:
+        return ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+    }
+
+    return 0;
+}
+
+int
+gt_toaddr(char *str, size_t size, struct sockaddr *sa)
+{
+    switch (sa->sa_family) {
+    case AF_INET:
+        return -!inet_ntop(AF_INET,
+                           &((struct sockaddr_in *)sa)->sin_addr, str, size);
+    case AF_INET6:
+        return -!inet_ntop(AF_INET6,
+                           &((struct sockaddr_in6 *)sa)->sin6_addr, str, size);
+    }
+
+    return -1;
+}

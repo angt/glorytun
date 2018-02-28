@@ -1,11 +1,17 @@
 #pragma once
 
+#if defined __linux__ && !defined _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+
+#include <arpa/inet.h>
 
 #ifndef PACKAGE_NAME
 #define PACKAGE_NAME "glorytun"
@@ -53,3 +59,7 @@ void gt_log   (const char *, ...) _printf_(1,2);
 
 int gt_tohex   (char *, size_t, const uint8_t *, size_t);
 int gt_fromhex (uint8_t *, size_t, const char *, size_t);
+
+void     gt_set_port (struct sockaddr *, uint16_t);
+uint16_t gt_get_port (struct sockaddr *);
+int      gt_toaddr   (char *, size_t, struct sockaddr *);
