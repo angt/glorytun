@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <sys/select.h>
 
 #include "../argz/argz.h"
 #include "../mud/mud.h"
