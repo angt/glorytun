@@ -8,7 +8,7 @@ Restart=always
 EnvironmentFile=/etc/glorytun/%i/env
 ExecStart=@bindir@/glorytun-run keyfile /etc/glorytun/%i/key $OPTIONS
 ExecStartPost=-/etc/glorytun/%i/post.sh
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target

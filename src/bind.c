@@ -6,7 +6,6 @@
 #include "tun.h"
 
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <stdio.h>
 #include <sys/select.h>
 
@@ -16,8 +15,6 @@
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
-
-#define GT_MTU(X) ((X)-28)
 
 static void
 fd_set_nonblock(int fd)
@@ -91,12 +88,18 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
 static size_t
 gt_setup_mtu(struct mud *mud, const char *tun_name)
 {
+    static size_t oldmtu = 0;
     size_t mtu = mud_get_mtu(mud);
+
+    if (mtu == oldmtu)
+        return mtu;
 
     gt_log("setup MTU to %zu on interface %s\n", mtu, tun_name);
 
     if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
+
+    oldmtu = mtu;
 
     return mtu;
 }
@@ -111,12 +114,7 @@ gt_bind(int argc, char **argv)
     const char *dev = NULL;
     const char *keyfile = NULL;
     size_t bufsize = 64 * 1024 * 1024;
-    size_t mtu = 1500;
-
-    struct argz mtuz[] = {
-        {"auto", NULL, NULL, argz_option},
-        {NULL, "BYTES", &mtu, argz_bytes},
-        {NULL}};
+    size_t mtu = 1330;
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
@@ -128,7 +126,7 @@ gt_bind(int argc, char **argv)
         {NULL, "PORT", &bind_port, argz_ushort},
         {"to", NULL, &toz, argz_option},
         {"dev", "NAME", &dev, argz_str},
-        {"mtu", NULL, &mtuz, argz_option},
+        {"mtu", "BYTES", &mtu, argz_option},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
@@ -148,18 +146,8 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    int mtu_auto = argz_is_set(mtuz, "auto");
     int chacha = argz_is_set(bindz, "chacha");
     int persist = argz_is_set(bindz, "persist");
-
-    int icmp_fd = -1;
-
-    if (mtu_auto && (peer_addr.ss_family == AF_INET)) {
-        icmp_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-
-        if (icmp_fd == -1)
-            gt_log("couldn't create ICMP socket\n");
-    }
 
     struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
 
@@ -183,8 +171,6 @@ gt_bind(int argc, char **argv)
         chacha = 1;
     }
 
-    mud_set_mtu(mud, GT_MTU(mtu));
-
     char tun_name[64];
     int tun_fd = tun_create(tun_name, sizeof(tun_name) - 1, dev);
 
@@ -192,6 +178,9 @@ gt_bind(int argc, char **argv)
         gt_log("couldn't create tun device\n");
         return 1;
     }
+
+    mud_set_mtu(mud, mtu);
+    mtu = gt_setup_mtu(mud, tun_name);
 
     if (tun_set_persist(tun_fd, persist) == -1)
         perror("tun_set_persist");
@@ -202,8 +191,6 @@ gt_bind(int argc, char **argv)
             return 1;
         }
     }
-
-    mtu = gt_setup_mtu(mud, tun_name);
 
     int ctl_fd = ctl_create("/run/" PACKAGE_NAME, tun_name);
 
@@ -216,7 +203,6 @@ gt_bind(int argc, char **argv)
 
     fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
-    fd_set_nonblock(icmp_fd);
     fd_set_nonblock(ctl_fd);
 
     gt_log("running...\n");
@@ -224,15 +210,12 @@ gt_bind(int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, MAX(ctl_fd, icmp_fd)));
+    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, ctl_fd));
 
     while (!gt_quit) {
         FD_SET(tun_fd, &rfds);
         FD_SET(mud_fd, &rfds);
         FD_SET(ctl_fd, &rfds);
-
-        if (icmp_fd != -1)
-            FD_SET(icmp_fd, &rfds);
 
         if (select(last_fd, &rfds, NULL, NULL, NULL) == -1) {
             if (errno != EBADF)
@@ -241,22 +224,7 @@ gt_bind(int argc, char **argv)
             return 1;
         }
 
-        if (icmp_fd != -1 && FD_ISSET(icmp_fd, &rfds)) {
-            struct ip_common ic;
-            struct sockaddr_storage ss;
-            socklen_t sl = sizeof(ss);
-
-            ssize_t r = recvfrom(icmp_fd, buf, bufsize, 0,
-                                 (struct sockaddr *)&ss, &sl);
-
-            if (!ip_get_common(&ic, buf, r)) {
-                size_t mtu = ip_get_mtu(&ic, buf, r);
-                if (mtu > 0) {
-                    gt_log("received MTU from ICMP: %zu\n", mtu);
-                    mud_set_mtu(mud, GT_MTU(mtu));
-                }
-            }
-        }
+        mtu = gt_setup_mtu(mud, tun_name);
 
         if (FD_ISSET(ctl_fd, &rfds)) {
             struct ctl_msg req, res = {.reply = 1};
@@ -299,9 +267,9 @@ gt_bind(int argc, char **argv)
                     }
                     break;
                 case CTL_MTU:
-                    mud_set_mtu(mud, GT_MTU((size_t)req.mtu));
-                    res.mtu = gt_setup_mtu(mud, tun_name);
-                    mtu = res.mtu;
+                    mud_set_mtu(mud, (size_t)req.mtu);
+                    mtu = gt_setup_mtu(mud, tun_name);
+                    res.mtu = mtu;
                     break;
                 case CTL_TC:
                     if (mud_set_tc(mud, req.tc))
@@ -317,7 +285,6 @@ gt_bind(int argc, char **argv)
                     break;
                 case CTL_STATUS:
                     res.status.mtu = mtu;
-                    res.status.mtu_auto = (icmp_fd != -1);
                     res.status.chacha = chacha;
                     res.status.bind = bind_addr;
                     res.status.peer = peer_addr;
@@ -375,11 +342,12 @@ gt_bind(int argc, char **argv)
 
                 int r = mud_send(mud, &buf[p], q - p, tc);
 
-                if (r == -1 && errno == EMSGSIZE) {
-                    mtu = gt_setup_mtu(mud, tun_name);
-                } else {
-                    if (r == -1 && errno != EAGAIN)
+                if (r == -1) {
+                    if (errno == EMSGSIZE) {
+                        mtu = gt_setup_mtu(mud, tun_name);
+                    } else if (errno != EAGAIN) {
                         perror("mud_send");
+                    }
                 }
 
                 p = q;

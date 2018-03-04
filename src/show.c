@@ -32,25 +32,21 @@ gt_show_dev_status(int fd, const char *dev)
         printf("server %s:\n"
                "  bind:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
-               "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
                bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
                res.status.mtu,
-               res.status.mtu_auto ? "enabled" : "disabled",
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
         printf("client %s:\n"
                "  bind:      %s port %"PRIu16"\n"
                "  peer:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
-               "  auto mtu:  %s\n"
                "  cipher:    %s\n",
                dev,
                bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
                peerstr, gt_get_port((struct sockaddr *)&res.status.peer),
                res.status.mtu,
-               res.status.mtu_auto ? "enabled" : "disabled",
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     }
 

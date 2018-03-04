@@ -45,7 +45,7 @@ HOST=$HOST
 PORT=$PORT
 BIND=$BIND
 BIND_PORT=$BIND_PORT
-OPTIONS="mtu auto"
+OPTIONS=
 EOF
 
 ( umask 077; echo "$KEY" > "$DIR/key" )

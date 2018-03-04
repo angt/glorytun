@@ -26,7 +26,6 @@ struct ctl_msg {
         struct mud_path path_status;
         struct {
             size_t mtu;
-            int mtu_auto;
             int chacha;
             struct sockaddr_storage bind;
             struct sockaddr_storage peer;
