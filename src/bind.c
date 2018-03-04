@@ -126,7 +126,7 @@ gt_bind(int argc, char **argv)
         {NULL, "PORT", &bind_port, argz_ushort},
         {"to", NULL, &toz, argz_option},
         {"dev", "NAME", &dev, argz_str},
-        {"mtu", "BYTES", &mtu, argz_option},
+        {"mtu", "BYTES", &mtu, argz_bytes},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
