@@ -108,5 +108,6 @@ gt_toaddr(char *str, size_t size, struct sockaddr *sa)
                            &((struct sockaddr_in6 *)sa)->sin6_addr, str, size);
     }
 
+    errno = EAFNOSUPPORT;
     return -1;
 }
