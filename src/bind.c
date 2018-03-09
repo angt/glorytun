@@ -257,10 +257,10 @@ gt_bind(int argc, char **argv)
                         res.ret = EAGAIN;
 
                         for (unsigned i = 0; i < count; i++) {
-                            if (i && sendto(ctl_fd, &res, sizeof(res), 0,
-                                            (const struct sockaddr *)&ss, sl) == -1)
-                                perror("sendto(ctl)");
                             memcpy(&res.path_status, &paths[i], sizeof(struct mud_path));
+                            if (sendto(ctl_fd, &res, sizeof(res), 0,
+                                       (const struct sockaddr *)&ss, sl) == -1)
+                                perror("sendto(ctl)");
                         }
 
                         res.ret = 0;

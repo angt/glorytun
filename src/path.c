@@ -21,6 +21,12 @@ gt_path_status(int fd)
         if (recv(fd, &res, sizeof(struct ctl_msg), 0) == -1)
             return -1;
 
+        if (res.type != req.type)
+            return -2;
+
+        if (!res.ret)
+            return 0;
+
         char bindstr[INET6_ADDRSTRLEN] = {0};
         char peerstr[INET6_ADDRSTRLEN] = {0};
 
