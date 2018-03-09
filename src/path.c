@@ -48,9 +48,11 @@ gt_path_status(int fd)
         printf("path %s\n"
                "  bind:  %s\n"
                "  peer:  %s port %"PRIu16"\n"
-               "  rtt:   %.3f\n",
+               "  mtu:   %zu bytes\n"
+               "  rtt:   %.3f ms\n",
                statestr, bindstr, peerstr,
                gt_get_port((struct sockaddr *)&res.path_status.addr),
+               res.path_status.mtu.ok + 28U,     /* ip+udp hdr */
                res.path_status.rtt/(double)1e3);
 
     } while (res.ret == EAGAIN);
