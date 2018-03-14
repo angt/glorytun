@@ -56,7 +56,7 @@ gt_show_dev_status(int fd, const char *dev)
 static int
 gt_show_dev(const char *dev)
 {
-    int fd = ctl_connect("/run/" PACKAGE_NAME, dev);
+    int fd = ctl_connect(GT_RUNDIR, dev);
 
     if (fd == -1) {
         perror(dev);
@@ -93,7 +93,7 @@ gt_show(int argc, char **argv)
         return 0;
     }
 
-    DIR *dp = opendir("/run/" PACKAGE_NAME);
+    DIR *dp = opendir(GT_RUNDIR);
 
     if (!dp) {
         if (errno == ENOENT)

@@ -192,7 +192,7 @@ gt_bind(int argc, char **argv)
         }
     }
 
-    int ctl_fd = ctl_create("/run/" PACKAGE_NAME, tun_name);
+    int ctl_fd = ctl_create(GT_RUNDIR, tun_name);
 
     if (ctl_fd == -1) {
         perror("ctl_create");

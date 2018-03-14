@@ -83,7 +83,7 @@ gt_path(int argc, char **argv)
     if (argz(pathz, argc, argv))
         return 1;
 
-    int fd = ctl_connect("/run/" PACKAGE_NAME, dev);
+    int fd = ctl_connect(GT_RUNDIR, dev);
 
     if (fd == -1) {
         perror("path");
