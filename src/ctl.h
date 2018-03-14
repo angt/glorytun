@@ -10,6 +10,7 @@ enum ctl_type {
     CTL_STATUS,
     CTL_MTU,
     CTL_TC,
+    CTL_KXTIMEOUT,
     CTL_TIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_PATH_STATUS,
@@ -30,10 +31,9 @@ struct ctl_msg {
             struct sockaddr_storage bind;
             struct sockaddr_storage peer;
         } status;
-        int mtu;
+        size_t mtu;
         int tc;
-        unsigned long timeout;
-        unsigned long timetolerance;
+        unsigned long ms;
     };
 };
 

@@ -22,17 +22,35 @@ gt_set_mtu(int fd, size_t mtu)
         return 1;
     }
 
-    printf("mtu set to %i\n", res.mtu);
+    printf("mtu set to %zu\n", res.mtu);
 
     return 0;
 }
 
 static int
-gt_set_timeout(int fd, unsigned long timeout)
+gt_set_kxtimeout(int fd, unsigned long ms)
+{
+    struct ctl_msg res, req = {
+        .type = CTL_KXTIMEOUT,
+        .ms = ms,
+    };
+
+    int ret = ctl_reply(fd, &res, &req);
+
+    if (ret) {
+        perror("set kxtimeout");
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
+gt_set_timeout(int fd, unsigned long ms)
 {
     struct ctl_msg res, req = {
         .type = CTL_TIMEOUT,
-        .timeout = timeout,
+        .ms = ms,
     };
 
     int ret = ctl_reply(fd, &res, &req);
@@ -46,11 +64,11 @@ gt_set_timeout(int fd, unsigned long timeout)
 }
 
 static int
-gt_set_timetolerance(int fd, unsigned long timetolerance)
+gt_set_timetolerance(int fd, unsigned long ms)
 {
     struct ctl_msg res, req = {
         .type = CTL_TIMETOLERANCE,
-        .timetolerance = timetolerance,
+        .ms = ms,
     };
 
     int ret = ctl_reply(fd, &res, &req);
@@ -113,13 +131,15 @@ gt_set(int argc, char **argv)
     const char *dev = NULL;
     size_t mtu;
     int tc;
-    unsigned long timetolerance;
+    unsigned long kxtimeout;
     unsigned long timeout;
+    unsigned long timetolerance;
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
         {"mtu", "BYTES", &mtu, argz_bytes},
         {"tc", "CS|AF|EF", &tc, gt_argz_tc},
+        {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
         {"timeout", "SECONDS", &timeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
         {NULL}};
@@ -141,6 +161,9 @@ gt_set(int argc, char **argv)
 
     if (argz_is_set(pathz, "tc"))
         ret |= gt_set_tc(fd, tc);
+
+    if (argz_is_set(pathz, "kxtimeout"))
+        ret |= gt_set_kxtimeout(fd, kxtimeout);
 
     if (argz_is_set(pathz, "timeout"))
         ret |= gt_set_timeout(fd, timeout);

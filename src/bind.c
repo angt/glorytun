@@ -267,7 +267,7 @@ gt_bind(int argc, char **argv)
                     }
                     break;
                 case CTL_MTU:
-                    mud_set_mtu(mud, (size_t)req.mtu);
+                    mud_set_mtu(mud, req.mtu);
                     mtu = gt_setup_mtu(mud, tun_name);
                     res.mtu = mtu;
                     break;
@@ -275,12 +275,16 @@ gt_bind(int argc, char **argv)
                     if (mud_set_tc(mud, req.tc))
                         res.ret = errno;
                     break;
+                case CTL_KXTIMEOUT:
+                    if (mud_set_keyx_timeout(mud, req.ms))
+                        res.ret = errno;
+                    break;
                 case CTL_TIMEOUT:
-                    if (mud_set_send_timeout(mud, req.timeout))
+                    if (mud_set_send_timeout(mud, req.ms))
                         res.ret = errno;
                     break;
                 case CTL_TIMETOLERANCE:
-                    if (mud_set_time_tolerance(mud, req.timetolerance))
+                    if (mud_set_time_tolerance(mud, req.ms))
                         res.ret = errno;
                     break;
                 case CTL_STATUS:
