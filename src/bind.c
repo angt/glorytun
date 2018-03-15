@@ -263,6 +263,7 @@ gt_bind(int argc, char **argv)
                                 perror("sendto(ctl)");
                         }
 
+                        free(paths);
                         res.ret = 0;
                     }
                     break;
@@ -394,7 +395,9 @@ gt_bind(int argc, char **argv)
             perror("tun_set_persist");
     }
 
+    mud_delete(mud);
     ctl_delete(ctl_fd);
+    free(buf);
 
     return 0;
 }
