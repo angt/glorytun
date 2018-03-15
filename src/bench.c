@@ -105,7 +105,7 @@ gt_bench(int argc, char **argv)
         double mbps_max = 0.0;
         double mbps_dlt = INFINITY;
 
-        while (!gt_quit && mbps_dlt > ldexp(mbps, -precision)) {
+        while (!gt_quit && mbps_dlt > ldexp(mbps, -(int)precision)) {
             crypto_aead_aes256gcm_state ctx;
 
             if (!chacha)
