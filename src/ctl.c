@@ -133,13 +133,15 @@ ctl_create(const char *dir, const char *file)
 int
 ctl_connect(const char *dir, const char *file)
 {
+    DIR *dp = NULL;
+
     if (str_empty(dir)) {
         errno = EINVAL;
         return -1;
     }
 
     if (!file) {
-        DIR *dp = opendir(dir);
+        dp = opendir(dir);
 
         if (!dp)
             return -1;
@@ -151,20 +153,30 @@ ctl_connect(const char *dir, const char *file)
                 continue;
 
             if (file) {
-                closedir(dp);
-                errno = ENOENT;
-                return -1;
+                file = NULL;
+                break;
             }
 
             file = &d->d_name[0];
         }
 
-        closedir(dp);
+        if (!file) {
+            closedir(dp);
+            errno = ENOENT;
+            return -1;
+        }
     }
 
     struct sockaddr_un sun;
+    const int ret = ctl_setsun(&sun, dir, file);
 
-    if (ctl_setsun(&sun, dir, file))
+    if (dp) {
+        int err = errno;
+        closedir(dp);
+        errno = err;
+    }
+
+    if (ret)
         return -1;
 
     int fd = ctl_create(dir, NULL);
