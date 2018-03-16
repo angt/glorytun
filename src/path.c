@@ -27,17 +27,16 @@ gt_path_status(int fd)
         if (!res.ret)
             return 0;
 
-        char bindstr[INET6_ADDRSTRLEN] = {0};
-        char publstr[INET6_ADDRSTRLEN] = {0};
-        char peerstr[INET6_ADDRSTRLEN] = {0};
+        char bindstr[INET6_ADDRSTRLEN];
+        char publstr[INET6_ADDRSTRLEN];
+        char peerstr[INET6_ADDRSTRLEN];
 
-        if (gt_toaddr(bindstr, sizeof(bindstr),
-                      (struct sockaddr *)&res.path_status.local_addr) ||
-            gt_toaddr(publstr, sizeof(publstr),
-                      (struct sockaddr *)&res.path_status.r_addr) ||
-            gt_toaddr(peerstr, sizeof(peerstr),
-                      (struct sockaddr *)&res.path_status.addr))
-            return -2;
+        gt_toaddr(bindstr, sizeof(bindstr),
+                  (struct sockaddr *)&res.path_status.local_addr);
+        gt_toaddr(publstr, sizeof(publstr),
+                  (struct sockaddr *)&res.path_status.r_addr);
+        gt_toaddr(peerstr, sizeof(peerstr),
+                  (struct sockaddr *)&res.path_status.addr);
 
         const char *statestr = NULL;
 
@@ -49,17 +48,20 @@ gt_path_status(int fd)
         }
 
         printf("path %s\n"
-               "  bind:   %s\n"
+               "  bind:   %s port %"PRIu16"\n"
                "  public: %s port %"PRIu16"\n"
                "  peer:   %s port %"PRIu16"\n"
                "  mtu:    %zu bytes\n"
                "  rtt:    %.3f ms\n",
-               statestr, bindstr,
-               publstr, gt_get_port((struct sockaddr *)&res.path_status.r_addr),
-               peerstr, gt_get_port((struct sockaddr *)&res.path_status.addr),
+               statestr,
+               bindstr[0] ? bindstr : "-",
+               gt_get_port((struct sockaddr *)&res.path_status.local_addr),
+               publstr[0] ? publstr : "-",
+               gt_get_port((struct sockaddr *)&res.path_status.r_addr),
+               peerstr[0] ? peerstr : "-",
+               gt_get_port((struct sockaddr *)&res.path_status.addr),
                res.path_status.mtu.ok + 28U,     /* ip+udp hdr */
                res.path_status.rtt/(double)1e3);
-
     } while (res.ret == EAGAIN);
 
     return 0;

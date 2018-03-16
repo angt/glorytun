@@ -18,12 +18,11 @@ gt_show_dev_status(int fd, const char *dev)
     if (ctl_reply(fd, &res, &req))
         return -1;
 
-    char bindstr[INET6_ADDRSTRLEN] = {0};
-    char peerstr[INET6_ADDRSTRLEN] = {0};
+    char bindstr[INET6_ADDRSTRLEN];
+    char peerstr[INET6_ADDRSTRLEN];
 
-    if (gt_toaddr(bindstr, sizeof(bindstr),
-                  (struct sockaddr *)&res.status.bind))
-        return -2;
+    gt_toaddr(bindstr, sizeof(bindstr),
+              (struct sockaddr *)&res.status.bind);
 
     int server = gt_toaddr(peerstr, sizeof(peerstr),
                            (struct sockaddr *)&res.status.peer);
@@ -34,7 +33,8 @@ gt_show_dev_status(int fd, const char *dev)
                "  mtu:       %zu\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
+               bindstr[0] ? bindstr : "-",
+               gt_get_port((struct sockaddr *)&res.status.bind),
                res.status.mtu,
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
@@ -44,8 +44,10 @@ gt_show_dev_status(int fd, const char *dev)
                "  mtu:       %zu\n"
                "  cipher:    %s\n",
                dev,
-               bindstr, gt_get_port((struct sockaddr *)&res.status.bind),
-               peerstr, gt_get_port((struct sockaddr *)&res.status.peer),
+               bindstr[0] ? bindstr : "-",
+               gt_get_port((struct sockaddr *)&res.status.bind),
+               peerstr[0] ? peerstr : "-",
+               gt_get_port((struct sockaddr *)&res.status.peer),
                res.status.mtu,
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     }

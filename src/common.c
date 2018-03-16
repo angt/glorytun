@@ -99,6 +99,9 @@ gt_get_port(struct sockaddr *sa)
 int
 gt_toaddr(char *str, size_t size, struct sockaddr *sa)
 {
+    if (str)
+        str[0] = 0;
+
     switch (sa->sa_family) {
     case AF_INET:
         return -!inet_ntop(AF_INET,
