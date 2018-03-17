@@ -304,88 +304,33 @@ gt_bind(int argc, char **argv)
         }
 
         if (FD_ISSET(tun_fd, &rfds)) {
-            size_t size = 0;
+            struct ip_common ic;
+            const int r = tun_read(tun_fd, buf, bufsize);
 
-            while (bufsize - size >= mtu) {
-                const int r = tun_read(tun_fd, &buf[size], bufsize - size);
-
-                if (r <= 0 || r > mtu)
-                    break;
-
-                struct ip_common ic;
-
-                if (ip_get_common(&ic, &buf[size], r) || ic.size != r)
-                    break;
-
-                size += r;
-            }
-
-            size_t p = 0;
-
-            while (p < size) {
-                size_t q = p;
-                int tc = 0;
-
-                while (q < size) {
-                    struct ip_common ic;
-
-                    if ((ip_get_common(&ic, &buf[q], size - q)) ||
-                        (ic.size > size - q))
-                        break;
-
-                    if (q + ic.size > p + mtu)
-                        break;
-
-                    q += ic.size;
-
-                    if (tc < (ic.tc & 0xFC))
-                        tc = ic.tc & 0xFC;
+            if (r <= 0) {
+                if (r == -1 && errno != EAGAIN)
+                    perror("tun_read");
+            } else if ((!ip_get_common(&ic, buf, r)) && (ic.size == r) &&
+                       (mud_send(mud, buf, r, ic.tc) == -1)) {
+                if (errno == EMSGSIZE) {
+                    mtu = gt_setup_mtu(mud, tun_name);
+                } else if (errno != EAGAIN) {
+                    perror("mud_send");
                 }
-
-                if (p >= q)
-                    break;
-
-                int r = mud_send(mud, &buf[p], q - p, tc);
-
-                if (r == -1) {
-                    if (errno == EMSGSIZE) {
-                        mtu = gt_setup_mtu(mud, tun_name);
-                    } else if (errno != EAGAIN) {
-                        perror("mud_send");
-                    }
-                }
-
-                p = q;
             }
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
-            size_t size = 0;
+            struct ip_common ic;
+            const int r = mud_recv(mud, buf, bufsize);
 
-            while (bufsize - size >= mtu) {
-                const int r = mud_recv(mud, &buf[size], bufsize - size);
-
-                if (r <= 0) {
-                    if (r == -1 && errno != EAGAIN)
-                        perror("mud_recv");
-                    break;
-                }
-
-                size += r;
-            }
-
-            size_t p = 0;
-
-            while (p < size) {
-                struct ip_common ic;
-
-                if ((ip_get_common(&ic, &buf[p], size - p)) ||
-                    (ic.size > size - p))
-                    break;
-
-                tun_write(tun_fd, &buf[p], ic.size);
-
-                p += ic.size;
+            if (r <= 0) {
+                if (r == -1 && errno != EAGAIN)
+                    perror("mud_recv");
+            } else if ((!ip_get_common(&ic, buf, r) && (ic.size == r)) &&
+                       (tun_write(tun_fd, buf, r) == -1)) {
+                if (errno != EAGAIN)
+                    perror("tun_write");
             }
         }
     }
