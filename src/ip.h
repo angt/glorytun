@@ -7,6 +7,12 @@ struct ip_common {
     uint8_t proto;
 };
 
+static inline uint8_t
+ip_get_version(const uint8_t *data)
+{
+    return data[0] >> 4;
+}
+
 static inline uint16_t
 ip_read16(const uint8_t *src)
 {
@@ -21,7 +27,7 @@ ip_get_common(struct ip_common *ic, const uint8_t *data, size_t size)
     if (size < 20)
         return 1;
 
-    switch (data[0] >> 4) {
+    switch (ip_get_version(data)) {
     case 4:
         ic->tc = data[1];
         ic->proto = data[9];

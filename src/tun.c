@@ -224,7 +224,7 @@ tun_write(int fd, const void *data, size_t size)
 #ifdef GT_BSD_TUN
     uint32_t family;
 
-    switch (ip_get_version(data, size)) {
+    switch (ip_get_version(data)) {
     case 4:
         family = htonl(AF_INET);
         break;
