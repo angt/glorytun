@@ -310,7 +310,7 @@ gt_bind(int argc, char **argv)
             if (r <= 0) {
                 if (r == -1 && errno != EAGAIN)
                     perror("tun_read");
-            } else if ((!ip_get_common(&ic, buf, r)) && (ic.size == r) &&
+            } else if ((!ip_get_common(&ic, buf, r)) &&
                        (mud_send(mud, buf, r, ic.tc) == -1)) {
                 if (errno == EMSGSIZE) {
                     mtu = gt_setup_mtu(mud, tun_name);
@@ -327,7 +327,7 @@ gt_bind(int argc, char **argv)
             if (r <= 0) {
                 if (r == -1 && errno != EAGAIN)
                     perror("mud_recv");
-            } else if ((!ip_get_common(&ic, buf, r) && (ic.size == r)) &&
+            } else if ((!ip_get_common(&ic, buf, r)) &&
                        (tun_write(tun_fd, buf, r) == -1)) {
                 if (errno != EAGAIN)
                     perror("tun_write");
