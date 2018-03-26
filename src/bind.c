@@ -114,7 +114,6 @@ gt_bind(int argc, char **argv)
     const char *dev = NULL;
     const char *keyfile = NULL;
     size_t bufsize = 64 * 1024 * 1024;
-    size_t mtu = 1330;
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
@@ -126,7 +125,6 @@ gt_bind(int argc, char **argv)
         {NULL, "PORT", &bind_port, argz_ushort},
         {"to", NULL, &toz, argz_option},
         {"dev", "NAME", &dev, argz_str},
-        {"mtu", "BYTES", &mtu, argz_bytes},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
@@ -179,8 +177,7 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    mud_set_mtu(mud, mtu);
-    mtu = gt_setup_mtu(mud, tun_name);
+    size_t mtu = gt_setup_mtu(mud, tun_name);
 
     if (tun_set_persist(tun_fd, persist) == -1)
         perror("tun_set_persist");
@@ -312,11 +309,8 @@ gt_bind(int argc, char **argv)
                     perror("tun_read");
             } else if ((!ip_get_common(&ic, buf, r)) &&
                        (mud_send(mud, buf, r, ic.tc) == -1)) {
-                if (errno == EMSGSIZE) {
-                    mtu = gt_setup_mtu(mud, tun_name);
-                } else if (errno != EAGAIN) {
+                if (errno != EAGAIN)
                     perror("mud_send");
-                }
             }
         }
 

@@ -60,7 +60,7 @@ gt_path_status(int fd)
                gt_get_port((struct sockaddr *)&res.path_status.r_addr),
                peerstr[0] ? peerstr : "-",
                gt_get_port((struct sockaddr *)&res.path_status.addr),
-               res.path_status.mtu.ok + 28U,     /* ip+udp hdr */
+               res.path_status.mtu.ok,
                res.path_status.rtt/(double)1e3);
     } while (res.ret == EAGAIN);
 
