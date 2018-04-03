@@ -52,7 +52,9 @@ gt_path_status(int fd)
                "  public: %s port %"PRIu16"\n"
                "  peer:   %s port %"PRIu16"\n"
                "  mtu:    %zu bytes\n"
-               "  rtt:    %.3f ms\n",
+               "  rtt:    %.3f ms\n"
+               "  output: %"PRIu64" packets\n"
+               "  input:  %"PRIu64" packets\n",
                statestr,
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.path_status.local_addr),
@@ -61,7 +63,9 @@ gt_path_status(int fd)
                peerstr[0] ? peerstr : "-",
                gt_get_port((struct sockaddr *)&res.path_status.addr),
                res.path_status.mtu.ok,
-               res.path_status.rtt/(double)1e3);
+               res.path_status.rtt/(double)1e3,
+               res.path_status.send.total,
+               res.path_status.recv.total);
     } while (res.ret == EAGAIN);
 
     return 0;
