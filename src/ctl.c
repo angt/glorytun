@@ -153,8 +153,8 @@ ctl_connect(const char *dir, const char *file)
                 continue;
 
             if (file) {
-                file = NULL;
-                break;
+                closedir(dp);
+                return -3;
             }
 
             file = &d->d_name[0];
@@ -162,8 +162,7 @@ ctl_connect(const char *dir, const char *file)
 
         if (!file) {
             closedir(dp);
-            errno = ENOENT;
-            return -1;
+            return -2;
         }
     }
 

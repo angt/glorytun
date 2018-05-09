@@ -60,8 +60,9 @@ gt_show_dev(const char *dev)
 {
     int fd = ctl_connect(GT_RUNDIR, dev);
 
-    if (fd == -1) {
-        perror(dev);
+    if (fd < 0) {
+        if (fd == -1)
+            perror("show");
         return -1;
     }
 

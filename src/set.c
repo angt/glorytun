@@ -149,8 +149,20 @@ gt_set(int argc, char **argv)
 
     int fd = ctl_connect(GT_RUNDIR, dev);
 
-    if (fd == -1) {
-        perror("set");
+    if (fd < 0) {
+        switch (fd) {
+        case -1:
+            perror("set");
+            break;
+        case -2:
+            gt_log("no device\n");
+            break;
+        case -3:
+            gt_log("please choose a device\n");
+            break;
+        default:
+            gt_log("couldn't connect\n");
+        }
         return 1;
     }
 
