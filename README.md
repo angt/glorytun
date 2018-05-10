@@ -43,7 +43,8 @@ available commands:
 ### Mini HowTo
 
 Glorytun does not touch network configuration of its interface,
-It only tries to set the MTU when it receives packets (it doesn't rely on ICMP Next-hop MTU).
+It only tries to set the MTU when it receives packets,
+it doesn't rely on ICMP Next-hop MTU to avoid black holes.
 It is up to the user to do it according to the tools available
 on his system (systemd-networkd, netifd, ...).
 This also allows a wide variety of configurations.
