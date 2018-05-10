@@ -69,15 +69,14 @@ main(int argc, char **argv)
         {"version", "show version", gt_version},
         {NULL}};
 
-    if (argc < 2)
-        return gt_show(argc, argv);
-
-    for (int k = 0; cmd[k].name; k++) {
-        if (!str_cmp(cmd[k].name, argv[1]))
-            return cmd[k].call(argc - 1, argv + 1);
+    if (argv[1]) {
+        for (int k = 0; cmd[k].name; k++) {
+            if (!str_cmp(cmd[k].name, argv[1]))
+                return cmd[k].call(argc - 1, argv + 1);
+        }
     }
 
-    printf("unknown command `%s', available commands:\n\n", argv[1]);
+    printf("available commands:\n\n");
 
     int len = 0;
 

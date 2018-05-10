@@ -22,6 +22,24 @@ To build and install the latest version with [meson](http://mesonbuild.com):
 
 The more classical autotools suite is also available but not recommended.
 
+### Usage
+
+Just run `glorytun` with no arguments to view the list of available commands:
+
+```
+$ glorytun
+available commands:
+
+  show     show all running tunnels
+  bench    start a crypto bench
+  bind     start a new tunnel
+  set      change tunnel properties
+  keygen   generate a new secret key
+  path     manage paths
+  version  show version
+
+```
+
 ### Mini HowTo
 
 Glorytun does not touch network configuration of its interface,
