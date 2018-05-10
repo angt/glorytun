@@ -202,7 +202,9 @@ gt_bind(int argc, char **argv)
     fd_set_nonblock(mud_fd);
     fd_set_nonblock(ctl_fd);
 
-    gt_log("running...\n");
+    const long pid = (long)getpid();
+
+    gt_log("running on device %s as pid %li\n", tun_name, pid);
 
     fd_set rfds;
     FD_ZERO(&rfds);
@@ -286,6 +288,7 @@ gt_bind(int argc, char **argv)
                         res.ret = errno;
                     break;
                 case CTL_STATUS:
+                    res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = chacha;
                     res.status.bind = bind_addr;

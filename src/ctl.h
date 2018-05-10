@@ -26,6 +26,7 @@ struct ctl_msg {
         } path;
         struct mud_path path_status;
         struct {
+            long pid;
             size_t mtu;
             int chacha;
             struct sockaddr_storage bind;

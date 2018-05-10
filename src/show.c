@@ -29,21 +29,25 @@ gt_show_dev_status(int fd, const char *dev)
 
     if (server) {
         printf("server %s:\n"
+               "  pid:       %li\n"
                "  bind:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
                "  cipher:    %s\n",
                dev,
+               res.status.pid,
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.status.bind),
                res.status.mtu,
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
         printf("client %s:\n"
+               "  pid:       %li\n"
                "  bind:      %s port %"PRIu16"\n"
                "  peer:      %s port %"PRIu16"\n"
                "  mtu:       %zu\n"
                "  cipher:    %s\n",
                dev,
+               res.status.pid,
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.status.bind),
                peerstr[0] ? peerstr : "-",
