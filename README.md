@@ -60,7 +60,7 @@ For exemple, the simplest setup with `ifconfig`:
 
     # ifconfig tun0 10.0.1.1 pointopoint 10.0.1.2 up
 
-To check if the server is running, simply call `glorytun`.
+To check if the server is running, simply call `glorytun show`.
 It will show you all the running tunnels.
 
 To start a new client, you need to get the secret key (somehow..).
@@ -69,7 +69,7 @@ Then simply call:
     # glorytun bind 0.0.0.0 to SERVER_IP keyfile my_secret_key &
     # ifconfig tun0 10.0.1.2 pointopoint 10.0.1.1 up
 
-Here the tricky part... You need to specify your paths or `glorytun` will not send anything, it's easy:
+Here the tricky part... You need to specify your paths or glorytun will not send anything, it's easy:
 
     # glorytun path LOCAL_IPADDR up
 
