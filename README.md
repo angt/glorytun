@@ -1,6 +1,7 @@
 # Glorytun
 
-Small, Simple and Stupid VPN over [mud](https://github.com/angt/mud).
+Glorytun is a small, simple and secure VPN over [mud](https://github.com/angt/mud).
+It runs on Linux, OpenBSD, FreeBSD and MacOS.
 
 ### Build and Install
 
