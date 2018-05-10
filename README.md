@@ -20,7 +20,42 @@ To build and install the latest version with [meson](http://mesonbuild.com):
     $ meson build
     $ sudo ninja -C build install
 
-The more classical autotools suite is also available.
+The more classical autotools suite is also available but not recommended.
+
+### Mini HowTo
+
+Glorytun does not touch network configuration of its interface,
+It only tries to set the MTU when it receives packets (it doesn't rely on ICMP Next-hop MTU).
+It is up to the user to do it according to the tools available
+on his system (systemd-networkd, netifd, ...).
+This also allows a wide variety of configurations.
+
+To start a server:
+
+    # (umask 066; glorytun keygen > my_secret_key)
+    # glorytun bind 0.0.0.0 keyfile my_secret_key &
+
+You should now have a virgin `tun0` interface as mentioned earlier.
+I let you choose your favorite tool :)
+For exemple, the simplest setup with `ifconfig`:
+
+    # ifconfig tun0 10.0.1.1 pointopoint 10.0.1.2 up
+
+To check if the server is running, simply call `glorytun`.
+It will show you all the running tunnels.
+
+To start a new client, you need to get the secret key (somehow..).
+Then simply call:
+
+    # glorytun bind 0.0.0.0 to SERVER_IP keyfile my_secret_key &
+    # ifconfig tun0 10.0.1.2 pointopoint 10.0.1.1 up
+
+Here the tricky part... You need to specify your paths or `glorytun` will not send anything, it's easy:
+
+    # glorytun path LOCAL_IPADDR up
+
+Again, to check if your path is working, you can watch its status with `glorytun path`.
+You should now be able to ping your server with `ping 10.0.1.1`.
 
 ### Easy setup with systemd
 
@@ -45,7 +80,6 @@ Copy the new generated key and use it when configuring the client:
     Server key (enter to generate a new one): NEW_KEY
     Start glorytun now ? (enter to skip): y
 
-You can check easily if it works by looking at your public ip.
 To stop the service:
 
     $ sudo systemctl stop glorytun@tun0
