@@ -94,8 +94,6 @@ gt_setup_mtu(struct mud *mud, const char *tun_name)
     if (mtu == oldmtu)
         return mtu;
 
-    gt_log("setup MTU to %zu on interface %s\n", mtu, tun_name);
-
     if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
 
