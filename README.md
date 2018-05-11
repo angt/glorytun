@@ -41,6 +41,8 @@ available commands:
 
 ```
 
+Add the keyword `help` after a command to show its usage.
+
 ### Mini HowTo
 
 Glorytun does not touch network configuration of its interface,
