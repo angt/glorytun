@@ -6,22 +6,20 @@ It runs on Linux, OpenBSD, FreeBSD and MacOS.
 ### Build and Install
 
 Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
+We recommend the use of [meson](http://mesonbuild.com) for building instead of
+the more classical autotools suite (also available for old systems).
 
-On Ubuntu, the following command should be sufficient:
+On Ubuntu, the following command should be sufficient to get all the necessary build dependencies:
 
     $ sudo apt-get install meson libsodium-dev pkg-config
 
-Grab the latest release from github:
+To build and install the latest release from github:
 
     $ git clone https://github.com/angt/glorytun --recursive
-    $ cd glorytun
+    $ meson glorytun glorytun/build
+    $ sudo ninja -C glorytun/build install
 
-To build and install the latest version with [meson](http://mesonbuild.com):
-
-    $ meson build
-    $ sudo ninja -C build install
-
-The more classical autotools suite is also available but not recommended.
+This will install all binaries in `/usr/local/bin/` by default.
 
 ### Usage
 
