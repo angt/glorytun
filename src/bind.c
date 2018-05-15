@@ -161,12 +161,12 @@ gt_bind(int argc, char **argv)
         return 1;
 
     if (!chacha && mud_set_aes(mud)) {
-        gt_log("AES is not available\n");
+        gt_log("AES is not available, enjoy ChaCha20!\n");
         chacha = 1;
     }
 
     char tun_name[64];
-    int tun_fd = tun_create(tun_name, sizeof(tun_name) - 1, dev);
+    const int tun_fd = tun_create(tun_name, sizeof(tun_name) - 1, dev);
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");
@@ -185,14 +185,14 @@ gt_bind(int argc, char **argv)
         }
     }
 
-    int ctl_fd = ctl_create(GT_RUNDIR, tun_name);
+    const int ctl_fd = ctl_create(GT_RUNDIR, tun_name);
 
     if (ctl_fd == -1) {
         perror("ctl_create");
         return 1;
     }
 
-    int mud_fd = mud_get_fd(mud);
+    const int mud_fd = mud_get_fd(mud);
 
     fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
@@ -205,7 +205,7 @@ gt_bind(int argc, char **argv)
     fd_set rfds;
     FD_ZERO(&rfds);
 
-    int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, ctl_fd));
+    const int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, ctl_fd));
 
     while (!gt_quit) {
         FD_SET(tun_fd, &rfds);
