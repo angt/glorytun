@@ -111,7 +111,6 @@ gt_bind(int argc, char **argv)
     unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
-    size_t bufsize = 64 * 1024 * 1024;
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
@@ -126,7 +125,6 @@ gt_bind(int argc, char **argv)
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
-        {"bufsize", "BYTES", &bufsize, argz_bytes},
         {NULL}};
 
     if (argz(bindz, argc, argv))
@@ -140,6 +138,7 @@ gt_bind(int argc, char **argv)
     gt_set_port((struct sockaddr *)&bind_addr, bind_port);
     gt_set_port((struct sockaddr *)&peer_addr, peer_port);
 
+    const size_t bufsize = 4096U;
     unsigned char *buf = malloc(bufsize);
 
     if (!buf) {
