@@ -132,6 +132,11 @@ gt_bind(int argc, char **argv)
     if (argz(bindz, argc, argv))
         return 1;
 
+    if (str_empty(keyfile)) {
+        gt_log("a keyfile is needed!\n");
+        return 1;
+    }
+
     gt_set_port((struct sockaddr *)&bind_addr, bind_port);
     gt_set_port((struct sockaddr *)&peer_addr, peer_port);
 
@@ -152,15 +157,8 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    if (str_empty(keyfile)) {
-        if (mud_set_key(mud, NULL, 0)) {
-            gt_log("couldn't generate a new key\n");
-            return 1;
-        }
-    } else {
-        if (gt_setup_secretkey(mud, keyfile))
-            return 1;
-    }
+    if (gt_setup_secretkey(mud, keyfile))
+        return 1;
 
     if (!chacha && mud_set_aes(mud)) {
         gt_log("AES is not available\n");
