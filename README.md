@@ -3,11 +3,11 @@
 Glorytun is a small, simple and secure VPN over [mud](https://github.com/angt/mud).
 It runs on Linux, OpenBSD, FreeBSD and MacOS.
 
-### Features
+## Features
 
-The main features of Glorytun come directly from mud:
+The key features of Glorytun come directly from mud:
 
- * Fast and highly secure
+ * **Fast and highly secure**
 
    The use of UDP and [libsodium](https://github.com/jedisct1/libsodium) allows you to secure
    your communications without impacting performance.
@@ -16,18 +16,18 @@ The main features of Glorytun come directly from mud:
    All messages are encrypted, authenticated and marked with a timestamp.
    Perfect forward secrecy is also implemented with ECDH over Curve25519.
 
- * Multipath and active failover
+ * **Multipath and active failover**
 
    This is the main feature of Glorytun that allows to build an SD-WAN like service.
    This allows a TCP connection to explore and exploit multiple links without being disconnected.
 
- * Path MTU discovery without ICMP
+ * **Path MTU discovery without ICMP**
 
    Bad MTU configuration is a very common problem in the world of VPN.
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on ICMP Next-hop MTU to avoid black holes.
 
-### Build and Install
+## Build and Install
 
 Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 We recommend the use of [meson](http://mesonbuild.com) for building instead of
@@ -44,9 +44,10 @@ To build and install the latest release from github:
     $ sudo ninja -C glorytun/build install
 
 This will install all binaries in `/usr/local/bin` by default.
+
 You can easily customize your setup with meson (see `meson help`).
 
-### Usage
+## Usage
 
 Just run `glorytun` with no arguments to view the list of available commands:
 
@@ -66,7 +67,7 @@ available commands:
 
 Use the keyword `help` after a command to show its usage.
 
-### Mini HowTo
+## Mini HowTo
 
 Glorytun does not touch the configuration of its network interface (except for the MTU),
 It is up to the user to do it according to the tools available
@@ -100,6 +101,12 @@ Again, to check if your path is working, you can watch its status with `glorytun
 You should now be able to ping your server with `ping 10.0.1.1`.
 
 If you have systemd-networkd, you can use the helper program `glorytun-setup`.
+
+## Thanks
+
+ * @jedisct1 for all his help and the code for MacOS/BSD.
+ * The team OTB (@bessa, @gregdel, @pouulet, @sduponch and @simon) for all tests and discussions.
+ * OVH
 
 ---
 
