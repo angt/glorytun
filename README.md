@@ -3,6 +3,30 @@
 Glorytun is a small, simple and secure VPN over [mud](https://github.com/angt/mud).
 It runs on Linux, OpenBSD, FreeBSD and MacOS.
 
+### Features
+
+The main features of Glorytun come directly from mud:
+
+ * Fast and highly secure
+
+   The use of UDP and [libsodium](https://github.com/jedisct1/libsodium) allows you to secure
+   your communications without impacting performance.
+   Glorytun uses AES only if AES-NI is available otherwise ChaCha20 is used.
+   You can force the use of ChaCha20 for higher security.
+   All messages are encrypted, authenticated and marked with a timestamp.
+   Perfect forward secrecy is also implemented with ECDH over Curve25519.
+
+ * Multipath and active failover
+
+   This is the main feature of Glorytun that allows to build an SD-WAN like service.
+   This allows a TCP connection to explore and exploit multiple links without being disconnected.
+
+ * Path MTU discovery without ICMP
+
+   Bad MTU configuration is a very common problem in the world of VPN.
+   As it is critical, Glorytun will try to setup it correctly by guessing its value.
+   It doesn't rely on ICMP Next-hop MTU to avoid black holes.
+
 ### Build and Install
 
 Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
@@ -19,7 +43,8 @@ To build and install the latest release from github:
     $ meson glorytun glorytun/build
     $ sudo ninja -C glorytun/build install
 
-This will install all binaries in `/usr/local/bin/` by default.
+This will install all binaries in `/usr/local/bin` by default.
+You can easily customize your setup with meson (see `meson help`).
 
 ### Usage
 
@@ -39,13 +64,11 @@ available commands:
 
 ```
 
-Add the keyword `help` after a command to show its usage.
+Use the keyword `help` after a command to show its usage.
 
 ### Mini HowTo
 
-Glorytun does not touch network configuration of its interface,
-It only tries to set the MTU when it receives packets,
-it doesn't rely on ICMP Next-hop MTU to avoid black holes.
+Glorytun does not touch the configuration of its network interface (except for the MTU),
 It is up to the user to do it according to the tools available
 on his system (systemd-networkd, netifd, ...).
 This also allows a wide variety of configurations.
@@ -55,8 +78,7 @@ To start a server:
     # (umask 066; glorytun keygen > my_secret_key)
     # glorytun bind 0.0.0.0 keyfile my_secret_key &
 
-You should now have a virgin `tun0` interface as mentioned earlier.
-I let you choose your favorite tool :)
+You should now have an unconfigured network interface (let's say `tun0`).
 For exemple, the simplest setup with `ifconfig`:
 
     # ifconfig tun0 10.0.1.1 pointopoint 10.0.1.2 up
@@ -64,7 +86,7 @@ For exemple, the simplest setup with `ifconfig`:
 To check if the server is running, simply call `glorytun show`.
 It will show you all the running tunnels.
 
-To start a new client, you need to get the secret key (somehow..).
+To start a new client, you need to get the secret key generated for the server.
 Then simply call:
 
     # glorytun bind 0.0.0.0 to SERVER_IP keyfile my_secret_key &
@@ -77,32 +99,7 @@ Here the tricky part... You need to specify your paths or glorytun will not send
 Again, to check if your path is working, you can watch its status with `glorytun path`.
 You should now be able to ping your server with `ping 10.0.1.1`.
 
-### Easy setup with systemd
-
-Just call `glorytun-setup` and follow the instructions.
-
-First, setup the server:
-
-    $ sudo glorytun-setup
-    Config filename (tun0):
-    Server ip (enter for server conf):
-    Bind to port (5000):
-    Server key (enter to generate a new one):
-    Your new key: NEW_KEY
-    Start glorytun now ? (enter to skip): y
-
-Copy the new generated key and use it when configuring the client:
-
-    $ sudo glorytun-setup
-    Config filename (tun0):
-    Server ip (enter for server conf): SERVER_IP
-    Server port (5000):
-    Server key (enter to generate a new one): NEW_KEY
-    Start glorytun now ? (enter to skip): y
-
-To stop the service:
-
-    $ sudo systemctl stop glorytun@tun0
+If you have systemd-networkd, you can use the helper program `glorytun-setup`.
 
 ---
 
