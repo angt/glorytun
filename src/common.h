@@ -74,3 +74,4 @@ int gt_path   (int, char **);
 int gt_keygen (int, char **);
 int gt_bench  (int, char **);
 int gt_set    (int, char **);
+int gt_sync   (int, char **);

@@ -14,6 +14,7 @@ enum ctl_type {
     CTL_TIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_PATH_STATUS,
+    CTL_SYNC,
 };
 
 struct ctl_msg {

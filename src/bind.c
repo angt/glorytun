@@ -289,6 +289,10 @@ gt_bind(int argc, char **argv)
                     res.status.bind = bind_addr;
                     res.status.peer = peer_addr;
                     break;
+                case CTL_SYNC:
+                    if (mud_send(mud, NULL, 0, 0) == -1)
+                        res.ret = errno;
+                    break;
                 }
                 if (sendto(ctl_fd, &res, sizeof(res), 0,
                            (const struct sockaddr *)&ss, sl) == -1)

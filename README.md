@@ -59,6 +59,7 @@ available commands:
   bench    start a crypto bench
   bind     start a new tunnel
   set      change tunnel properties
+  sync     re-sync tunnels
   keygen   generate a new secret key
   path     manage paths
   version  show version
