@@ -7,7 +7,7 @@
 
 #include "../argz/argz.h"
 
-int
+static int
 gt_path_status(int fd)
 {
     struct ctl_msg req = {
@@ -141,5 +141,5 @@ gt_path(int argc, char **argv)
 
     ctl_delete(fd);
 
-    return 0;
+    return !!ret;
 }

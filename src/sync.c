@@ -44,10 +44,8 @@ gt_sync(int argc, char **argv)
     if (argz(syncz, argc, argv))
         return 1;
 
-    if (dev) {
-        gt_sync_dev(dev);
-        return 0;
-    }
+    if (dev)
+        return !!gt_sync_dev(dev);
 
     DIR *dp = opendir(GT_RUNDIR);
 
@@ -58,14 +56,15 @@ gt_sync(int argc, char **argv)
         return 1;
     }
 
+    int ret = 0;
     struct dirent *d = NULL;
 
     while (d = readdir(dp), d) {
         if (d->d_name[0] != '.')
-            gt_sync_dev(d->d_name);
+            ret |= !!gt_sync_dev(d->d_name);
     }
 
     closedir(dp);
 
-    return 0;
+    return ret;
 }

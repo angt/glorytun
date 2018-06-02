@@ -95,10 +95,8 @@ gt_show(int argc, char **argv)
     if (argz(showz, argc, argv))
         return 1;
 
-    if (dev) {
-        gt_show_dev(dev);
-        return 0;
-    }
+    if (dev)
+        return !!gt_show_dev(dev);
 
     DIR *dp = opendir(GT_RUNDIR);
 
@@ -109,14 +107,15 @@ gt_show(int argc, char **argv)
         return 1;
     }
 
+    int ret = 0;
     struct dirent *d = NULL;
 
     while (d = readdir(dp), d) {
         if (d->d_name[0] != '.')
-            gt_show_dev(d->d_name);
+            ret |= !!gt_show_dev(d->d_name);
     }
 
     closedir(dp);
 
-    return 0;
+    return ret;
 }
