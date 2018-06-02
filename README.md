@@ -1,7 +1,13 @@
 # Glorytun
 
 Glorytun is a small, simple and secure VPN over [mud](https://github.com/angt/mud).
-It runs on Linux, OpenBSD, FreeBSD and MacOS.
+
+## Compatibility
+
+Glorytun only depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
+Which can be installed on a wide variety of systems.
+Linux is the platform of choice but the code is standard so it should be easily ported on other posix systems.
+It was successfully tested on OpenBSD, FreeBSD and MacOS.
 
 ## Features
 
@@ -29,7 +35,6 @@ The key features of Glorytun come directly from mud:
 
 ## Build and Install
 
-Glorytun depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 We recommend the use of [meson](http://mesonbuild.com) for building instead of
 the more classical autotools suite (also available for old systems).
 
@@ -101,13 +106,13 @@ Here the tricky part... You need to specify your paths or glorytun will not send
 Again, to check if your path is working, you can watch its status with `glorytun path`.
 You should now be able to ping your server with `ping 10.0.1.1`.
 
-If you have systemd-networkd, you can use the helper program `glorytun-setup`.
+If you use systemd-networkd, you can easily setup your tunnels with the helper program `glorytun-setup`.
 
 ## Thanks
 
  * @jedisct1 for all his help and the code for MacOS/BSD.
  * The team OTB (@bessa, @gregdel, @pouulet, @sduponch and @simon) for all tests and discussions.
- * OVH
+ * OVH to support this soft :)
 
 ---
 
