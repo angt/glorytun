@@ -290,8 +290,8 @@ gt_bind(int argc, char **argv)
                     res.status.peer = peer_addr;
                     break;
                 case CTL_SYNC:
-                    if (mud_send(mud, NULL, 0, 0) == -1)
-                        res.ret = errno;
+                    mud_send(mud, NULL, 0, 0);
+                    res.ms = mud_get_sync_elapsed_msec(mud);
                     break;
                 }
                 if (sendto(ctl_fd, &res, sizeof(res), 0,
