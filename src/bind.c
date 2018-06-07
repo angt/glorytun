@@ -111,6 +111,7 @@ gt_bind(int argc, char **argv)
     unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
+    unsigned long sync = 0;
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
@@ -125,6 +126,7 @@ gt_bind(int argc, char **argv)
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
+        {"sync", "SECONDS", &sync, argz_time},
         {NULL}};
 
     if (argz(bindz, argc, argv))
@@ -211,11 +213,19 @@ gt_bind(int argc, char **argv)
         FD_SET(mud_fd, &rfds);
         FD_SET(ctl_fd, &rfds);
 
-        if (select(last_fd, &rfds, NULL, NULL, NULL) == -1) {
-            if (errno != EBADF)
-                continue;
-            perror("select");
-            return 1;
+        struct timeval tv = {
+            .tv_sec  = sync / 1000UL,
+        };
+
+        const int ret = select(last_fd, &rfds, NULL, NULL, sync ? &tv : NULL);
+
+        if (ret == -1) {
+            if (errno == EBADF) {
+                perror("select");
+                return 1;
+            }
+
+            continue;
         }
 
         mtu = gt_setup_mtu(mud, tun_name);
@@ -329,6 +339,9 @@ gt_bind(int argc, char **argv)
                     perror("tun_write");
             }
         }
+
+        if (!ret)
+            mud_send(mud, NULL, 0, 0);
     }
 
     if (gt_reload && tun_fd >= 0) {
