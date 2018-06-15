@@ -300,8 +300,7 @@ gt_bind(int argc, char **argv)
                     res.status.peer = peer_addr;
                     break;
                 case CTL_SYNC:
-                    mud_send(mud, NULL, 0, 0);
-                    res.ms = mud_get_sync_elapsed_msec(mud);
+                    res.ms = mud_sync(mud);
                     break;
                 }
                 if (sendto(ctl_fd, &res, sizeof(res), 0,
@@ -341,7 +340,7 @@ gt_bind(int argc, char **argv)
         }
 
         if (!ret)
-            mud_send(mud, NULL, 0, 0);
+            mud_sync(mud);
     }
 
     if (gt_reload && tun_fd >= 0) {
