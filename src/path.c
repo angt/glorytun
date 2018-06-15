@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "../argz/argz.h"
 
@@ -16,6 +17,8 @@ gt_path_status(int fd)
 
     if (send(fd, &req, sizeof(struct ctl_msg), 0) == -1)
         return -1;
+
+    int term = isatty(1);
 
     do {
         if (recv(fd, &res, sizeof(struct ctl_msg), 0) == -1)
@@ -47,33 +50,46 @@ gt_path_status(int fd)
             default:         return -2;
         }
 
-        printf("path %s\n"
-               "  bind:     %s port %"PRIu16"\n"
-               "  public:   %s port %"PRIu16"\n"
-               "  peer:     %s port %"PRIu16"\n"
-               "  mtu:      %zu bytes\n"
-               "  rtt:      %.3f ms\n"
-               "  rttvar:   %.3f ms\n"
-               "  upload:   %"PRIu64" bytes/s (max: %"PRIu64")\n"
-               "  download: %"PRIu64" bytes/s (max: %"PRIu64")\n"
-               "  output:   %"PRIu64" packets\n"
-               "  input:    %"PRIu64" packets\n",
-               statestr,
-               bindstr[0] ? bindstr : "-",
-               gt_get_port((struct sockaddr *)&res.path_status.local_addr),
-               publstr[0] ? publstr : "-",
-               gt_get_port((struct sockaddr *)&res.path_status.r_addr),
-               peerstr[0] ? peerstr : "-",
-               gt_get_port((struct sockaddr *)&res.path_status.addr),
-               res.path_status.mtu.ok,
-               res.path_status.rtt/(double)1e3,
-               res.path_status.rttvar/(double)1e3,
-               res.path_status.r_rate,
-               res.path_status.r_ratemax,
-               res.path_status.recv.rate,
-               res.path_status.recv.ratemax,
-               res.path_status.send.total,
-               res.path_status.recv.total);
+        printf(term ? "path %s\n"
+                      "  bind:     %s port %"PRIu16"\n"
+                      "  public:   %s port %"PRIu16"\n"
+                      "  peer:     %s port %"PRIu16"\n"
+                      "  mtu:      %zu bytes\n"
+                      "  rtt:      %.3f ms\n"
+                      "  rttvar:   %.3f ms\n"
+                      "  upload:   %"PRIu64" bytes/s (max: %"PRIu64")\n"
+                      "  download: %"PRIu64" bytes/s (max: %"PRIu64")\n"
+                      "  output:   %"PRIu64" packets\n"
+                      "  input:    %"PRIu64" packets\n"
+                    : "path %s"
+                      " %s %"PRIu16
+                      " %s %"PRIu16
+                      " %s %"PRIu16
+                      " %zu"
+                      " %.3f %.3f"
+                      " %"PRIu64
+                      " %"PRIu64
+                      " %"PRIu64
+                      " %"PRIu64
+                      " %"PRIu64
+                      " %"PRIu64
+                      "\n",
+            statestr,
+            bindstr[0] ? bindstr : "-",
+            gt_get_port((struct sockaddr *)&res.path_status.local_addr),
+            publstr[0] ? publstr : "-",
+            gt_get_port((struct sockaddr *)&res.path_status.r_addr),
+            peerstr[0] ? peerstr : "-",
+            gt_get_port((struct sockaddr *)&res.path_status.addr),
+            res.path_status.mtu.ok,
+            res.path_status.rtt/(double)1e3,
+            res.path_status.rttvar/(double)1e3,
+            res.path_status.r_rate,
+            res.path_status.r_ratemax,
+            res.path_status.recv.rate,
+            res.path_status.recv.ratemax,
+            res.path_status.send.total,
+            res.path_status.recv.total);
     } while (res.ret == EAGAIN);
 
     return 0;

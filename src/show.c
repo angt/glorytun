@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 static int
 gt_show_dev_status(int fd, const char *dev)
@@ -27,12 +28,20 @@ gt_show_dev_status(int fd, const char *dev)
     int server = gt_toaddr(peerstr, sizeof(peerstr),
                            (struct sockaddr *)&res.status.peer);
 
+    int term = isatty(1);
+
     if (server) {
-        printf("server %s:\n"
-               "  pid:       %li\n"
-               "  bind:      %s port %"PRIu16"\n"
-               "  mtu:       %zu\n"
-               "  cipher:    %s\n",
+        printf(term ? "server %s:\n"
+                      "  pid:       %li\n"
+                      "  bind:      %s port %"PRIu16"\n"
+                      "  mtu:       %zu\n"
+                      "  cipher:    %s\n"
+                    : "server %s"
+                      " %li"
+                      " %s %"PRIu16
+                      " %zu"
+                      " %s"
+                      "\n",
                dev,
                res.status.pid,
                bindstr[0] ? bindstr : "-",
@@ -40,12 +49,19 @@ gt_show_dev_status(int fd, const char *dev)
                res.status.mtu,
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
-        printf("client %s:\n"
-               "  pid:       %li\n"
-               "  bind:      %s port %"PRIu16"\n"
-               "  peer:      %s port %"PRIu16"\n"
-               "  mtu:       %zu\n"
-               "  cipher:    %s\n",
+        printf(term ? "client %s:\n"
+                      "  pid:       %li\n"
+                      "  bind:      %s port %"PRIu16"\n"
+                      "  peer:      %s port %"PRIu16"\n"
+                      "  mtu:       %zu\n"
+                      "  cipher:    %s\n"
+                    : "client %s"
+                      " %li"
+                      " %s %"PRIu16
+                      " %s %"PRIu16
+                      " %zu"
+                      " %s"
+                      "\n",
                dev,
                res.status.pid,
                bindstr[0] ? bindstr : "-",
