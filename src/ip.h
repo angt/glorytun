@@ -13,16 +13,16 @@ ip_get_version(const uint8_t *data)
     return data[0] >> 4;
 }
 
-static inline uint16_t
+static inline int
 ip_read16(const uint8_t *src)
 {
     uint16_t ret = src[1];
     ret |= ((uint16_t)src[0]) << 8;
-    return ret;
+    return (int)ret;
 }
 
 static inline int
-ip_get_common(struct ip_common *ic, const uint8_t *data, size_t size)
+ip_get_common(struct ip_common *ic, const uint8_t *data, int size)
 {
     if (size < 20)
         return 1;

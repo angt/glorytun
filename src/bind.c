@@ -222,9 +222,8 @@ gt_bind(int argc, char **argv)
         if (ret == -1) {
             if (errno == EBADF) {
                 perror("select");
-                return 1;
+                break;
             }
-
             continue;
         }
 
@@ -315,28 +314,16 @@ gt_bind(int argc, char **argv)
             struct ip_common ic;
             const int r = tun_read(tun_fd, buf, bufsize);
 
-            if (r <= 0) {
-                if (r == -1 && errno != EAGAIN)
-                    perror("tun_read");
-            } else if ((!ip_get_common(&ic, buf, r)) &&
-                       (mud_send(mud, buf, r, ic.tc) == -1)) {
-                if (errno != EAGAIN)
-                    perror("mud_send");
-            }
+            if (!ip_get_common(&ic, buf, r))
+                mud_send(mud, buf, r, ic.tc);
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
             struct ip_common ic;
             const int r = mud_recv(mud, buf, bufsize);
 
-            if (r <= 0) {
-                if (r == -1 && errno != EAGAIN)
-                    perror("mud_recv");
-            } else if ((!ip_get_common(&ic, buf, r)) &&
-                       (tun_write(tun_fd, buf, r) == -1)) {
-                if (errno != EAGAIN)
-                    perror("tun_write");
-            }
+            if (!ip_get_common(&ic, buf, r))
+                tun_write(tun_fd, buf, r);
         }
 
         if (!ret)
