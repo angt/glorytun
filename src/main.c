@@ -8,7 +8,7 @@ volatile sig_atomic_t gt_reload;
 volatile sig_atomic_t gt_quit;
 
 static void
-gt_quit_handler(int sig)
+gt_sa_handler(int sig)
 {
     switch (sig) {
     case SIGALRM:
@@ -30,7 +30,7 @@ gt_set_signal(void)
 
     sigemptyset(&sa.sa_mask);
 
-    sa.sa_handler = gt_quit_handler;
+    sa.sa_handler = gt_sa_handler;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
