@@ -12,6 +12,8 @@
 #include "../argz/argz.h"
 #include "../mud/mud.h"
 
+#include <sodium.h>
+
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
@@ -150,6 +152,14 @@ gt_bind(int argc, char **argv)
 
     int chacha = argz_is_set(bindz, "chacha");
     int persist = argz_is_set(bindz, "persist");
+
+    if (sodium_init() == -1) {
+        gt_log("couldn't init sodium\n");
+        return 1;
+    }
+
+    unsigned char hashkey[crypto_shorthash_KEYBYTES];
+    crypto_shorthash_keygen(hashkey);
 
     struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
 
@@ -314,15 +324,21 @@ gt_bind(int argc, char **argv)
             struct ip_common ic;
             const int r = tun_read(tun_fd, buf, bufsize);
 
-            if (!ip_get_common(&ic, buf, r))
-                mud_send(mud, buf, r, ic.tc);
+            if (!ip_get_common(&ic, buf, r)) {
+                unsigned char hash[crypto_shorthash_BYTES];
+                crypto_shorthash(hash, (const unsigned char *)&ic, sizeof(ic), hashkey);
+
+                unsigned h;
+                memcpy(&h, hash, sizeof(h));
+
+                mud_send(mud, buf, r, (h << 8) | ic.tc);
+            }
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
-            struct ip_common ic;
             const int r = mud_recv(mud, buf, bufsize);
 
-            if (!ip_get_common(&ic, buf, r))
+            if (ip_is_valid(buf, r))
                 tun_write(tun_fd, buf, r);
         }
 
