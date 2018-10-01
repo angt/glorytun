@@ -9,6 +9,10 @@ Which can be installed on a wide variety of systems.
 Linux is the platform of choice but the code is standard so it should be easily ported on other posix systems.
 It was successfully tested on OpenBSD, FreeBSD and MacOS.
 
+## Stability
+
+Work still in progress, wait for version 1.0.0 for stability.
+
 ## Features
 
 The key features of Glorytun come directly from mud:
