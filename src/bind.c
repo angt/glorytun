@@ -159,7 +159,7 @@ gt_bind(int argc, char **argv)
     }
 
     unsigned char hashkey[crypto_shorthash_KEYBYTES];
-    crypto_shorthash_keygen(hashkey);
+    randombytes_buf(hashkey, sizeof(hashkey));
 
     struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
 
