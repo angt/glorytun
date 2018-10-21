@@ -94,7 +94,7 @@ ctl_delete(int fd)
     if (fd == -1)
         return;
 
-    struct sockaddr_storage ss;
+    struct sockaddr_storage ss = { 0 };
     socklen_t sslen = sizeof(ss);
 
     if ((getsockname(fd, (struct sockaddr *)&ss, &sslen) == 0) &&

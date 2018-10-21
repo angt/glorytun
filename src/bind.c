@@ -88,18 +88,15 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
 }
 
 static size_t
-gt_setup_mtu(struct mud *mud, const char *tun_name)
+gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 {
-    static size_t oldmtu = 0;
     size_t mtu = mud_get_mtu(mud);
 
-    if (mtu == oldmtu)
+    if (mtu == old)
         return mtu;
 
     if (iface_set_mtu(tun_name, mtu) == -1)
         perror("tun_set_mtu");
-
-    oldmtu = mtu;
 
     return mtu;
 }
@@ -142,14 +139,6 @@ gt_bind(int argc, char **argv)
     gt_set_port((struct sockaddr *)&bind_addr, bind_port);
     gt_set_port((struct sockaddr *)&peer_addr, peer_port);
 
-    const size_t bufsize = 4096U;
-    unsigned char *buf = malloc(bufsize);
-
-    if (!buf) {
-        perror("malloc");
-        return 1;
-    }
-
     int chacha = argz_is_set(bindz, "chacha");
     int persist = argz_is_set(bindz, "persist");
 
@@ -162,8 +151,9 @@ gt_bind(int argc, char **argv)
     randombytes_buf(hashkey, sizeof(hashkey));
 
     struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
+    const int mud_fd = mud_get_fd(mud);
 
-    if (!mud) {
+    if (mud_fd == -1) {
         gt_log("couldn't create mud\n");
         return 1;
     }
@@ -184,7 +174,7 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    size_t mtu = gt_setup_mtu(mud, tun_name);
+    size_t mtu = gt_setup_mtu(mud, 0, tun_name);
 
     if (tun_set_persist(tun_fd, persist) == -1)
         perror("tun_set_persist");
@@ -203,8 +193,6 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    const int mud_fd = mud_get_fd(mud);
-
     fd_set_nonblock(tun_fd);
     fd_set_nonblock(mud_fd);
     fd_set_nonblock(ctl_fd);
@@ -217,6 +205,8 @@ gt_bind(int argc, char **argv)
     FD_ZERO(&rfds);
 
     const int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, ctl_fd));
+
+    unsigned char buf[4096];
 
     while (!gt_quit) {
         FD_SET(tun_fd, &rfds);
@@ -237,7 +227,7 @@ gt_bind(int argc, char **argv)
             continue;
         }
 
-        mtu = gt_setup_mtu(mud, tun_name);
+        mtu = gt_setup_mtu(mud, mtu, tun_name);
 
         if (FD_ISSET(ctl_fd, &rfds)) {
             struct ctl_msg req, res = {.reply = 1};
@@ -282,8 +272,7 @@ gt_bind(int argc, char **argv)
                     break;
                 case CTL_MTU:
                     mud_set_mtu(mud, req.mtu);
-                    mtu = gt_setup_mtu(mud, tun_name);
-                    res.mtu = mtu;
+                    res.mtu = mtu = gt_setup_mtu(mud, mtu, tun_name);
                     break;
                 case CTL_TC:
                     if (mud_set_tc(mud, req.tc))
@@ -322,7 +311,7 @@ gt_bind(int argc, char **argv)
 
         if (FD_ISSET(tun_fd, &rfds)) {
             struct ip_common ic;
-            const int r = tun_read(tun_fd, buf, bufsize);
+            const int r = tun_read(tun_fd, buf, sizeof(buf));
 
             if (!ip_get_common(&ic, buf, r)) {
                 unsigned char hash[crypto_shorthash_BYTES];
@@ -336,7 +325,7 @@ gt_bind(int argc, char **argv)
         }
 
         if (FD_ISSET(mud_fd, &rfds)) {
-            const int r = mud_recv(mud, buf, bufsize);
+            const int r = mud_recv(mud, buf, sizeof(buf));
 
             if (ip_is_valid(buf, r))
                 tun_write(tun_fd, buf, r);
@@ -353,7 +342,6 @@ gt_bind(int argc, char **argv)
 
     mud_delete(mud);
     ctl_delete(ctl_fd);
-    free(buf);
 
     return 0;
 }
