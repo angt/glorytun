@@ -84,10 +84,10 @@ gt_path_status(int fd)
             res.path_status.mtu.ok,
             res.path_status.rtt/(double)1e3,
             res.path_status.rttvar/(double)1e3,
-            res.path_status.r_rate,
-            res.path_status.r_ratemax,
-            res.path_status.recv.rate,
-            res.path_status.recv.ratemax,
+            res.path_status.r_rate * 10,
+            res.path_status.r_ratemax * 10,
+            res.path_status.recv.rate * 10,
+            res.path_status.recv.ratemax * 10,
             res.path_status.send.total,
             res.path_status.recv.total);
     } while (res.ret == EAGAIN);
