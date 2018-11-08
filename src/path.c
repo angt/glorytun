@@ -50,7 +50,13 @@ gt_path_status(int fd)
             default:         return -2;
         }
 
+        const char *statusstr = "DEGRADED";
+
+        if (res.path_status.ok)
+            statusstr = "OK";
+
         printf(term ? "path %s\n"
+                      "  status:   %s\n"
                       "  bind:     %s port %"PRIu16"\n"
                       "  public:   %s port %"PRIu16"\n"
                       "  peer:     %s port %"PRIu16"\n"
@@ -61,7 +67,7 @@ gt_path_status(int fd)
                       "  download: %"PRIu64" bytes/s (max: %"PRIu64")\n"
                       "  output:   %"PRIu64" packets\n"
                       "  input:    %"PRIu64" packets\n"
-                    : "path %s"
+                    : "path %s %s"
                       " %s %"PRIu16
                       " %s %"PRIu16
                       " %s %"PRIu16
@@ -75,6 +81,7 @@ gt_path_status(int fd)
                       " %"PRIu64
                       "\n",
             statestr,
+            statusstr,
             bindstr[0] ? bindstr : "-",
             gt_get_port((struct sockaddr *)&res.path_status.local_addr),
             publstr[0] ? publstr : "-",
