@@ -209,15 +209,23 @@ gt_bind(int argc, char **argv)
     unsigned char buf[4096];
 
     while (!gt_quit) {
-        FD_SET(tun_fd, &rfds);
+        unsigned long send_wait = mud_send_wait(mud);
+
+        if (send_wait) {
+            FD_CLR(tun_fd, &rfds);
+        } else {
+            FD_SET(tun_fd, &rfds);
+        }
+
         FD_SET(mud_fd, &rfds);
         FD_SET(ctl_fd, &rfds);
 
         struct timeval tv = {
-            .tv_sec  = sync / 1000UL,
+            .tv_sec  = 0,
+            .tv_usec = send_wait,
         };
 
-        const int ret = select(last_fd, &rfds, NULL, NULL, sync ? &tv : NULL);
+        const int ret = select(last_fd, &rfds, NULL, NULL, send_wait ? &tv : NULL);
 
         if (ret == -1) {
             if (errno == EBADF) {
@@ -309,21 +317,6 @@ gt_bind(int argc, char **argv)
             }
         }
 
-        if (FD_ISSET(tun_fd, &rfds)) {
-            struct ip_common ic;
-            const int r = tun_read(tun_fd, buf, sizeof(buf));
-
-            if (!ip_get_common(&ic, buf, r)) {
-                unsigned char hash[crypto_shorthash_BYTES];
-                crypto_shorthash(hash, (const unsigned char *)&ic, sizeof(ic), hashkey);
-
-                unsigned h;
-                memcpy(&h, hash, sizeof(h));
-
-                mud_send(mud, buf, r, (h << 8) | ic.tc);
-            }
-        }
-
         if (FD_ISSET(mud_fd, &rfds)) {
             const int r = mud_recv(mud, buf, sizeof(buf));
 
@@ -331,8 +324,26 @@ gt_bind(int argc, char **argv)
                 tun_write(tun_fd, buf, r);
         }
 
+        if (FD_ISSET(tun_fd, &rfds) && !mud_send_wait(mud)) {
+            struct ip_common ic;
+            const int r = tun_read(tun_fd, buf, sizeof(buf));
+
+            if (!ip_get_common(&ic, buf, r)) {
+             // TODO: disable hash for now
+             // unsigned char hash[crypto_shorthash_BYTES];
+             // crypto_shorthash(hash, (const unsigned char *)&ic, sizeof(ic), hashkey);
+
+                unsigned h = 0;
+             // memcpy(&h, hash, sizeof(h));
+
+                mud_send(mud, buf, r, (h << 8) | ic.tc);
+            }
+        }
+
+        /* TODO
         if (!ret)
             mud_sync(mud);
+        */
     }
 
     if (gt_reload && tun_fd >= 0) {
