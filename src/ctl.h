@@ -11,7 +11,6 @@ enum ctl_type {
     CTL_MTU,
     CTL_TC,
     CTL_KXTIMEOUT,
-    CTL_TIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_PATH_STATUS,
     CTL_SYNC,

@@ -46,24 +46,6 @@ gt_set_kxtimeout(int fd, unsigned long ms)
 }
 
 static int
-gt_set_timeout(int fd, unsigned long ms)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_TIMEOUT,
-        .ms = ms,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set timeout");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
 gt_set_timetolerance(int fd, unsigned long ms)
 {
     struct ctl_msg res, req = {
@@ -140,7 +122,6 @@ gt_set(int argc, char **argv)
         {"mtu", "BYTES", &mtu, argz_bytes},
         {"tc", "CS|AF|EF", &tc, gt_argz_tc},
         {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
-        {"timeout", "SECONDS", &timeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
         {NULL}};
 
@@ -176,9 +157,6 @@ gt_set(int argc, char **argv)
 
     if (argz_is_set(pathz, "kxtimeout"))
         ret |= gt_set_kxtimeout(fd, kxtimeout);
-
-    if (argz_is_set(pathz, "timeout"))
-        ret |= gt_set_timeout(fd, timeout);
 
     if (argz_is_set(pathz, "timetolerance"))
         ret |= gt_set_timetolerance(fd, timetolerance);

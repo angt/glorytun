@@ -290,10 +290,6 @@ gt_bind(int argc, char **argv)
                     if (mud_set_keyx_timeout(mud, req.ms))
                         res.ret = errno;
                     break;
-                case CTL_TIMEOUT:
-                    if (mud_set_send_timeout(mud, req.ms))
-                        res.ret = errno;
-                    break;
                 case CTL_TIMETOLERANCE:
                     if (mud_set_time_tolerance(mud, req.ms))
                         res.ret = errno;
