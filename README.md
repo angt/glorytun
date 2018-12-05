@@ -37,7 +37,7 @@ The key features of Glorytun come directly from mud:
    Bad MTU configuration is a very common problem in the world of VPN.
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on ICMP Next-hop MTU to avoid black holes.
-   In asymmetric situations the minimum mtu is selected.
+   In asymmetric situations the minimum MTU is selected.
 
  * **Dynamic and automatic traffic shaping (work in progress)**
 
