@@ -11,7 +11,8 @@ It was successfully tested on OpenBSD, FreeBSD and MacOS.
 
 ## Stability
 
-Work still in progress, wait for version 1.0.0 for stability.
+The master branch is very unstable because it is used for dev and testing.
+In any case, wait for a 1.0 if you want to use it in production.
 
 ## Features
 
@@ -36,6 +37,12 @@ The key features of Glorytun come directly from mud:
    Bad MTU configuration is a very common problem in the world of VPN.
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on ICMP Next-hop MTU to avoid black holes.
+   In asymmetric situations the minimum mtu is selected.
+
+ * **Dynamic and automatic traffic shaping (work in progress)**
+
+   Shaping is very important in network, it allows to keep a low latency without sacrificing the bandwidth.
+   As it is hard to setup, especially in the case of 4G, Glorytun will do it for you.
 
 ## Build and Install
 
