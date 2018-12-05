@@ -114,7 +114,6 @@ gt_set(int argc, char **argv)
     size_t mtu;
     int tc;
     unsigned long kxtimeout;
-    unsigned long timeout;
     unsigned long timetolerance;
 
     struct argz pathz[] = {
