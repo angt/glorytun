@@ -50,10 +50,7 @@ gt_path_status(int fd)
             default:         return -2;
         }
 
-        const char *statusstr = "DEGRADED";
-
-        if (res.path_status.ok)
-            statusstr = "OK";
+        const char *statusstr = res.path_status.ok ? "OK" : "DEGRADED";
 
         printf(term ? "path %s\n"
                       "  status:   %s\n"
