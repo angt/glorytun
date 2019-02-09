@@ -60,18 +60,16 @@ gt_path_status(int fd)
                       "  mtu:      %zu bytes\n"
                       "  rtt:      %.3f ms\n"
                       "  rttvar:   %.3f ms\n"
-                      "  upload:   %"PRIu64" bytes/s (max: %"PRIu64")\n"
-                      "  download: %"PRIu64" bytes/s (max: %"PRIu64")\n"
-                      "  output:   %"PRIu64" packets\n"
-                      "  input:    %"PRIu64" packets\n"
+                      "  rate tx:  %"PRIu64" bytes/sec\n"
+                      "  rate rx:  %"PRIu64" bytes/sec\n"
+                      "  total tx: %"PRIu64" packets\n"
+                      "  total rx: %"PRIu64" packets\n"
                     : "path %s %s"
                       " %s %"PRIu16
                       " %s %"PRIu16
                       " %s %"PRIu16
                       " %zu"
                       " %.3f %.3f"
-                      " %"PRIu64
-                      " %"PRIu64
                       " %"PRIu64
                       " %"PRIu64
                       " %"PRIu64
@@ -88,10 +86,8 @@ gt_path_status(int fd)
             res.path_status.mtu.ok,
             res.path_status.rtt.val / 1e3,
             res.path_status.rtt.var / 1e3,
-            res.path_status.r_rate * 10,
-            res.path_status.r_ratemax * 10,
-            res.path_status.rate.val * 10,
-            res.path_status.recv.ratemax * 10,
+            res.path_status.rate_tx,
+            res.path_status.rate_rx,
             res.path_status.send.total,
             res.path_status.recv.total);
     } while (res.ret == EAGAIN);
@@ -108,10 +104,16 @@ gt_path(int argc, char **argv)
         .type = CTL_STATE,
     }, res = {0};
 
+    struct argz ratez[] = {
+        {"tx", "BYTES/SEC", &req.path.rate_tx, argz_size},
+        {"rx", "BYTES/SEC", &req.path.rate_rx, argz_size},
+        {NULL}};
+
     struct argz pathz[] = {
         {NULL, "IPADDR", &req.path.addr, argz_addr},
         {"dev", "NAME", &dev, argz_str},
         {"up|backup|down", NULL, NULL, argz_option},
+        {"rate", NULL, &ratez, argz_option},
         {NULL}};
 
     if (argz(pathz, argc, argv))
@@ -144,6 +146,8 @@ gt_path(int argc, char **argv)
         if (ret == -2)
             gt_log("bad reply from server\n");
     } else {
+        req.path.state = MUD_EMPTY;
+
         if (argz_is_set(pathz, "up")) {
             req.path.state = MUD_UP;
         } else if (argz_is_set(pathz, "backup")) {
@@ -152,8 +156,7 @@ gt_path(int argc, char **argv)
             req.path.state = MUD_DOWN;
         }
 
-        if (req.path.state)
-            ret = ctl_reply(fd, &res, &req);
+        ret = ctl_reply(fd, &res, &req);
     }
 
     if (ret == -1)

@@ -252,7 +252,8 @@ gt_bind(int argc, char **argv)
                 case CTL_NONE:
                     break;
                 case CTL_STATE:
-                    if (mud_set_state(mud, (struct sockaddr *)&req.path.addr, req.path.state))
+                    if (mud_set_state(mud, (struct sockaddr *)&req.path.addr,
+                                      req.path.state, req.path.rate_tx, req.path.rate_rx))
                         res.ret = errno;
                     break;
                 case CTL_PATH_STATUS:

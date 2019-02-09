@@ -23,6 +23,8 @@ struct ctl_msg {
         struct {
             struct sockaddr_storage addr;
             enum mud_state state;
+            unsigned long rate_tx;
+            unsigned long rate_rx;
         } path;
         struct mud_path path_status;
         struct {
