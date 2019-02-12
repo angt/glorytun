@@ -59,7 +59,9 @@ TABLE=200
 # keep the current route to HOST
 SRC=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
 ip rule add from "$SRC" table main pref "$((PREF-1))" || true
-glorytun path up "$SRC" dev "$DEV"
+
+# limit to 100Mbit by default
+glorytun path up "$SRC" dev "$DEV" rate rx 12500000 tx 12500000
 
 # forward everything else to the tunnel
 ip rule add from all table "$TABLE" pref "$PREF" || true

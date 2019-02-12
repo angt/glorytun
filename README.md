@@ -32,17 +32,18 @@ The key features of Glorytun come directly from mud:
    This is the main feature of Glorytun that allows to build an SD-WAN like service.
    This allows a TCP connection to explore and exploit multiple links without being disconnected.
 
+ * **Traffic shaping**
+
+   Shaping is very important in network, it allows to keep a low latency without sacrificing the bandwidth.
+   It also helps the multipath scheduler to make better decisions.
+   Currently it must be configured by hand, but soon Glorytun will do it for you.
+
  * **Path MTU discovery without ICMP**
 
    Bad MTU configuration is a very common problem in the world of VPN.
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on ICMP Next-hop MTU to avoid black holes.
    In asymmetric situations the minimum MTU is selected.
-
- * **Dynamic and automatic traffic shaping (work in progress)**
-
-   Shaping is very important in network, it allows to keep a low latency without sacrificing the bandwidth.
-   As it is hard to setup, especially in the case of 4G, Glorytun will do it for you.
 
 ## Build and Install
 
@@ -110,9 +111,9 @@ Then simply call:
     # glorytun bind 0.0.0.0 to SERVER_IP keyfile my_secret_key &
     # ifconfig tun0 10.0.1.2 pointopoint 10.0.1.1 up
 
-Here the tricky part... You need to specify your paths or glorytun will not send anything, it's easy:
+Now you have to setup your path, let's say you have an ADSL link that can do 1Mbit upload and 20Mbit download then call:
 
-    # glorytun path LOCAL_IPADDR up
+    # glorytun path up LOCAL_IPADDR rate tx 125000 rx 2500000
 
 Again, to check if your path is working, you can watch its status with `glorytun path`.
 You should now be able to ping your server with `ping 10.0.1.1`.
