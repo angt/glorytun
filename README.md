@@ -98,12 +98,12 @@ To start a server:
     # glorytun bind 0.0.0.0 keyfile my_secret_key &
 
 You should now have an unconfigured network interface (let's say `tun0`).
-For exemple, the simplest setup with `ifconfig`:
+For example, the simplest setup with `ifconfig`:
 
     # ifconfig tun0 10.0.1.1 pointopoint 10.0.1.2 up
 
 To check if the server is running, simply call `glorytun show`.
-It will show you all the running tunnels.
+It will show you all of the running tunnels.
 
 To start a new client, you need to get the secret key generated for the server.
 Then simply call:
