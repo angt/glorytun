@@ -110,7 +110,6 @@ gt_bind(int argc, char **argv)
     unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
-    unsigned long sync = 0;
 
     struct argz toz[] = {
         {NULL, "IPADDR", &peer_addr, argz_addr},
@@ -125,7 +124,6 @@ gt_bind(int argc, char **argv)
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
-        {"sync", "SECONDS", &sync, argz_time},
         {NULL}};
 
     if (argz(bindz, argc, argv))
@@ -336,11 +334,6 @@ gt_bind(int argc, char **argv)
                 mud_send(mud, buf, r, (h << 8) | ic.tc);
             }
         }
-
-        /* TODO
-        if (!ret)
-            mud_sync(mud);
-        */
     }
 
     if (gt_reload && tun_fd >= 0) {
