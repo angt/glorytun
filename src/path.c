@@ -105,8 +105,8 @@ gt_path(int argc, char **argv)
     }, res = {0};
 
     struct argz ratez[] = {
-        {"tx", "BYTES/SEC", &req.path.rate_tx, argz_size},
-        {"rx", "BYTES/SEC", &req.path.rate_rx, argz_size},
+        {"tx", "BYTES/SEC", &req.path.rate_tx, argz_bytes},
+        {"rx", "BYTES/SEC", &req.path.rate_rx, argz_bytes},
         {NULL}};
 
     struct argz pathz[] = {
