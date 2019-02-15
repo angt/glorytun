@@ -9,11 +9,6 @@ Which can be installed on a wide variety of systems.
 Linux is the platform of choice but the code is standard so it should be easily ported on other posix systems.
 It was successfully tested on OpenBSD, FreeBSD and MacOS.
 
-## Stability
-
-The master branch is very unstable because it is used for dev and testing.
-In any case, wait for a 1.0 if you want to use it in production.
-
 ## Features
 
 The key features of Glorytun come directly from mud:
@@ -44,6 +39,12 @@ The key features of Glorytun come directly from mud:
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on ICMP Next-hop MTU to avoid black holes.
    In asymmetric situations the minimum MTU is selected.
+
+## Caveats
+
+Glorytun is strongly secure by default and protects against replay attacks,
+the clock between the client and the server must be synchronized.
+By default, an offset of 10min is accepted.
 
 ## Build and Install
 
@@ -113,7 +114,7 @@ Then simply call:
 
 Now you have to setup your path, let's say you have an ADSL link that can do 1Mbit upload and 20Mbit download then call:
 
-    # glorytun path up LOCAL_IPADDR rate tx 125000 rx 2500000
+    # glorytun path up LOCAL_IPADDR rate tx 1mbit rx 20mbit
 
 Again, to check if your path is working, you can watch its status with `glorytun path`.
 You should now be able to ping your server with `ping 10.0.1.1`.
