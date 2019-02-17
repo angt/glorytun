@@ -6,8 +6,11 @@ Glorytun is a small, simple and secure VPN over [mud](https://github.com/angt/mu
 
 Glorytun only depends on [libsodium](https://github.com/jedisct1/libsodium) version >= 1.0.4.
 Which can be installed on a wide variety of systems.
+
 Linux is the platform of choice but the code is standard so it should be easily ported on other posix systems.
 It was successfully tested on OpenBSD, FreeBSD and MacOS.
+
+IPv4 and IPv6 are supported.
 
 ## Features
 
