@@ -21,7 +21,7 @@ The key features of Glorytun come directly from mud:
    The use of UDP and [libsodium](https://github.com/jedisct1/libsodium) allows you to secure
    your communications without impacting performance.
    Glorytun uses AES only if AES-NI is available otherwise ChaCha20 is used.
-   You can force the use of ChaCha20 for higher security.
+   If you are not cpu bounded, you can force the use of ChaCha20 for higher security.
    All messages are encrypted, authenticated and marked with a timestamp.
    Perfect forward secrecy is also implemented with ECDH over Curve25519.
 
@@ -29,6 +29,7 @@ The key features of Glorytun come directly from mud:
 
    This is the main feature of Glorytun that allows to build an SD-WAN like service.
    This allows a TCP connection to explore and exploit multiple links without being disconnected.
+   Aggregation should work on all conventional links, only very high latency (+500ms) links are not recommended for now.
 
  * **Traffic shaping**
 
