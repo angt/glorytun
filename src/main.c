@@ -64,7 +64,6 @@ main(int argc, char **argv)
         {"bench", "start a crypto bench", gt_bench},
         {"bind", "start a new tunnel", gt_bind},
         {"set", "change tunnel properties", gt_set},
-        {"sync", "re-sync tunnels", gt_sync},
         {"keygen", "generate a new secret key", gt_keygen},
         {"path", "manage paths", gt_path},
         {"version", "show version", gt_version},

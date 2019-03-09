@@ -33,7 +33,6 @@ executable('glorytun', install: true,
     'src/path.c',
     'src/set.c',
     'src/show.c',
-    'src/sync.c',
     'src/tun.c',
   ],
   dependencies: [
