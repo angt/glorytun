@@ -207,7 +207,7 @@ gt_bind(int argc, char **argv)
     unsigned char buf[4096];
 
     while (!gt_quit) {
-        unsigned long send_wait = mud_send_wait(mud);
+        long send_wait = mud_send_wait(mud);
 
         if (send_wait) {
             FD_CLR(tun_fd, &rfds);
@@ -223,7 +223,7 @@ gt_bind(int argc, char **argv)
             .tv_usec = send_wait,
         };
 
-        const int ret = select(last_fd, &rfds, NULL, NULL, send_wait ? &tv : NULL);
+        const int ret = select(last_fd, &rfds, NULL, NULL, send_wait > 0 ? &tv : NULL);
 
         if (ret == -1) {
             if (errno == EBADF) {
