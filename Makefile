@@ -6,7 +6,7 @@ DESTDIR ?=
 CC      ?= gcc
 INSTALL ?= install
 prefix  ?= /usr
-CFLAGS  ?= -O2
+CFLAGS  ?= -std=c11 -O2
 MYFLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
 
 SRC := argz/argz.c mud/mud.c $(wildcard src/*.c)
