@@ -2,14 +2,12 @@
 #include "ctl.h"
 #include "str.h"
 
-#include <stdio.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-
-#define CTL_BIND_MAX 64
 
 int
 ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
@@ -61,20 +59,20 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
 static int
 ctl_bind(int fd, const char *dir, const char *file)
 {
-    char tmp[32];
     struct sockaddr_un sun;
 
     if (str_empty(file)) {
-        for (int i = 0; i < CTL_BIND_MAX; i++) {
-            if (snprintf(tmp, sizeof(tmp), ".%i", i) >= sizeof(tmp))
-                return -1;
+        char name[10] = { [0] = '.' };
+        unsigned pid = (unsigned)getpid();
 
-            if (ctl_setsun(&sun, dir, tmp))
-                return -1;
+        for (size_t i = 1; i < sizeof(name) - 1; i++, pid >>= 4)
+            name[i] = "uncopyrightables"[pid & 15];
 
-            if (!bind(fd, (struct sockaddr *)&sun, sizeof(sun)))
-                return 0;
-        }
+        if (ctl_setsun(&sun, dir, name))
+            return -1;
+
+        if (!bind(fd, (struct sockaddr *)&sun, sizeof(sun)))
+            return 0;
     } else {
         if (ctl_setsun(&sun, dir, file))
             return -1;
