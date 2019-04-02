@@ -129,10 +129,9 @@ static int
 tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
     char tmp[128];
-
     int ret = snprintf(tmp, sizeof(tmp), "/dev/%s", dev_name);
 
-    if (ret <= 0 || ret >= sizeof(tmp)) {
+    if (ret <= 0 || (size_t)ret >= sizeof(tmp)) {
         errno = EINVAL;
         return -1;
     }
@@ -153,10 +152,9 @@ static int
 tun_create_by_id(char *name, size_t len, unsigned id)
 {
     char tmp[64];
-
     int ret = snprintf(tmp, sizeof(tmp), "tun%u", id);
 
-    if (ret <= 0 || ret >= sizeof(tmp)) {
+    if (ret <= 0 || (size_t)ret >= sizeof(tmp)) {
         errno = EINVAL;
         return -1;
     }
@@ -201,17 +199,17 @@ tun_read(int fd, void *data, size_t size)
         },
     };
 
-    ssize_t ret = readv(fd, iov, 2);
+    int ret = (int)readv(fd, iov, 2);
 
-    if (ret <= (ssize_t)0)
+    if (ret <= 0)
         return ret;
 
-    if (ret <= (ssize_t)sizeof(family))
+    if ((size_t)ret <= sizeof(family))
         return 0;
 
-    return ret - sizeof(family);
+    return ret - (int)sizeof(family);
 #else
-    return read(fd, data, size);
+    return (int)read(fd, data, size);
 #endif
 }
 
@@ -247,17 +245,17 @@ tun_write(int fd, const void *data, size_t size)
         },
     };
 
-    ssize_t ret = writev(fd, iov, 2);
+    int ret = (int)writev(fd, iov, 2);
 
-    if (ret <= (ssize_t)0)
+    if (ret <= 0)
         return ret;
 
-    if (ret <= (ssize_t)sizeof(family))
+    if ((size_t)ret <= sizeof(family))
         return 0;
 
-    return ret - sizeof(family);
+    return ret - (int)sizeof(family);
 #else
-    return write(fd, data, size);
+    return (int)write(fd, data, size);
 #endif
 }
 
