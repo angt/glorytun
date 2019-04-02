@@ -64,7 +64,7 @@ gt_fromhex(uint8_t *dst, size_t dst_size, const char *src, size_t src_size)
         if (_0_(a == -1 || b == -1))
             return -1;
 
-        *dst++ = (a << 4) | b;
+        *dst++ = (uint8_t)((a << 4) | b);
     }
 
     return 0;
@@ -105,10 +105,10 @@ gt_toaddr(char *str, size_t size, struct sockaddr *sa)
     switch (sa->sa_family) {
     case AF_INET:
         return -!inet_ntop(AF_INET,
-                           &((struct sockaddr_in *)sa)->sin_addr, str, size);
+                &((struct sockaddr_in *)sa)->sin_addr, str, (socklen_t)size);
     case AF_INET6:
         return -!inet_ntop(AF_INET6,
-                           &((struct sockaddr_in6 *)sa)->sin6_addr, str, size);
+                &((struct sockaddr_in6 *)sa)->sin6_addr, str, (socklen_t)size);
     }
 
     errno = EAFNOSUPPORT;
