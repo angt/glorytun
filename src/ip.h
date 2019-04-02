@@ -21,9 +21,7 @@ struct ip_common {
 static inline int
 ip_read16(const uint8_t *src)
 {
-    uint16_t ret = src[1];
-    ret |= ((uint16_t)src[0]) << 8;
-    return (int)ret;
+    return ((int)src[1]) | (((int)src[0]) << 8);
 }
 
 static inline uint8_t
@@ -75,7 +73,7 @@ ip_get_common(struct ip_common *ic, const uint8_t *data, int size)
         }
         break;
     case 6:
-        ic->tc = ((data[0] & 0xF) << 4) | (data[1] >> 4);
+        ic->tc = (uint8_t)((data[0] << 4) | (data[1] >> 4));
         ic->proto = data[6];
         if (size == ip_read16(&data[4]) + 40) {
             memcpy(ic->src.v6, &data[8], sizeof(ic->src.v6));
