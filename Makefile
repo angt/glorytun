@@ -6,15 +6,17 @@ DESTDIR ?=
 CC      ?= gcc
 INSTALL ?= install
 prefix  ?= /usr
-CFLAGS  ?= -std=c11 -O2
-MYFLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
+CFLAGS  ?= -std=c11 -O2 -Wall
+
+FLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
+FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
 
 SRC := argz/argz.c mud/mud.c $(wildcard src/*.c)
 
 .PHONY: $(NAME)
 $(NAME):
 	@echo "Building $(NAME)"
-	@$(CC) $(MYFLAGS) -o $(NAME) $(SRC) -lsodium -lm
+	@$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium -lm
 
 .PHONY: install
 install: $(NAME)
