@@ -6,10 +6,15 @@
 #include <sys/ioctl.h>
 
 int
-iface_set_mtu(const char *dev_name, int mtu)
+iface_set_mtu(const char *dev_name, size_t mtu)
 {
+    if (mtu > (size_t)0xFFFF) {
+        errno = EINVAL;
+        return -1;
+    }
+
     struct ifreq ifr = {
-        .ifr_mtu = mtu,
+        .ifr_mtu = (int)mtu,
     };
 
     const size_t len = sizeof(ifr.ifr_name) - 1;
