@@ -6,7 +6,7 @@ DESTDIR ?=
 CC      ?= gcc
 INSTALL ?= install
 prefix  ?= /usr
-CFLAGS  ?= -std=c11 -O2 -Wall
+CFLAGS  ?= -std=c11 -O2 -Wall -fstack-protector-strong
 
 FLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
 FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
