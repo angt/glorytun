@@ -52,22 +52,20 @@ By default, an offset of 10min is accepted.
 
 ## Build and Install
 
-We recommend the use of [meson](http://mesonbuild.com) for building instead of
-the more classical autotools suite (also available for old systems).
+You will need `git`, `make`, `gcc` and `libsodium`:
 
-On Ubuntu, the following command should be sufficient to get all the necessary build dependencies:
-
-    $ sudo apt-get install meson libsodium-dev pkg-config
+    $ sudo apt install git make gcc libsodium-dev    # debian based
+    $ sudo yum install git make gcc libsodium-devel  # redhat based
 
 To build and install the latest release from github:
 
     $ git clone https://github.com/angt/glorytun --recursive
-    $ meson glorytun glorytun/build
-    $ sudo ninja -C glorytun/build install
+    $ cd glorytun
+    $ sudo make install
 
-This will install all binaries in `/usr/local/bin` by default.
+This will install the binary in `/usr/bin` by default.
 
-You can easily customize your setup with meson (see `meson help`).
+The more classical autotools suite is also available.
 
 ## Usage
 
