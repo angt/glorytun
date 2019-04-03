@@ -27,11 +27,13 @@ gt_now(void)
 #elif defined CLOCK_MONOTONIC
     struct timespec tv;
     clock_gettime(CLOCK_MONOTONIC, &tv);
-    return tv.tv_sec * 1000000ULL + tv.tv_nsec / 1000ULL;
+    return (unsigned long long)tv.tv_sec * 1000000ULL
+         + (unsigned long long)tv.tv_nsec / 1000ULL;
 #else
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+    return (unsigned long long)tv.tv_sec * 1000000ULL
+         + (unsigned long long)tv.tv_usec;
 #endif
 }
 
@@ -116,7 +118,7 @@ gt_bench(int argc, char **argv)
             size_t bytes = 0;
 
             gt_alarm = 0;
-            alarm(duration);
+            alarm((unsigned int)duration);
 
             while (!gt_quit && !gt_alarm) {
                 if (chacha) {
@@ -133,7 +135,7 @@ gt_bench(int argc, char **argv)
             total_dt += gt_now() - now;
             total_bytes += bytes;
 
-            mbps = (total_bytes * 8.0) / total_dt;
+            mbps = ((double)total_bytes * 8.0) / (double)total_dt;
             mbps_min = fmin(mbps_min, mbps);
             mbps_max = fmax(mbps_max, mbps);
             mbps_dlt = fabs(mbps_old - mbps);
