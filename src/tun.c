@@ -32,9 +32,9 @@
 static int
 tun_create_by_id(char *name, size_t len, unsigned id)
 {
-    int ret = snprintf(name, len + 1, "utun%u", id);
+    int ret = snprintf(name, len, "utun%u", id);
 
-    if (ret <= 0 || ret > len) {
+    if (ret <= 0 || (size_t)ret >= len) {
         errno = EINVAL;
         return -1;
     }
@@ -44,8 +44,9 @@ tun_create_by_id(char *name, size_t len, unsigned id)
     if (fd == -1)
         return -1;
 
-    struct ctl_info ci = {0};
-    str_cpy(ci.ctl_name, sizeof(ci.ctl_name) - 1, UTUN_CONTROL_NAME);
+    struct ctl_info ci = {
+        .ctl_name = UTUN_CONTROL_NAME,
+    };
 
     if (ioctl(fd, CTLIOCGINFO, &ci)) {
         int err = errno;
@@ -96,10 +97,9 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
         .ifr_flags = IFF_TUN | IFF_NO_PI,
     };
 
-    const size_t ifr_len = sizeof(ifr.ifr_name) - 1;
+    int ret = snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", dev_name);
 
-    if ((len < ifr_len) ||
-        (str_len(dev_name, ifr_len + 1) > ifr_len)) {
+    if (ret <= 0 || (size_t)ret >= sizeof(ifr.ifr_name)) {
         errno = EINVAL;
         return -1;
     }
@@ -109,16 +109,12 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
     if (fd == -1)
         return -1;
 
-    str_cpy(ifr.ifr_name, ifr_len, dev_name);
-
     if (ioctl(fd, TUNSETIFF, &ifr)) {
         int err = errno;
         close(fd);
         errno = err;
         return -1;
     }
-
-    str_cpy(name, len, ifr.ifr_name);
 
     return fd;
 }
@@ -128,19 +124,11 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
 static int
 tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
-    char tmp[128];
-    int ret = snprintf(tmp, sizeof(tmp), "/dev/%s", dev_name);
+    int ret = snprintf(name, len, "/dev/%s", dev_name);
 
-    if (ret <= 0 || (size_t)ret >= sizeof(tmp)) {
+    if (ret <= 0 || (size_t)ret >= len) {
         errno = EINVAL;
         return -1;
-    }
-
-    if (str_cpy(name, len, dev_name) == len) {
-        if (str_len(dev_name, len + 1) > len) {
-            errno = EINVAL;
-            return -1;
-        }
     }
 
     return open(tmp, O_RDWR);

@@ -31,32 +31,3 @@ str_len(const char *restrict str, size_t len)
 
     return strnlen(str, len);
 }
-
-static inline size_t
-str_cat(char *dst, size_t dst_len, const char **src, size_t count)
-{
-    if (count && !src)
-        return 0;
-
-    size_t len = 0;
-
-    for (size_t i = 0; i < count && dst_len > len; i++) {
-        size_t n = str_len(src[i], dst_len - len);
-
-        if (dst && n)
-            memmove(&dst[len], src[i], n);
-
-        len += n;
-    }
-
-    if (dst)
-        dst[len] = 0;
-
-    return len;
-}
-
-static inline size_t
-str_cpy(char *dst, size_t dst_len, const char *src)
-{
-    return str_cat(dst, dst_len, &src, 1);
-}

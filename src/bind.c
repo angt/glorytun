@@ -165,7 +165,7 @@ gt_bind(int argc, char **argv)
     }
 
     char tun_name[64];
-    const int tun_fd = tun_create(tun_name, sizeof(tun_name) - 1, dev);
+    const int tun_fd = tun_create(tun_name, sizeof(tun_name), dev);
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");

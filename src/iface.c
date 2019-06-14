@@ -1,7 +1,7 @@
 #include "common.h"
 #include "iface.h"
-#include "str.h"
 
+#include <stdio.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 
@@ -17,13 +17,11 @@ iface_set_mtu(const char *dev_name, size_t mtu)
         .ifr_mtu = (int)mtu,
     };
 
-    const size_t len = sizeof(ifr.ifr_name) - 1;
+    int ret = snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", dev_name);
 
-    if (str_cpy(ifr.ifr_name, len, dev_name) == len) {
-        if (str_len(dev_name, len + 1) > len) {
-            errno = EINTR;
-            return -1;
-        }
+    if (ret <= 0 || (size_t)ret >= sizeof(ifr.ifr_name)) {
+        errno = EINTR;
+        return -1;
     }
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -31,7 +29,7 @@ iface_set_mtu(const char *dev_name, size_t mtu)
     if (fd == -1)
         return -1;
 
-    int ret = ioctl(fd, SIOCSIFMTU, &ifr);
+    ret = ioctl(fd, SIOCSIFMTU, &ifr);
 
     int err = errno;
     close(fd);

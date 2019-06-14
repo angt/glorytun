@@ -2,6 +2,7 @@
 #include "ctl.h"
 #include "str.h"
 
+#include <stdio.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/socket.h>
@@ -41,17 +42,15 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
         .sun_family = AF_UNIX,
     };
 
-    const char *path[] = {dir, "/", file};
-    const size_t len = sizeof(sun.sun_path) - 1;
+    int ret = snprintf(sun.sun_path, sizeof(sun.sun_path), "%s/%s", dir, file);
 
-    if (str_cat(sun.sun_path, len, path, COUNT(path)) == len) {
-        if (str_cat(NULL, len + 1, path, COUNT(path)) > len) {
-            errno = EINVAL;
-            return -1;
-        }
+    if (ret <= 0 || (size_t)ret >= sizeof(sun.sun_path)) {
+        errno = EINVAL;
+        return -1;
     }
 
-    *dst = sun;
+    if (dst)
+        *dst = sun;
 
     return 0;
 }
