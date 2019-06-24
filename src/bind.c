@@ -49,7 +49,7 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
     } while (fd == -1 && errno == EINTR);
 
     if (fd == -1) {
-        perror("open keyfile");
+        gt_log("couldn't open %s: %s\n", keyfile, strerror(errno));
         return -1;
     }
 
@@ -173,8 +173,10 @@ gt_bind(int argc, char **argv)
 
     size_t mtu = gt_setup_mtu(mud, 0, tun_name);
 
-    if (tun_set_persist(tun_fd, persist) == -1)
-        perror("tun_set_persist");
+    if (tun_set_persist(tun_fd, persist) == -1) {
+        gt_log("unable to %sable persist mode on device %s\n",
+                persist ? "en" : "dis", tun_name);
+    }
 
     if (peer_addr.ss_family) {
         if (mud_peer(mud, (struct sockaddr *)&peer_addr)) {
@@ -186,7 +188,8 @@ gt_bind(int argc, char **argv)
     const int ctl_fd = ctl_create(GT_RUNDIR, tun_name);
 
     if (ctl_fd == -1) {
-        perror("ctl_create");
+        gt_log("couldn't create "GT_RUNDIR"/%s: %s\n",
+                tun_name, strerror(errno));
         return 1;
     }
 
@@ -335,10 +338,8 @@ gt_bind(int argc, char **argv)
         }
     }
 
-    if (gt_reload && tun_fd >= 0) {
-        if (tun_set_persist(tun_fd, 1) == -1)
-            perror("tun_set_persist");
-    }
+    if (gt_reload && tun_fd >= 0)
+        tun_set_persist(tun_fd, 1);
 
     mud_delete(mud);
     ctl_delete(ctl_fd);
