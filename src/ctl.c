@@ -69,20 +69,14 @@ ctl_bind(int fd, const char *dir, const char *file)
 
         if (ctl_setsun(&sun, dir, name))
             return -1;
-
-        if (!bind(fd, (struct sockaddr *)&sun, sizeof(sun)))
-            return 0;
     } else {
         if (ctl_setsun(&sun, dir, file))
             return -1;
 
         unlink(sun.sun_path);
-
-        if (!bind(fd, (struct sockaddr *)&sun, sizeof(sun)))
-            return 0;
     }
 
-    return -1;
+    return bind(fd, (struct sockaddr *)&sun, sizeof(sun));
 }
 
 void
