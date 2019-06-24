@@ -20,7 +20,7 @@ iface_set_mtu(const char *dev_name, size_t mtu)
     int ret = snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", dev_name);
 
     if (ret <= 0 || (size_t)ret >= sizeof(ifr.ifr_name)) {
-        errno = EINTR;
+        errno = EINVAL;
         return -1;
     }
 

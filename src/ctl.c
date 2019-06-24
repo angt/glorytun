@@ -23,7 +23,7 @@ ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
         return -1;
 
     if (res->type != req->type || !res->reply) {
-        errno = EINTR;
+        errno = EINVAL;
         return -1;
     }
 
