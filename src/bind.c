@@ -18,13 +18,13 @@
 #define O_CLOEXEC 0
 #endif
 
-static void
+static int
 fd_set_nonblock(int fd)
 {
-    int ret;
-
     if (fd == -1)
-        return;
+        return 0;
+
+    int ret;
 
     do {
         ret = fcntl(fd, F_GETFL, 0);
@@ -36,8 +36,7 @@ fd_set_nonblock(int fd)
         ret = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     } while (ret == -1 && errno == EINTR);
 
-    if (ret == -1)
-        perror("fcntl O_NONBLOCK");
+    return ret;
 }
 
 static int
@@ -191,9 +190,12 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    fd_set_nonblock(tun_fd);
-    fd_set_nonblock(mud_fd);
-    fd_set_nonblock(ctl_fd);
+    if (fd_set_nonblock(tun_fd) ||
+        fd_set_nonblock(mud_fd) ||
+        fd_set_nonblock(ctl_fd)) {
+        gt_log("couldn't setup non-blocking fds\n");
+        return 1;
+    }
 
     const long pid = (long)getpid();
 
