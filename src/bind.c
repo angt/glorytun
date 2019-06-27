@@ -72,7 +72,7 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
     close(fd);
 
     if (size != sizeof(buf)) {
-        gt_log("unable to read secret key\n");
+        gt_log("couldn't read secret key\n");
         return -1;
     }
 
@@ -95,7 +95,7 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
         return mtu;
 
     if (iface_set_mtu(tun_name, mtu) == -1)
-        perror("tun_set_mtu");
+        gt_log("couldn't setup MTU at %zu on device %s\n", mtu, tun_name);
 
     return mtu;
 }
@@ -174,7 +174,7 @@ gt_bind(int argc, char **argv)
     size_t mtu = gt_setup_mtu(mud, 0, tun_name);
 
     if (tun_set_persist(tun_fd, persist) == -1) {
-        gt_log("unable to %sable persist mode on device %s\n",
+        gt_log("couldn't %sable persist mode on device %s\n",
                 persist ? "en" : "dis", tun_name);
     }
 
