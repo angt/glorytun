@@ -65,11 +65,15 @@ gt_bench(int argc, char **argv)
     duration /= 1000;
 
     int term = isatty(1);
+    int aes = argz_is_set(bench_argz, "aes");
     int chacha = argz_is_set(bench_argz, "chacha");
 
-    if (!chacha && !crypto_aead_aes256gcm_is_available()) {
-        gt_log("aes is not available on your platform\n");
-        return 1;
+    if (!crypto_aead_aes256gcm_is_available()) {
+        if (aes) {
+            gt_log("aes is not available on your platform\n");
+            return 1;
+        }
+        chacha = 1;
     }
 
     unsigned char *buf = calloc(1, bufsize + crypto_aead_aes256gcm_ABYTES);
