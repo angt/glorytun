@@ -4,6 +4,8 @@
 #include <sodium.h>
 #include <stdio.h>
 
+#include "../argz/argz.h"
+
 volatile sig_atomic_t gt_alarm;
 volatile sig_atomic_t gt_reload;
 volatile sig_atomic_t gt_quit;
@@ -47,7 +49,14 @@ gt_set_signal(void)
 static int
 gt_version(int argc, char **argv)
 {
-    if (argc == 2 && !str_cmp(argv[1], "libsodium")) {
+    struct argz version_argz[] = {
+        {"libsodium", NULL, NULL, argz_option},
+        {NULL}};
+
+    if (argz(version_argz, argc, argv))
+        return 1;
+
+    if (argz_is_set(version_argz, "libsodium")) {
         printf("%s\n", sodium_version_string());
     } else {
         printf("%s\n", PACKAGE_VERSION);
