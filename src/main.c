@@ -1,6 +1,7 @@
 #include "common.h"
 #include "str.h"
 
+#include <sodium.h>
 #include <stdio.h>
 
 volatile sig_atomic_t gt_alarm;
@@ -46,7 +47,12 @@ gt_set_signal(void)
 static int
 gt_version(int argc, char **argv)
 {
-    printf(PACKAGE_VERSION "\n");
+    if (argc == 2 && !str_cmp(argv[1], "libsodium")) {
+        printf("%s\n", sodium_version_string());
+    } else {
+        printf("%s\n", PACKAGE_VERSION);
+    }
+
     return 0;
 }
 
