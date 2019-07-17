@@ -8,6 +8,71 @@
 
 #include "../argz/argz.h"
 
+static void
+gt_path_print_status(struct mud_path *path, int term)
+{
+    char bindstr[INET6_ADDRSTRLEN];
+    char publstr[INET6_ADDRSTRLEN];
+    char peerstr[INET6_ADDRSTRLEN];
+
+    gt_toaddr(bindstr, sizeof(bindstr),
+            (struct sockaddr *)&path->local_addr);
+    gt_toaddr(publstr, sizeof(publstr),
+            (struct sockaddr *)&path->r_addr);
+    gt_toaddr(peerstr, sizeof(peerstr),
+            (struct sockaddr *)&path->addr);
+
+    const char *statestr = NULL;
+
+    switch (path->state) {
+        case MUD_UP:     statestr = "UP";     break;
+        case MUD_BACKUP: statestr = "BACKUP"; break;
+        case MUD_DOWN:   statestr = "DOWN";   break;
+        default:         return;
+    }
+
+    const char *statusstr = path->ok ? "OK" : "DEGRADED";
+
+    printf(term ? "path %s\n"
+            "  status:   %s\n"
+            "  bind:     %s port %"PRIu16"\n"
+            "  public:   %s port %"PRIu16"\n"
+            "  peer:     %s port %"PRIu16"\n"
+            "  mtu:      %zu bytes\n"
+            "  rtt:      %.3f ms\n"
+            "  rttvar:   %.3f ms\n"
+            "  rate tx:  %"PRIu64" bytes/sec\n"
+            "  rate rx:  %"PRIu64" bytes/sec\n"
+            "  total tx: %"PRIu64" packets\n"
+            "  total rx: %"PRIu64" packets\n"
+            : "path %s %s"
+            " %s %"PRIu16
+            " %s %"PRIu16
+            " %s %"PRIu16
+            " %zu"
+            " %.3f %.3f"
+            " %"PRIu64
+            " %"PRIu64
+            " %"PRIu64
+            " %"PRIu64
+            "\n",
+        statestr,
+        statusstr,
+        bindstr[0] ? bindstr : "-",
+        gt_get_port((struct sockaddr *)&path->local_addr),
+        publstr[0] ? publstr : "-",
+        gt_get_port((struct sockaddr *)&path->r_addr),
+        peerstr[0] ? peerstr : "-",
+        gt_get_port((struct sockaddr *)&path->addr),
+        path->mtu.ok,
+        (double)path->rtt.val / 1e3,
+        (double)path->rtt.var / 1e3,
+        path->rate_tx,
+        path->rate_rx,
+        path->send.total,
+        path->recv.total);
+}
+
 static int
 gt_path_status(int fd)
 {
@@ -18,79 +83,29 @@ gt_path_status(int fd)
     if (send(fd, &req, sizeof(struct ctl_msg), 0) == -1)
         return -1;
 
-    int term = isatty(1);
+    struct mud_path path[MUD_PATH_MAX];
+    int count = 0;
 
-    do {
+    while (1) {
         if (recv(fd, &res, sizeof(struct ctl_msg), 0) == -1)
             return -1;
 
         if (res.type != req.type)
             return -2;
 
-        if (!res.ret)
-            return 0;
+        if (res.ret == EAGAIN) {
+            memcpy(&path[count], &res.path_status, sizeof(struct mud_path));
+            count++;
+        } else if (res.ret) {
+            errno = res.ret;
+            return -1;
+        } else break;
+    }
 
-        char bindstr[INET6_ADDRSTRLEN];
-        char publstr[INET6_ADDRSTRLEN];
-        char peerstr[INET6_ADDRSTRLEN];
+    int term = isatty(1);
 
-        gt_toaddr(bindstr, sizeof(bindstr),
-                  (struct sockaddr *)&res.path_status.local_addr);
-        gt_toaddr(publstr, sizeof(publstr),
-                  (struct sockaddr *)&res.path_status.r_addr);
-        gt_toaddr(peerstr, sizeof(peerstr),
-                  (struct sockaddr *)&res.path_status.addr);
-
-        const char *statestr = NULL;
-
-        switch (res.path_status.state) {
-            case MUD_UP:     statestr = "UP";     break;
-            case MUD_BACKUP: statestr = "BACKUP"; break;
-            case MUD_DOWN:   statestr = "DOWN";   break;
-            default:         return -2;
-        }
-
-        const char *statusstr = res.path_status.ok ? "OK" : "DEGRADED";
-
-        printf(term ? "path %s\n"
-                      "  status:   %s\n"
-                      "  bind:     %s port %"PRIu16"\n"
-                      "  public:   %s port %"PRIu16"\n"
-                      "  peer:     %s port %"PRIu16"\n"
-                      "  mtu:      %zu bytes\n"
-                      "  rtt:      %.3f ms\n"
-                      "  rttvar:   %.3f ms\n"
-                      "  rate tx:  %"PRIu64" bytes/sec\n"
-                      "  rate rx:  %"PRIu64" bytes/sec\n"
-                      "  total tx: %"PRIu64" packets\n"
-                      "  total rx: %"PRIu64" packets\n"
-                    : "path %s %s"
-                      " %s %"PRIu16
-                      " %s %"PRIu16
-                      " %s %"PRIu16
-                      " %zu"
-                      " %.3f %.3f"
-                      " %"PRIu64
-                      " %"PRIu64
-                      " %"PRIu64
-                      " %"PRIu64
-                      "\n",
-            statestr,
-            statusstr,
-            bindstr[0] ? bindstr : "-",
-            gt_get_port((struct sockaddr *)&res.path_status.local_addr),
-            publstr[0] ? publstr : "-",
-            gt_get_port((struct sockaddr *)&res.path_status.r_addr),
-            peerstr[0] ? peerstr : "-",
-            gt_get_port((struct sockaddr *)&res.path_status.addr),
-            res.path_status.mtu.ok,
-            (double)res.path_status.rtt.val / 1e3,
-            (double)res.path_status.rtt.var / 1e3,
-            res.path_status.rate_tx,
-            res.path_status.rate_rx,
-            res.path_status.send.total,
-            res.path_status.recv.total);
-    } while (res.ret == EAGAIN);
+    for (int i = 0; i < count; i++)
+        gt_path_print_status(&path[i], term);
 
     return 0;
 }
