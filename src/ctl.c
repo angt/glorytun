@@ -58,23 +58,23 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
 static int
 ctl_bind(int fd, const char *dir, const char *file)
 {
+    char name[10] = { [0] = '.' };
     struct sockaddr_un sun;
 
     if (str_empty(file)) {
-        char name[10] = { [0] = '.' };
         unsigned pid = (unsigned)getpid();
 
         for (size_t i = 1; i < sizeof(name) - 1; i++, pid >>= 4)
             name[i] = "uncopyrightables"[pid & 15];
 
-        if (ctl_setsun(&sun, dir, name))
-            return -1;
-    } else {
-        if (ctl_setsun(&sun, dir, file))
-            return -1;
-
-        unlink(sun.sun_path);
+        file = name;
     }
+
+    if (ctl_setsun(&sun, dir, file))
+        return -1;
+
+    if (unlink(sun.sun_path) && errno != ENOENT)
+        return -1;
 
     return bind(fd, (struct sockaddr *)&sun, sizeof(sun));
 }
@@ -132,9 +132,7 @@ ctl_connect(const char *dir, const char *file)
     }
 
     if (!file) {
-        dp = opendir(dir);
-
-        if (!dp)
+        if (dp = opendir(dir), !dp)
             return -1;
 
         struct dirent *d = NULL;
