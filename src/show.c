@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 static int
-gt_show_dev_status(int fd, const char *dev)
+gt_show_print_status(int fd)
 {
     struct ctl_msg res, req = {.type = CTL_STATUS};
 
@@ -42,7 +42,7 @@ gt_show_dev_status(int fd, const char *dev)
                       " %zu"
                       " %s"
                       "\n",
-               dev,
+               res.status.tun_name,
                res.status.pid,
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.status.bind),
@@ -62,7 +62,7 @@ gt_show_dev_status(int fd, const char *dev)
                       " %zu"
                       " %s"
                       "\n",
-               dev,
+               res.status.tun_name,
                res.status.pid,
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.status.bind),
@@ -73,30 +73,6 @@ gt_show_dev_status(int fd, const char *dev)
     }
 
     return 0;
-}
-
-static int
-gt_show_dev(const char *dev)
-{
-    int fd = ctl_connect(GT_RUNDIR, dev);
-
-    if (fd < 0) {
-        if (fd == -1)
-            perror("show");
-        return -1;
-    }
-
-    int ret = gt_show_dev_status(fd, dev);
-
-    if (ret == -1)
-        perror(dev);
-
-    if (ret == -2)
-        gt_log("%s: bad reply from server\n", dev);
-
-    ctl_delete(fd);
-
-    return ret;
 }
 
 int
@@ -111,27 +87,34 @@ gt_show(int argc, char **argv)
     if (argz(showz, argc, argv))
         return 1;
 
-    if (dev)
-        return !!gt_show_dev(dev);
+    int fd = ctl_connect(GT_RUNDIR, dev);
 
-    DIR *dp = opendir(GT_RUNDIR);
-
-    if (!dp) {
-        if (errno == ENOENT)
-            return 0;
-        perror("show");
+    if (fd < 0) {
+        switch (fd) {
+        case -1:
+            perror("show");
+            break;
+        case -2:
+            gt_log("no device\n");
+            break;
+        case -3:
+            gt_log("please choose a device\n");
+            break;
+        default:
+            gt_log("couldn't connect\n");
+        }
         return 1;
     }
 
-    int ret = 0;
-    struct dirent *d = NULL;
+    int ret = gt_show_print_status(fd);
 
-    while (d = readdir(dp), d) {
-        if (d->d_name[0] != '.')
-            ret |= !!gt_show_dev(d->d_name);
-    }
+    if (ret == -2)
+        gt_log("bad reply from server\n");
 
-    closedir(dp);
+    if (ret == -1)
+        perror("show");
 
-    return ret;
+    ctl_delete(fd);
+
+    return !!ret;
 }

@@ -27,6 +27,7 @@ struct ctl_msg {
         } path;
         struct mud_path path_status;
         struct {
+            char tun_name[64];
             long pid;
             size_t mtu;
             int chacha;

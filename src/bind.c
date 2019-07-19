@@ -299,6 +299,7 @@ gt_bind(int argc, char **argv)
                         res.ret = errno;
                     break;
                 case CTL_STATUS:
+                    memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = chacha;
