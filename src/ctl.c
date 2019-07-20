@@ -143,7 +143,7 @@ ctl_connect(const char *dir, const char *file)
 
             if (file) {
                 closedir(dp);
-                return -3;
+                return CTL_ERROR_MANY;
             }
 
             file = &d->d_name[0];
@@ -151,7 +151,7 @@ ctl_connect(const char *dir, const char *file)
 
         if (!file) {
             closedir(dp);
-            return -2;
+            return CTL_ERROR_NONE;
         }
     }
 

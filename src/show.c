@@ -94,10 +94,10 @@ gt_show(int argc, char **argv)
         case -1:
             perror("show");
             break;
-        case -2:
+        case CTL_ERROR_NONE:
             gt_log("no device\n");
             break;
-        case -3:
+        case CTL_ERROR_MANY:
             gt_log("please choose a device\n");
             break;
         default:

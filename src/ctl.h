@@ -4,6 +4,9 @@
 
 #include <sys/socket.h>
 
+#define CTL_ERROR_NONE (-2)
+#define CTL_ERROR_MANY (-3)
+
 enum ctl_type {
     CTL_NONE = 0,
     CTL_STATE,
