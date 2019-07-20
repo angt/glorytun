@@ -75,7 +75,7 @@ Just run `glorytun` with no arguments to view the list of available commands:
 $ glorytun
 available commands:
 
-  show     show all running tunnels
+  show     show tunnel info
   bench    start a crypto bench
   bind     start a new tunnel
   set      change tunnel properties

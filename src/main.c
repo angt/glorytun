@@ -75,7 +75,7 @@ main(int argc, char **argv)
         char *help;
         int (*call)(int, char **);
     } cmd[] = {
-        {"show", "show all running tunnels", gt_show},
+        {"show", "show tunnel info", gt_show},
         {"bench", "start a crypto bench", gt_bench},
         {"bind", "start a new tunnel", gt_bind},
         {"set", "change tunnel properties", gt_set},
