@@ -74,7 +74,28 @@ gt_path_print_status(struct mud_path *path, int term)
 }
 
 static int
-gt_path_status(int fd)
+gt_path_cmp_addr(struct sockaddr_storage *a, struct sockaddr_storage *b)
+{
+    if (a->ss_family != b->ss_family)
+        return 1;
+
+    if (a->ss_family == AF_INET) {
+        struct sockaddr_in *A = (struct sockaddr_in *)a;
+        struct sockaddr_in *B = (struct sockaddr_in *)b;
+        return ((memcmp(&A->sin_addr, &B->sin_addr, sizeof(A->sin_addr))));
+    }
+
+    if (a->ss_family == AF_INET6) {
+        struct sockaddr_in6 *A = (struct sockaddr_in6 *)a;
+        struct sockaddr_in6 *B = (struct sockaddr_in6 *)b;
+        return ((memcmp(&A->sin6_addr, &B->sin6_addr, sizeof(A->sin6_addr))));
+    }
+
+    return 1;
+}
+
+static int
+gt_path_status(int fd, int state, struct sockaddr_storage *addr)
 {
     struct ctl_msg req = {
         .type = CTL_PATH_STATUS,
@@ -90,8 +111,10 @@ gt_path_status(int fd)
         if (recv(fd, &res, sizeof(struct ctl_msg), 0) == -1)
             return -1;
 
-        if (res.type != req.type)
-            return -2;
+        if (res.type != req.type) {
+            errno = EBADMSG;
+            return -1;
+        }
 
         if (res.ret == EAGAIN) {
             memcpy(&path[count], &res.path_status, sizeof(struct mud_path));
@@ -104,8 +127,11 @@ gt_path_status(int fd)
 
     int term = isatty(1);
 
-    for (int i = 0; i < count; i++)
-        gt_path_print_status(&path[i], term);
+    for (int i = 0; i < count; i++) {
+        if ((state == MUD_EMPTY || path[i].state == state) &&
+            (!addr->ss_family || !gt_path_cmp_addr(addr, &path[i].local_addr)))
+            gt_path_print_status(&path[i], term);
+    }
 
     return 0;
 }
@@ -117,6 +143,9 @@ gt_path(int argc, char **argv)
 
     struct ctl_msg req = {
         .type = CTL_STATE,
+        .path = {
+            .state = MUD_EMPTY,
+        },
     }, res = {0};
 
     struct argz ratez[] = {
@@ -153,24 +182,27 @@ gt_path(int argc, char **argv)
         return 1;
     }
 
-    int ret = 0;
+    int set_rate = argz_is_set(pathz, "rate");
 
-    if (!req.path.addr.ss_family) {
-        ret = gt_path_status(fd);
+    if (set_rate && !req.path.addr.ss_family) {
+        gt_log("please specify a path\n");
+        return 1;
+    }
 
-        if (ret == -2)
-            gt_log("bad reply from server\n");
+    if (argz_is_set(pathz, "up")) {
+        req.path.state = MUD_UP;
+    } else if (argz_is_set(pathz, "backup")) {
+        req.path.state = MUD_BACKUP;
+    } else if (argz_is_set(pathz, "down")) {
+        req.path.state = MUD_DOWN;
+    }
+
+    int ret;
+
+    if (!req.path.addr.ss_family ||
+        (req.path.state == MUD_EMPTY && !set_rate)) {
+        ret = gt_path_status(fd, req.path.state, &req.path.addr);
     } else {
-        req.path.state = MUD_EMPTY;
-
-        if (argz_is_set(pathz, "up")) {
-            req.path.state = MUD_UP;
-        } else if (argz_is_set(pathz, "backup")) {
-            req.path.state = MUD_BACKUP;
-        } else if (argz_is_set(pathz, "down")) {
-            req.path.state = MUD_DOWN;
-        }
-
         ret = ctl_reply(fd, &res, &req);
     }
 
