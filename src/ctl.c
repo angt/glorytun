@@ -13,17 +13,12 @@
 int
 ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
 {
-    if (fd == -1) {
-        errno = EINVAL;
-        return -1;
-    }
-
     if ((send(fd, req, sizeof(struct ctl_msg), 0) == -1) ||
         (recv(fd, res, sizeof(struct ctl_msg), 0) == -1))
         return -1;
 
     if (res->type != req->type || !res->reply) {
-        errno = EINVAL;
+        errno = EBADMSG;
         return -1;
     }
 
@@ -82,9 +77,6 @@ ctl_bind(int fd, const char *dir, const char *file)
 void
 ctl_delete(int fd)
 {
-    if (fd == -1)
-        return;
-
     struct sockaddr_storage ss = { 0 };
     socklen_t sslen = sizeof(ss);
 
@@ -107,9 +99,6 @@ ctl_create(const char *dir, const char *file)
         return -1;
 
     int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-    if (fd == -1)
-        return -1;
 
     if (ctl_bind(fd, dir, file)) {
         int err = errno;
@@ -168,9 +157,6 @@ ctl_connect(const char *dir, const char *file)
         return -1;
 
     int fd = ctl_create(dir, NULL);
-
-    if (fd == -1)
-        return -1;
 
     if (connect(fd, (struct sockaddr *)&sun, sizeof(sun))) {
         int err = errno;
