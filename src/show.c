@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 static int
-gt_show_print_status(int fd)
+gt_show_status(int fd)
 {
     struct ctl_msg res, req = {.type = CTL_STATUS};
 
@@ -106,10 +106,7 @@ gt_show(int argc, char **argv)
         return 1;
     }
 
-    int ret = gt_show_print_status(fd);
-
-    if (ret == -2)
-        gt_log("bad reply from server\n");
+    int ret = gt_show_status(fd);
 
     if (ret == -1)
         perror("show");
