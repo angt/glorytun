@@ -32,10 +32,10 @@ gt_show_status(int fd)
 
     if (server) {
         printf(term ? "server %s:\n"
-                      "  pid:       %li\n"
-                      "  bind:      %s port %"PRIu16"\n"
-                      "  mtu:       %zu\n"
-                      "  cipher:    %s\n"
+                      "  pid:    %li\n"
+                      "  bind:   %s port %"PRIu16"\n"
+                      "  mtu:    %zu\n"
+                      "  cipher: %s\n"
                     : "server %s"
                       " %li"
                       " %s %"PRIu16
@@ -50,11 +50,11 @@ gt_show_status(int fd)
                res.status.chacha ? "chacha20poly1305" : "aes256gcm");
     } else {
         printf(term ? "client %s:\n"
-                      "  pid:       %li\n"
-                      "  bind:      %s port %"PRIu16"\n"
-                      "  peer:      %s port %"PRIu16"\n"
-                      "  mtu:       %zu\n"
-                      "  cipher:    %s\n"
+                      "  pid:    %li\n"
+                      "  bind:   %s port %"PRIu16"\n"
+                      "  peer:   %s port %"PRIu16"\n"
+                      "  mtu:    %zu\n"
+                      "  cipher: %s\n"
                     : "client %s"
                       " %li"
                       " %s %"PRIu16
