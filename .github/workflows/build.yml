@@ -17,4 +17,9 @@ jobs:
     - name: Build glorytun
       run: |
           ./sodium.sh
-          make
+          make prefix=. install
+
+    - uses: actions/upload-artifact@v1
+      with:
+        name: bin
+        path: ./bin
