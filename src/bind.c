@@ -249,17 +249,10 @@ gt_bind(int argc, char **argv)
         }
 
         if (FD_ISSET(mud_fd, &rfds))  {
-            int n = 1000;
+            const int r = mud_recv(mud, buf, sizeof(buf));
 
-            while (n--) {
-                const int r = mud_recv(mud, buf, sizeof(buf));
-
-                if (r <= 0)
-                    break;
-
-                if (ip_is_valid(buf, r))
-                    tun_write(tun_fd, buf, (size_t)r);
-            }
+            if (r > 0 && ip_is_valid(buf, r))
+                tun_write(tun_fd, buf, (size_t)r);
         }
 
         if (FD_ISSET(ctl_fd, &rfds)) {
