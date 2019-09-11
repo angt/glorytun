@@ -11,8 +11,8 @@ CFLAGS  ?= -std=c11 -O2 -Wall -fstack-protector-strong
 FLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
 FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
 
-FLAGS += -Ilibsodium-stable/src/libsodium/include
-FLAGS += -Llibsodium-stable/src/libsodium/.libs
+FLAGS += -I.static/$(CROSS)/libsodium-stable/src/libsodium/include
+FLAGS += -L.static/$(CROSS)/libsodium-stable/src/libsodium/.libs
 
 SRC := argz/argz.c mud/mud.c $(wildcard src/*.c)
 

@@ -10,6 +10,7 @@ configure
 build-aux
 .deps
 .dirstamp
+.static
 glorytun
 build*
 VERSION
