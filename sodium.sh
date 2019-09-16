@@ -23,5 +23,7 @@ rm -rf libsodium-stable
 tar zxf "$dir/$file"
 cd libsodium-stable || exit 1
 
+NPROC=$(sysctl -n hw.ncpu || nproc) 2>/dev/null
+
 ./configure ${1+--host=$1} --enable-minimal --disable-dependency-tracking --enable-static --disable-shared
-make -j
+make "-j$((NPROC+1))"
