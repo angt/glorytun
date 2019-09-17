@@ -12,10 +12,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-      with:
-          submodules: true
     - name: Build glorytun
       run: |
+          git submodule update --init --recursive
           ./sodium.sh
           make prefix=. install
 
