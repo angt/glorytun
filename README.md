@@ -20,8 +20,8 @@ The key features of Glorytun come directly from mud:
 
    The use of UDP and [libsodium](https://github.com/jedisct1/libsodium) allows you to secure
    your communications without impacting performance.
-   Glorytun uses AES only if AES-NI is available otherwise ChaCha20 is used.
-   If you are not cpu bounded, you can force the use of ChaCha20 for higher security.
+   Glorytun uses AEGIS-256 only if AES-NI is available otherwise ChaCha20Poly1305 is used.
+   If you are not cpu bounded, you can force the use of ChaCha20Poly1305 for higher security.
    All messages are encrypted, authenticated and marked with a timestamp.
    Perfect forward secrecy is also implemented with ECDH over Curve25519.
 

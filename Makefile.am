@@ -9,6 +9,8 @@ glorytun_SOURCES = \
     argz/argz.h \
     mud/mud.c \
     mud/mud.h \
+    mud/aegis256/aegis256.c \
+    mud/aegis256/aegis256.h \
     src/bench.c \
     src/bind.c \
     src/common.c \

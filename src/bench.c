@@ -13,8 +13,13 @@
 #endif
 
 #include "../argz/argz.h"
+#include "../mud/aegis256/aegis256.h"
 
 #define STR_S(X) (((X) > 1) ? "s" : "")
+
+#define NPUBBYTES 32
+#define KEYBYTES  32
+#define ABYTES    16
 
 static unsigned long long
 gt_now(void)
@@ -68,7 +73,7 @@ gt_bench(int argc, char **argv)
     int aes = argz_is_set(bench_argz, "aes");
     int chacha = argz_is_set(bench_argz, "chacha");
 
-    if (!crypto_aead_aes256gcm_is_available()) {
+    if (!aegis256_is_available()) {
         if (aes) {
             gt_log("aes is not available on your platform\n");
             return 1;
@@ -76,22 +81,22 @@ gt_bench(int argc, char **argv)
         chacha = 1;
     }
 
-    unsigned char *buf = calloc(1, bufsize + crypto_aead_aes256gcm_ABYTES);
+    unsigned char *buf = calloc(1, bufsize + ABYTES);
 
     if (!buf) {
         perror("calloc");
         return 1;
     }
 
-    unsigned char npub[crypto_aead_aes256gcm_NPUBBYTES];
-    unsigned char key[crypto_aead_aes256gcm_KEYBYTES];
+    unsigned char npub[NPUBBYTES];
+    unsigned char key[KEYBYTES];
 
     randombytes_buf(npub, sizeof(npub));
     randombytes_buf(key, sizeof(key));
 
     if (term) {
         printf("\n");
-        printf("  %-10s %s\n", "bench", chacha ? "chacha20poly1305" : "aes256gcm");
+        printf("  %-10s %s\n", "bench", chacha ? "chacha20poly1305" : "aegis256");
         printf("  %-10s %s\n", "libsodium", sodium_version_string());
         printf("\n");
         printf("  %-10s 2^(-%lu)\n", "precision", precision);
@@ -112,11 +117,6 @@ gt_bench(int argc, char **argv)
         double mbps_dlt = INFINITY;
 
         while (!gt_quit && mbps_dlt > ldexp(mbps, -(int)precision)) {
-            crypto_aead_aes256gcm_state ctx;
-
-            if (!chacha)
-                crypto_aead_aes256gcm_beforenm(&ctx, key);
-
             unsigned long long now = gt_now();
             double mbps_old = mbps;
             size_t bytes = 0;
@@ -129,9 +129,8 @@ gt_bench(int argc, char **argv)
                     crypto_aead_chacha20poly1305_encrypt(
                         buf, NULL, buf, 1ULL << i, NULL, 0, NULL, npub, key);
                 } else {
-                    crypto_aead_aes256gcm_encrypt_afternm(
-                        buf, NULL, buf, 1ULL << i, NULL, 0, NULL, npub,
-                        (const crypto_aead_aes256gcm_state *)&ctx);
+                    aegis256_encrypt(
+                        buf, NULL, buf, 1ULL << i, NULL, 0, npub, key);
                 }
                 bytes += 1ULL << i;
             }

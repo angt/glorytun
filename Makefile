@@ -14,7 +14,7 @@ FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
 FLAGS += -I.static/$(CROSS)/libsodium-stable/src/libsodium/include
 FLAGS += -L.static/$(CROSS)/libsodium-stable/src/libsodium/.libs
 
-SRC := argz/argz.c mud/mud.c $(wildcard src/*.c)
+SRC := argz/argz.c mud/mud.c mud/aegis256/aegis256.c $(wildcard src/*.c)
 
 .PHONY: $(NAME)
 $(NAME):

@@ -23,6 +23,7 @@ executable('glorytun', install: true,
   sources: [
     'argz/argz.c',
     'mud/mud.c',
+    'mud/aegis256/aegis256.c',
     'src/bench.c',
     'src/bind.c',
     'src/common.c',
