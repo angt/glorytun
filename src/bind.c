@@ -193,8 +193,8 @@ gt_bind(int argc, char **argv)
         return 1;
     }
 
-    if (fd_set_nonblock(tun_fd) ||
-        fd_set_nonblock(mud_fd) ||
+    if (//fd_set_nonblock(tun_fd) ||
+        //fd_set_nonblock(mud_fd) ||
         fd_set_nonblock(ctl_fd)) {
         gt_log("couldn't setup non-blocking fds\n");
         return 1;
@@ -204,31 +204,60 @@ gt_bind(int argc, char **argv)
 
     gt_log("running on device %s as pid %li\n", tun_name, pid);
 
-    fd_set rfds;
+    fd_set rfds, wfds;
     FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
 
-    const int last_fd = 1 + MAX(tun_fd, MAX(mud_fd, ctl_fd));
+    int tun_can_read = 0;
+    int tun_can_write = 0;
+    int mud_can_read = 0;
+    int mud_can_write = 0;
+
+    int last_fd = MAX(tun_fd, mud_fd);
+    last_fd = 1 + MAX(last_fd, ctl_fd);
 
     unsigned char buf[4096];
 
     while (!gt_quit) {
-        long send_wait = mud_send_wait(mud);
+        if (tun_can_write) {
+            FD_CLR(tun_fd, &wfds);
+        } else {
+            FD_SET(tun_fd, &wfds);
+        }
 
-        if (send_wait) {
+        if (mud_can_write) {
+            FD_CLR(mud_fd, &wfds);
+        } else {
+            FD_SET(mud_fd, &wfds);
+        }
+
+        if (tun_can_read) {
             FD_CLR(tun_fd, &rfds);
         } else {
             FD_SET(tun_fd, &rfds);
         }
 
-        FD_SET(mud_fd, &rfds);
+        if (mud_can_read) {
+            FD_CLR(mud_fd, &rfds);
+        } else {
+            FD_SET(mud_fd, &rfds);
+        }
+
         FD_SET(ctl_fd, &rfds);
 
         struct timeval tv = {
-            .tv_sec  = 0,
-            .tv_usec = send_wait,
+            .tv_usec = 100000,
         };
 
-        const int ret = select(last_fd, &rfds, NULL, NULL, send_wait > 0 ? &tv : NULL);
+        if (mud_can_read && tun_can_write) {
+            tv.tv_usec = 0;
+        } else if (tun_can_read && mud_can_write) {
+            long send_wait = mud_send_wait(mud);
+            if (send_wait >= 0)
+                tv.tv_usec = send_wait * 1000;
+        }
+
+        const int ret = select(last_fd, &rfds, &wfds, NULL, &tv);
 
         if (ret == -1) {
             if (errno == EBADF) {
@@ -238,21 +267,41 @@ gt_bind(int argc, char **argv)
             continue;
         }
 
+        if (FD_ISSET(tun_fd, &rfds))
+            tun_can_read = 1;
+
+        if (FD_ISSET(tun_fd, &wfds))
+            tun_can_write = 1;
+
+        if (FD_ISSET(mud_fd, &rfds))
+            mud_can_read = 1;
+
+        if (FD_ISSET(mud_fd, &wfds))
+            mud_can_write = 1;
+
         mtu = gt_setup_mtu(mud, mtu, tun_name);
 
-        if (FD_ISSET(tun_fd, &rfds)) {
+        if (tun_can_read && mud_can_write && !mud_send_wait(mud)) {
             struct ip_common ic;
-            const int r = tun_read(tun_fd, buf, sizeof(buf));
+            int r = tun_read(tun_fd, buf, sizeof(buf));
 
-            if (r > 0 && !ip_get_common(&ic, buf, r))
+            if (r > 0 && !ip_get_common(&ic, buf, r)) {
                 mud_send(mud, buf, (size_t)r, ic.tc);
+                mud_can_write = 0;
+            }
+
+            tun_can_read = 0;
         }
 
-        if (FD_ISSET(mud_fd, &rfds))  {
-            const int r = mud_recv(mud, buf, sizeof(buf));
+        if (mud_can_read && tun_can_write)  {
+            int r = mud_recv(mud, buf, sizeof(buf));
 
-            if (r > 0 && ip_is_valid(buf, r))
+            if (r > 0 && ip_is_valid(buf, r)) {
                 tun_write(tun_fd, buf, (size_t)r);
+                tun_can_write = 0;
+            }
+
+            mud_can_read = 0;
         }
 
         if (FD_ISSET(ctl_fd, &rfds)) {
