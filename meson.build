@@ -38,7 +38,6 @@ executable('glorytun', install: true,
   ],
   dependencies: [
     dependency('libsodium', version : '>=1.0.4'),
-    cc.find_library('m', required : false)
   ]
 )
 

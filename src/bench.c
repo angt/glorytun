@@ -1,73 +1,33 @@
 #include "common.h"
 
-#include <math.h>
 #include <sodium.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-
-#if defined __APPLE__
-#include <mach/mach_time.h>
-#endif
+#include <inttypes.h>
 
 #include "../argz/argz.h"
 #include "../mud/aegis256/aegis256.h"
-
-#define STR_S(X) (((X) > 1) ? "s" : "")
 
 #define NPUBBYTES 32
 #define KEYBYTES  32
 #define ABYTES    16
 
-static unsigned long long
-gt_now(void)
-{
-#if defined __APPLE__
-    static mach_timebase_info_data_t mtid;
-    if (!mtid.denom)
-        mach_timebase_info(&mtid);
-    return (mach_absolute_time() * mtid.numer / mtid.denom) / 1000ULL;
-#elif defined CLOCK_MONOTONIC
-    struct timespec tv;
-    clock_gettime(CLOCK_MONOTONIC, &tv);
-    return (unsigned long long)tv.tv_sec * 1000000ULL
-         + (unsigned long long)tv.tv_nsec / 1000ULL;
-#else
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (unsigned long long)tv.tv_sec * 1000000ULL
-         + (unsigned long long)tv.tv_usec;
-#endif
-}
-
 int
 gt_bench(int argc, char **argv)
 {
-    unsigned long precision = 10;
-    size_t bufsize = 64 * 1024;
-    unsigned long duration = 1000;
-
     struct argz bench_argz[] = {
         {"aes|chacha", NULL, NULL, argz_option},
-        {"precision", "EXPONENT", &precision, argz_ulong},
-        {"bufsize", "BYTES", &bufsize, argz_bytes},
-        {"duration", "SECONDS", &duration, argz_time},
         {NULL}};
 
     if (argz(bench_argz, argc, argv))
         return 1;
 
-    if (duration == 0 || bufsize == 0)
-        return 0;
-
     if (sodium_init() == -1) {
         gt_log("sodium init failed\n");
         return 1;
     }
-
-    duration /= 1000;
 
     int term = isatty(1);
     int aes = argz_is_set(bench_argz, "aes");
@@ -81,71 +41,69 @@ gt_bench(int argc, char **argv)
         chacha = 1;
     }
 
-    unsigned char *buf = calloc(1, bufsize + ABYTES);
-
-    if (!buf) {
-        perror("calloc");
-        return 1;
-    }
-
+    unsigned char buf[1450 + ABYTES];
     unsigned char npub[NPUBBYTES];
     unsigned char key[KEYBYTES];
 
+    memset(buf, 0, sizeof(buf));
     randombytes_buf(npub, sizeof(npub));
     randombytes_buf(key, sizeof(key));
 
     if (term) {
-        printf("\n");
-        printf("  %-10s %s\n", "bench", chacha ? "chacha20poly1305" : "aegis256");
-        printf("  %-10s %s\n", "libsodium", sodium_version_string());
-        printf("\n");
-        printf("  %-10s 2^(-%lu)\n", "precision", precision);
-        printf("  %-10s %zu byte%s\n", "bufsize", bufsize, STR_S(bufsize));
-        printf("  %-10s %lu second%s\n", "duration", duration, STR_S(duration));
-        printf("\n");
-        printf("------------------------------------------------------------\n");
-        printf(" %3s %9s %14s %14s %14s\n", "2^n", "min", "avg", "max", "delta");
-        printf("------------------------------------------------------------\n");
+        printf("cipher: %s\n\n", chacha ? "chacha20poly1305" : "aegis256");
+        printf(" %5s %9s      %9s\n", "size", "mean", "sigma");
+        printf("---------------------------------\n");
     }
 
-    for (int i = 0; !gt_quit && bufsize >> i; i++) {
-        unsigned long long total_dt = 0ULL;
-        size_t total_bytes = 0;
-        double mbps = 0.0;
-        double mbps_min = INFINITY;
-        double mbps_max = 0.0;
-        double mbps_dlt = INFINITY;
+    int64_t size = 20;
 
-        while (!gt_quit && mbps_dlt > ldexp(mbps, -(int)precision)) {
-            unsigned long long now = gt_now();
-            double mbps_old = mbps;
-            size_t bytes = 0;
+    for (int i = 0; !gt_quit && size <= 1450; i++) {
+        struct {
+            int64_t d, n, m, v, sigma;
+        } s = { .n = 0 };
 
+        while (!gt_quit && s.n < 5) {
+            alarm(1);
             gt_alarm = 0;
-            alarm((unsigned int)duration);
 
-            while (!gt_quit && !gt_alarm) {
+            int64_t bytes = 0;
+            clock_t base = clock();
+
+            while (!gt_alarm && !(bytes >> 32)) {
                 if (chacha) {
                     crypto_aead_chacha20poly1305_encrypt(
-                        buf, NULL, buf, 1ULL << i, NULL, 0, NULL, npub, key);
+                            buf, NULL, buf, size, NULL, 0, NULL, npub, key);
                 } else {
-                    aegis256_encrypt(
-                        buf, NULL, buf, 1ULL << i, NULL, 0, npub, key);
+                    aegis256_encrypt(buf, NULL, buf, size, NULL, 0, npub, key);
                 }
-                bytes += 1ULL << i;
+                bytes += size;
             }
 
-            total_dt += gt_now() - now;
-            total_bytes += bytes;
+            int64_t mbps = (8 * bytes * CLOCKS_PER_SEC)
+                         / ((clock() - base) * 1000 * 1000);
 
-            mbps = ((double)total_bytes * 8.0) / (double)total_dt;
-            mbps_min = fmin(mbps_min, mbps);
-            mbps_max = fmax(mbps_max, mbps);
-            mbps_dlt = fabs(mbps_old - mbps);
+            alarm(0);
+
+            if (mbps <= 0)
+                continue;
+
+            if (!s.n++) {
+                s.m = mbps;
+                s.d = 0;
+                continue;
+            } else {
+                int64_t d1 = mbps - s.m; s.m += d1 / s.n;
+                int64_t d2 = mbps - s.m; s.d += d1 * d2;
+            }
+
+            s.v = s.d / (s.n - 1);
+            s.sigma = s.v / 2;
+
+            while (s.sigma && s.sigma * s.sigma > s.v)
+                s.sigma--;
 
             if (term) {
-                printf("\r %3i %9.2f Mbps %9.2f Mbps %9.2f Mbps %9.2e",
-                       i, mbps_min, mbps, mbps_max, mbps_dlt);
+                printf("\r %5"PRIi64" %9"PRIi64" Mbps %9"PRIi64, size, s.m, s.sigma);
                 fflush(stdout);
             }
         }
@@ -153,12 +111,11 @@ gt_bench(int argc, char **argv)
         if (term) {
             printf("\n");
         } else {
-            printf("%i %.2f %.2f %.2f\n", i, mbps_min, mbps, mbps_max);
+            printf("bench %"PRIi64" %"PRIi64" %"PRIi64"\n", size, s.m, s.sigma);
         }
-    }
 
-    printf("\n");
-    free(buf);
+        size += 2*11*13;
+    }
 
     return 0;
 }

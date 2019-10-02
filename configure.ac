@@ -14,7 +14,6 @@ AM_PROG_CC_C_O
 AC_PROG_CC_C99
 AC_USE_SYSTEM_EXTENSIONS
 AC_SEARCH_LIBS([socket], [socket])
-AC_SEARCH_LIBS([fmin], [m])
 AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_FUNCS([clock_gettime])
 PKG_CHECK_MODULES([libsodium], [libsodium >= 1.0.4])

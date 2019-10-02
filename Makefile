@@ -19,7 +19,7 @@ SRC := argz/argz.c mud/mud.c mud/aegis256/aegis256.c $(wildcard src/*.c)
 .PHONY: $(NAME)
 $(NAME):
 	@echo "Building $(NAME)"
-	@$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium -lm
+	@$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium
 
 .PHONY: install
 install: $(NAME)
