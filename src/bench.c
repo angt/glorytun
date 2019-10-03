@@ -91,13 +91,13 @@ gt_bench(int argc, char **argv)
                 s.m = mbps;
                 s.d = 0;
                 continue;
-            } else {
-                int64_t d1 = mbps - s.m; s.m += d1 / s.n;
-                int64_t d2 = mbps - s.m; s.d += d1 * d2;
             }
 
+            int64_t d1 = mbps - s.m; s.m += d1 / s.n;
+            int64_t d2 = mbps - s.m; s.d += d1 * d2;
+
             s.v = s.d / (s.n - 1);
-            s.sigma = s.v / 2;
+            s.sigma = 1 + (s.v - 1) / 2;
 
             while (s.sigma && s.sigma * s.sigma > s.v)
                 s.sigma--;
@@ -114,7 +114,7 @@ gt_bench(int argc, char **argv)
             printf("bench %"PRIi64" %"PRIi64" %"PRIi64"\n", size, s.m, s.sigma);
         }
 
-        size += 2*11*13;
+        size += 2 * 11 * 13;
     }
 
     return 0;
