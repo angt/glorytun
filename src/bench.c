@@ -59,7 +59,7 @@ gt_bench(int argc, char **argv)
 
     for (int i = 0; !gt_quit && size <= 1450; i++) {
         struct {
-            int64_t d, n, m, v, sigma;
+            int64_t d, n, m, v, s;
         } s = { .n = 0 };
 
         while (!gt_quit && s.n < 5) {
@@ -97,13 +97,13 @@ gt_bench(int argc, char **argv)
             int64_t d2 = mbps - s.m; s.d += d1 * d2;
 
             s.v = s.d / (s.n - 1);
-            s.sigma = 1 + (s.v - 1) / 2;
+            s.s = 1 + (s.v - 1) / 2;
 
-            while (s.sigma && s.sigma * s.sigma > s.v)
-                s.sigma--;
+            while (s.s && s.s * s.s > s.v)
+                s.s = (s.s + s.v / s.s) / 2;
 
             if (term) {
-                printf("\r %5"PRIi64" %9"PRIi64" Mbps %9"PRIi64, size, s.m, s.sigma);
+                printf("\r %5"PRIi64" %9"PRIi64" Mbps %9"PRIi64, size, s.m, s.s);
                 fflush(stdout);
             }
         }
@@ -111,7 +111,7 @@ gt_bench(int argc, char **argv)
         if (term) {
             printf("\n");
         } else {
-            printf("bench %"PRIi64" %"PRIi64" %"PRIi64"\n", size, s.m, s.sigma);
+            printf("bench %"PRIi64" %"PRIi64" %"PRIi64"\n", size, s.m, s.s);
         }
 
         size += 2 * 11 * 13;
