@@ -51,25 +51,24 @@ gt_bench(int argc, char **argv)
 
     if (term) {
         printf("cipher: %s\n\n", chacha ? "chacha20poly1305" : "aegis256");
-        printf(" %5s %9s      %9s\n", "size", "mean", "sigma");
-        printf("---------------------------------\n");
+        printf("  size       min           mean            max      \n");
+        printf("----------------------------------------------------\n");
     }
 
     int64_t size = 20;
 
     for (int i = 0; !gt_quit && size <= 1450; i++) {
         struct {
-            int64_t d, n, m, v, s;
-        } s = { .n = 0 };
+            int64_t min, mean, max, n;
+        } mbps = { .n = 0 };
 
-        while (!gt_quit && s.n < 5) {
-            alarm(1);
-            gt_alarm = 0;
+        int64_t bytes_max = (int64_t)1 << 20;
 
+        while (!gt_quit && mbps.n < 10) {
             int64_t bytes = 0;
-            clock_t base = clock();
+            int64_t base = (int64_t)clock();
 
-            while (!gt_alarm && !(bytes >> 32)) {
+            while (!gt_quit && bytes <= bytes_max) {
                 if (chacha) {
                     crypto_aead_chacha20poly1305_encrypt(
                             buf, NULL, buf, size, NULL, 0, NULL, npub, key);
@@ -79,31 +78,28 @@ gt_bench(int argc, char **argv)
                 bytes += size;
             }
 
-            int64_t mbps = (8 * bytes * CLOCKS_PER_SEC)
-                         / ((clock() - base) * 1000 * 1000);
+            int64_t dt = (int64_t)clock() - base;
+            bytes_max = (bytes * (CLOCKS_PER_SEC / 4)) / dt;
+            int64_t _mbps = (8 * bytes * CLOCKS_PER_SEC) / (dt * 1000 * 1000);
 
-            alarm(0);
-
-            if (mbps <= 0)
-                continue;
-
-            if (!s.n++) {
-                s.m = mbps;
-                s.d = 0;
+            if (!mbps.n++) {
+                mbps.min = _mbps;
+                mbps.max = _mbps;
+                mbps.mean = _mbps;
                 continue;
             }
 
-            int64_t d1 = mbps - s.m; s.m += d1 / s.n;
-            int64_t d2 = mbps - s.m; s.d += d1 * d2;
+            if (mbps.min > _mbps)
+                mbps.min = _mbps;
 
-            s.v = s.d / (s.n - 1);
-            s.s = 1 + (s.v - 1) / 2;
+            if (mbps.max < _mbps)
+                mbps.max = _mbps;
 
-            while (s.s && s.s * s.s > s.v)
-                s.s = (s.s + s.v / s.s) / 2;
+            mbps.mean += (_mbps - mbps.mean) / mbps.n;
 
             if (term) {
-                printf("\r %5"PRIi64" %9"PRIi64" Mbps %9"PRIi64, size, s.m, s.s);
+                printf("\r %5"PRIi64" %9"PRIi64" Mbps %9"PRIi64" Mbps %9"PRIi64" Mbps",
+                        size, mbps.min, mbps.mean, mbps.max);
                 fflush(stdout);
             }
         }
@@ -111,10 +107,12 @@ gt_bench(int argc, char **argv)
         if (term) {
             printf("\n");
         } else {
-            printf("bench %"PRIi64" %"PRIi64" %"PRIi64"\n", size, s.m, s.s);
+            printf("bench %s %"PRIi64" %"PRIi64" %"PRIi64" %"PRIi64"\n",
+                    chacha ? "chacha20poly1305" : "aegis256",
+                    size, mbps.min, mbps.mean, mbps.max);
         }
 
-        size += 2 * 11 * 13;
+        size += 2 * 5 * 13;
     }
 
     return 0;
