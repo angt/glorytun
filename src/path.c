@@ -41,6 +41,7 @@ gt_path_print_status(struct mud_path *path, int term)
             "  mtu:      %zu bytes\n"
             "  rtt:      %.3f ms\n"
             "  rttvar:   %.3f ms\n"
+            "  loss:     %"PRIu64" %%\n"
             "  rate tx:  %"PRIu64" bytes/sec\n"
             "  rate rx:  %"PRIu64" bytes/sec\n"
             "  total tx: %"PRIu64" packets\n"
@@ -51,6 +52,7 @@ gt_path_print_status(struct mud_path *path, int term)
             " %s %"PRIu16
             " %zu"
             " %.3f %.3f"
+            " %"PRIu64
             " %"PRIu64
             " %"PRIu64
             " %"PRIu64
@@ -67,6 +69,7 @@ gt_path_print_status(struct mud_path *path, int term)
         path->mtu.ok,
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
+        path->loss,
         path->rate_tx,
         path->rate_rx,
         path->send.total,
