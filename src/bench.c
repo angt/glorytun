@@ -62,7 +62,7 @@ gt_bench(int argc, char **argv)
             int64_t min, mean, max, n;
         } mbps = { .n = 0 };
 
-        int64_t bytes_max = (int64_t)1 << 20;
+        int64_t bytes_max = (int64_t)1 << 24;
 
         while (!gt_quit && mbps.n < 10) {
             int64_t bytes = 0;
@@ -79,7 +79,7 @@ gt_bench(int argc, char **argv)
             }
 
             int64_t dt = (int64_t)clock() - base;
-            bytes_max = (bytes * (CLOCKS_PER_SEC / 4)) / dt;
+            bytes_max = (bytes * (CLOCKS_PER_SEC / 3)) / dt;
             int64_t _mbps = (8 * bytes * CLOCKS_PER_SEC) / (dt * 1000 * 1000);
 
             if (!mbps.n++) {
