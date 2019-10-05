@@ -54,6 +54,8 @@
 #undef MIN
 #define MIN(x,y) ({ __typeof__(x) X=(x); __typeof__(y) Y=(y); X < Y ? X : Y; })
 
+#define GT_CIPHER(x)  ((x) ? "chacha20poly1305" : "aegis256")
+
 extern volatile sig_atomic_t gt_alarm;
 extern volatile sig_atomic_t gt_reload;
 extern volatile sig_atomic_t gt_quit;

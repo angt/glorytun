@@ -50,7 +50,7 @@ gt_bench(int argc, char **argv)
     randombytes_buf(key, sizeof(key));
 
     if (term) {
-        printf("cipher: %s\n\n", chacha ? "chacha20poly1305" : "aegis256");
+        printf("cipher: %s\n\n", GT_CIPHER(chacha));
         printf("  size       min           mean            max      \n");
         printf("----------------------------------------------------\n");
     }
@@ -108,8 +108,7 @@ gt_bench(int argc, char **argv)
             printf("\n");
         } else {
             printf("bench %s %"PRIi64" %"PRIi64" %"PRIi64" %"PRIi64"\n",
-                    chacha ? "chacha20poly1305" : "aegis256",
-                    size, mbps.min, mbps.mean, mbps.max);
+                    GT_CIPHER(chacha), size, mbps.min, mbps.mean, mbps.max);
         }
 
         size += 2 * 5 * 13;

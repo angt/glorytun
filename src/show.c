@@ -47,7 +47,7 @@ gt_show_status(int fd)
                bindstr[0] ? bindstr : "-",
                gt_get_port((struct sockaddr *)&res.status.bind),
                res.status.mtu,
-               res.status.chacha ? "chacha20poly1305" : "aes256gcm");
+               GT_CIPHER(res.status.chacha));
     } else {
         printf(term ? "client %s:\n"
                       "  pid:    %li\n"
@@ -69,7 +69,7 @@ gt_show_status(int fd)
                peerstr[0] ? peerstr : "-",
                gt_get_port((struct sockaddr *)&res.status.peer),
                res.status.mtu,
-               res.status.chacha ? "chacha20poly1305" : "aes256gcm");
+               GT_CIPHER(res.status.chacha));
     }
 
     return 0;
