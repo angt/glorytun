@@ -34,29 +34,26 @@ gt_path_print_status(struct mud_path *path, int term)
     const char *statusstr = path->ok ? "OK" : "DEGRADED";
 
     printf(term ? "path %s\n"
-            "  status:   %s\n"
-            "  bind:     %s port %"PRIu16"\n"
-            "  public:   %s port %"PRIu16"\n"
-            "  peer:     %s port %"PRIu16"\n"
-            "  mtu:      %zu bytes\n"
-            "  rtt:      %.3f ms\n"
-            "  rttvar:   %.3f ms\n"
-            "  loss:     %"PRIu64" %%\n"
-            "  rate tx:  %"PRIu64" bytes/sec\n"
-            "  rate rx:  %"PRIu64" bytes/sec\n"
-            "  total tx: %"PRIu64" packets\n"
-            "  total rx: %"PRIu64" packets\n"
+            "  status:  %s\n"
+            "  bind:    %s port %"PRIu16"\n"
+            "  public:  %s port %"PRIu16"\n"
+            "  peer:    %s port %"PRIu16"\n"
+            "  mtu:     %zu bytes\n"
+            "  rtt:     %.3f ms\n"
+            "  rttvar:  %.3f ms\n"
+            "  tx:\n"
+            "    rate:  %"PRIu64" bytes/sec\n"
+            "    loss:  %"PRIu64" percent\n"
+            "    total: %"PRIu64" packets\n"
+            "  rx:\n"
+            "    rate:  %"PRIu64" bytes/sec\n"
+            "    loss:  %"PRIu64" percent\n"
+            "    total: %"PRIu64" packets\n"
             : "path %s %s"
-            " %s %"PRIu16
-            " %s %"PRIu16
-            " %s %"PRIu16
-            " %zu"
-            " %.3f %.3f"
-            " %"PRIu64
-            " %"PRIu64
-            " %"PRIu64
-            " %"PRIu64
-            " %"PRIu64
+            " %s %"PRIu16" %s %"PRIu16" %s %"PRIu16
+            " %zu %.3f %.3f"
+            " %"PRIu64" %"PRIu64" %"PRIu64
+            " %"PRIu64" %"PRIu64" %"PRIu64
             "\n",
         statestr,
         statusstr,
@@ -69,10 +66,11 @@ gt_path_print_status(struct mud_path *path, int term)
         path->mtu.ok,
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
-        path->loss,
         path->rate_tx,
-        path->rate_rx,
+        path->loss_tx,
         path->send.total,
+        path->rate_rx,
+        path->loss_rx,
         path->recv.total);
 }
 
