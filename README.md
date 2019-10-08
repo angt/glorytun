@@ -11,6 +11,7 @@ Linux is the platform of choice but the code is standard so it should be easily 
 It was successfully tested on OpenBSD, FreeBSD and MacOS.
 
 IPv4 and IPv6 are supported.
+On Linux you can have both at the same time by binding `::`.
 
 ## Features
 
@@ -18,17 +19,16 @@ The key features of Glorytun come directly from mud:
 
  * **Fast and highly secure**
 
-   The use of UDP and [libsodium](https://github.com/jedisct1/libsodium) allows you to secure
-   your communications without impacting performance.
-   Glorytun uses AEGIS-256 only if AES-NI is available otherwise ChaCha20Poly1305 is used.
-   If you are not cpu bounded, you can force the use of ChaCha20Poly1305 for higher security.
-   All messages are encrypted, authenticated and marked with a timestamp.
-   Perfect forward secrecy is also implemented with ECDH over Curve25519.
+   The use of UDP and libsodium allows you to secure your communications without impacting performance.
+   Glorytun uses AEGIS-256 (a new and very fast AEAD construction) only if AES-NI is available otherwise ChaCha20-Poly1305 is used.
+   Of course, you can force the use of ChaCha20-Poly1305 for higher security.
+   All messages are encrypted, authenticated and timestamped to mitigate a large set of attacks.
+   Perfect forward secrecy is also implemented with ECDH over Curve25519. Keys are rotated every hours.
 
  * **Multipath and active failover**
 
-   This is the main feature of Glorytun that allows to build an SD-WAN like service.
-   This allows a TCP connection to explore and exploit multiple links without being disconnected.
+   Connectivity is now crucial, especially in the SD-WAN world.
+   This feature allows a TCP connection (and all other protocols) to explore and exploit all available links without being disconnected.
    Aggregation should work on all conventional links, only very high latency (+500ms) links are not recommended for now.
 
  * **Traffic shaping**
@@ -41,7 +41,7 @@ The key features of Glorytun come directly from mud:
 
    Bad MTU configuration is a very common problem in the world of VPN.
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
-   It doesn't rely on ICMP Next-hop MTU to avoid black holes.
+   It doesn't rely on Next-hop MTU to avoid ICMP black holes.
    In asymmetric situations the minimum MTU is selected.
 
 ## Caveats
@@ -71,19 +71,16 @@ The more classical autotools suite is also available.
 
 Just run `glorytun` with no arguments to view the list of available commands:
 
-```
-$ glorytun
-available commands:
+    $ glorytun
+    available commands:
 
-  show     show tunnel info
-  bench    start a crypto bench
-  bind     start a new tunnel
-  set      change tunnel properties
-  keygen   generate a new secret key
-  path     manage paths
-  version  show version
-
-```
+      show     show tunnel info
+      bench    start a crypto bench
+      bind     start a new tunnel
+      set      change tunnel properties
+      keygen   generate a new secret key
+      path     manage paths
+      version  show version
 
 Use the keyword `help` after a command to show its usage.
 
