@@ -11,6 +11,47 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+static void
+gt_show_bad_line(int term, char *name, uint64_t count,
+                 struct sockaddr_storage *ss)
+{
+    if (!count)
+        return;
+
+    char addr[INET6_ADDRSTRLEN];
+    gt_toaddr(addr, sizeof(addr), (struct sockaddr *)ss);
+
+    printf(term ? "%s:\n"
+                  "  count: %"PRIu64"\n"
+                  "  last:  %s port %"PRIu16"\n"
+                : "%s"
+                  " %"PRIu64
+                  " %s %"PRIu16
+                  "\n",
+           name, count, addr[0] ? addr : "-",
+           gt_get_port((struct sockaddr *)ss));
+}
+
+static int
+gt_show_bad(int fd)
+{
+    struct ctl_msg res, req = {.type = CTL_BAD};
+
+    if (ctl_reply(fd, &res, &req))
+        return -1;
+
+    int term = isatty(1);
+
+    gt_show_bad_line(term, "decrypt",
+            res.bad.decrypt.count, &res.bad.decrypt.addr);
+    gt_show_bad_line(term, "difftime",
+            res.bad.difftime.count, &res.bad.difftime.addr);
+    gt_show_bad_line(term, "keyx",
+            res.bad.keyx.count, &res.bad.keyx.addr);
+
+    return 0;
+}
+
 static int
 gt_show_status(int fd)
 {
@@ -82,6 +123,7 @@ gt_show(int argc, char **argv)
 
     struct argz showz[] = {
         {"dev", "NAME", &dev, argz_str},
+        {"bad", NULL, NULL, argz_option},
         {NULL}};
 
     if (argz(showz, argc, argv))
@@ -106,7 +148,9 @@ gt_show(int argc, char **argv)
         return 1;
     }
 
-    int ret = gt_show_status(fd);
+    int ret = argz_is_set(showz, "bad")
+            ? gt_show_bad(fd)
+            : gt_show_status(fd);
 
     if (ret == -1)
         perror("show");

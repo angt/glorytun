@@ -16,6 +16,7 @@ enum ctl_type {
     CTL_KXTIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_PATH_STATUS,
+    CTL_BAD,
 };
 
 struct ctl_msg {
@@ -37,6 +38,7 @@ struct ctl_msg {
             struct sockaddr_storage bind;
             struct sockaddr_storage peer;
         } status;
+        struct mud_bad bad;
         size_t mtu;
         int tc;
         unsigned long ms;
