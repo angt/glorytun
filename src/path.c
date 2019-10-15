@@ -66,12 +66,12 @@ gt_path_print_status(struct mud_path *path, int term)
         path->mtu.ok,
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
-        path->rate_tx,
-        path->loss_tx,
-        path->send.total,
-        path->rate_rx,
-        path->loss_rx,
-        path->recv.total);
+        path->tx.rate,
+        path->tx.loss,
+        path->tx.total,
+        path->rx.rate,
+        path->rx.loss,
+        path->rx.total);
 }
 
 static int
