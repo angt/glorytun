@@ -362,6 +362,10 @@ gt_bind(int argc, char **argv)
                     if (mud_set_time_tolerance(mud, req.ms))
                         res.ret = errno;
                     break;
+                case CTL_LOSSLIMIT:
+                    if (mud_set_loss_limit(mud, req.percent))
+                        res.ret = errno;
+                    break;
                 case CTL_STATUS:
                     memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
                     res.status.pid = pid;

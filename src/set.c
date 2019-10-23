@@ -64,6 +64,24 @@ gt_set_timetolerance(int fd, unsigned long ms)
 }
 
 static int
+gt_set_losslimit(int fd, unsigned percent)
+{
+    struct ctl_msg res, req = {
+        .type = CTL_LOSSLIMIT,
+        .percent = percent,
+    };
+
+    int ret = ctl_reply(fd, &res, &req);
+
+    if (ret) {
+        perror("set losslimit");
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
 gt_set_tc(int fd, int tc)
 {
     struct ctl_msg res, req = {
@@ -115,6 +133,7 @@ gt_set(int argc, char **argv)
     int tc;
     unsigned long kxtimeout;
     unsigned long timetolerance;
+    unsigned losslimit;
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
@@ -122,6 +141,7 @@ gt_set(int argc, char **argv)
         {"tc", "CS|AF|EF", &tc, gt_argz_tc},
         {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
+        {"losslimit", "PERCENT", &losslimit, argz_percent},
         {NULL}};
 
     if (argz(pathz, argc, argv))
@@ -159,6 +179,9 @@ gt_set(int argc, char **argv)
 
     if (argz_is_set(pathz, "timetolerance"))
         ret |= gt_set_timetolerance(fd, timetolerance);
+
+    if (argz_is_set(pathz, "losslimit"))
+        ret |= gt_set_losslimit(fd, losslimit);
 
     ctl_delete(fd);
 

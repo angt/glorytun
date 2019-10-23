@@ -15,6 +15,7 @@ enum ctl_type {
     CTL_TC,
     CTL_KXTIMEOUT,
     CTL_TIMETOLERANCE,
+    CTL_LOSSLIMIT,
     CTL_PATH_STATUS,
     CTL_BAD,
 };
@@ -42,6 +43,7 @@ struct ctl_msg {
         size_t mtu;
         int tc;
         unsigned long ms;
+        unsigned percent;
     };
 };
 
