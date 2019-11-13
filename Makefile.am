@@ -31,11 +31,13 @@ glorytun_SOURCES = \
 
 EXTRA_DIST = \
     LICENSE \
+    Makefile \
     README.md \
     VERSION \
     autogen.sh \
     meson.build \
     mud/LICENSE \
     mud/README.md \
+    sodium.sh \
     systemd \
     version.sh
