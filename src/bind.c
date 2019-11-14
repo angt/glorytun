@@ -185,11 +185,16 @@ gt_bind(int argc, char **argv)
         }
     }
 
-    const int ctl_fd = ctl_create(GT_RUNDIR, tun_name);
+    const int ctl_fd = ctl_create(tun_name);
 
     if (ctl_fd == -1) {
-        gt_log("couldn't create "GT_RUNDIR"/%s: %s\n",
-                tun_name, strerror(errno));
+        char dir[64];
+        if (ctl_rundir(dir, sizeof(dir))) {
+            gt_log("couldn't create %s/%s: %s\n",
+                    dir, tun_name, strerror(errno));
+        } else {
+            gt_log("couldn't find a writable run/tmp directory\n");
+        }
         return 1;
     }
 

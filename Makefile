@@ -6,11 +6,10 @@ DESTDIR ?=
 CC      ?= gcc
 INSTALL ?= install
 prefix  ?= /usr
-rundir  ?= /run
 CFLAGS  ?= -std=c11 -O2 -Wall -fstack-protector-strong
 
 FLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
-FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\" -DGT_RUNDIR=\"$(DESTDIR)$(rundir)/$(NAME)\"
+FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
 
 FLAGS += -I.static/$(CROSS)/libsodium-stable/src/libsodium/include
 FLAGS += -L.static/$(CROSS)/libsodium-stable/src/libsodium/.libs

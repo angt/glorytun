@@ -129,7 +129,7 @@ gt_show(int argc, char **argv)
     if (argz(showz, argc, argv))
         return 1;
 
-    int fd = ctl_connect(GT_RUNDIR, dev);
+    int fd = ctl_connect(dev);
 
     if (fd < 0) {
         switch (fd) {

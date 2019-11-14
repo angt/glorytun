@@ -164,7 +164,7 @@ gt_path(int argc, char **argv)
     if (argz(pathz, argc, argv))
         return 1;
 
-    int fd = ctl_connect(GT_RUNDIR, dev);
+    int fd = ctl_connect(dev);
 
     if (fd < 0) {
         switch (fd) {

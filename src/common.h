@@ -21,10 +21,6 @@
 #define PACKAGE_VERSION "0.0.0"
 #endif
 
-#ifndef GT_RUNDIR
-#define GT_RUNDIR "/run/" PACKAGE_NAME
-#endif
-
 #define COUNT(x)       (sizeof(x)/sizeof(x[0]))
 
 #define ALIGN_SIZE     (1<<4)

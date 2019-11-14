@@ -5,10 +5,43 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <libgen.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+
+char *
+ctl_rundir(char *dst, size_t size)
+{
+    if (dst && size)
+        dst[0] = 0;
+
+    const char *fmt[] = {
+        "/run/user/%u/" PACKAGE_NAME,
+        "/run/"         PACKAGE_NAME ".%u",
+        "/var/run/"     PACKAGE_NAME ".%u",
+        "/tmp/"         PACKAGE_NAME ".%u",
+    };
+
+    for (int i = 0; i < COUNT(fmt); i++) {
+        char path[128];
+        int ret = snprintf(dst, size, fmt[i], geteuid());
+
+        if ((ret <= 0) ||
+            ((size_t)ret >= size) ||
+            ((size_t)ret >= sizeof(path)))
+            continue;
+
+        memcpy(path, dst, ret + 1);
+
+        if (!access(dirname(path), W_OK))
+            return dst;
+    }
+
+    errno = EINTR;
+    return NULL;
+}
 
 int
 ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
@@ -88,12 +121,12 @@ ctl_delete(int fd)
 }
 
 int
-ctl_create(const char *dir, const char *file)
+ctl_create(const char *file)
 {
-    if (str_empty(dir)) {
-        errno = EINVAL;
+    char dir[64];
+
+    if (!ctl_rundir(dir, sizeof(dir)))
         return -1;
-    }
 
     if (mkdir(dir, 0700) == -1 && errno != EEXIST)
         return -1;
@@ -111,14 +144,13 @@ ctl_create(const char *dir, const char *file)
 }
 
 int
-ctl_connect(const char *dir, const char *file)
+ctl_connect(const char *file)
 {
+    char dir[64];
     DIR *dp = NULL;
 
-    if (str_empty(dir)) {
-        errno = EINVAL;
+    if (!ctl_rundir(dir, sizeof(dir)))
         return -1;
-    }
 
     if (!file) {
         if (dp = opendir(dir), !dp)
@@ -156,9 +188,10 @@ ctl_connect(const char *dir, const char *file)
     if (ret)
         return -1;
 
-    int fd = ctl_create(dir, NULL);
+    int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 
-    if (connect(fd, (struct sockaddr *)&sun, sizeof(sun))) {
+    if (ctl_bind(fd, dir, NULL) ||
+        connect(fd, (struct sockaddr *)&sun, sizeof(sun))) {
         int err = errno;
         ctl_delete(fd);
         errno = err;
