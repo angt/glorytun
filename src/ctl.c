@@ -34,8 +34,9 @@ ctl_rundir(char *dst, size_t size)
             continue;
 
         memcpy(path, dst, ret + 1);
+        char *p = dirname(path);
 
-        if (!access(dirname(path), W_OK))
+        if (p && !access(p, W_OK))
             return dst;
     }
 
