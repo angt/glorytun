@@ -21,17 +21,18 @@ The key features of Glorytun come directly from mud:
 
  * **Fast and highly secure**
 
-   The use of UDP and libsodium allows you to secure your communications without impacting performance.
-   Glorytun uses AEGIS-256 (a new and very fast AEAD construction) only if AES-NI is available otherwise ChaCha20-Poly1305 is used.
+   Glorytun uses a new and very fast AEAD construction called AEGIS-256 if AES-NI is available otherwise ChaCha20-Poly1305 is used.
    Of course, you can force the use of ChaCha20-Poly1305 for higher security.
    All messages are encrypted, authenticated and timestamped to mitigate a large set of attacks.
+   This implies that the client and the server must be synchronized, an offset of 10min is accepted by default.
    Perfect forward secrecy is also implemented with ECDH over Curve25519. Keys are rotated every hours.
 
  * **Multipath and active failover**
 
    Connectivity is now crucial, especially in the SD-WAN world.
    This feature allows a TCP connection (and all other protocols) to explore and exploit all available links without being disconnected.
-   Aggregation should work on all conventional links, only very high latency (+500ms) links are not recommended for now.
+   Aggregation should work on all conventional links.
+   Only very high latency (+500ms) links are not recommended for now.
 
  * **Traffic shaping**
 
@@ -45,13 +46,6 @@ The key features of Glorytun come directly from mud:
    As it is critical, Glorytun will try to setup it correctly by guessing its value.
    It doesn't rely on Next-hop MTU to avoid ICMP black holes.
    In asymmetric situations the minimum MTU is selected.
-
-## Caveats
-
-Glorytun is strongly secure by default and protects against replay attacks,
-the clock between the client and the server must be synchronized.
-By default, an offset of 10min is accepted.
-
 
 ---
 
