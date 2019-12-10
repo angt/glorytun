@@ -20,5 +20,5 @@ jobs:
 
     - uses: actions/upload-artifact@v1
       with:
-        name: bin
+        name: ${{ matrix.os }}
         path: ./bin
