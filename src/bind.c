@@ -91,7 +91,7 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 {
     size_t mtu = mud_get_mtu(mud);
 
-    if (mtu == old)
+    if (!mtu || mtu == old)
         return mtu;
 
     if (iface_set_mtu(tun_name, mtu) == -1)
@@ -350,10 +350,6 @@ gt_bind(int argc, char **argv)
                         free(paths);
                         res.ret = 0;
                     }
-                    break;
-                case CTL_MTU:
-                    mud_set_mtu(mud, req.mtu);
-                    res.mtu = mtu = gt_setup_mtu(mud, mtu, tun_name);
                     break;
                 case CTL_TC:
                     if (mud_set_tc(mud, req.tc))

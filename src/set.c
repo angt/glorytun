@@ -8,26 +8,6 @@
 #include "../argz/argz.h"
 
 static int
-gt_set_mtu(int fd, size_t mtu)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_MTU,
-        .mtu = mtu,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set mtu");
-        return 1;
-    }
-
-    printf("mtu set to %zu\n", res.mtu);
-
-    return 0;
-}
-
-static int
 gt_set_kxtimeout(int fd, unsigned long ms)
 {
     struct ctl_msg res, req = {
@@ -129,7 +109,6 @@ int
 gt_set(int argc, char **argv)
 {
     const char *dev = NULL;
-    size_t mtu;
     int tc;
     unsigned long kxtimeout;
     unsigned long timetolerance;
@@ -137,7 +116,6 @@ gt_set(int argc, char **argv)
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
-        {"mtu", "BYTES", &mtu, argz_bytes},
         {"tc", "CS|AF|EF", &tc, gt_argz_tc},
         {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
@@ -167,9 +145,6 @@ gt_set(int argc, char **argv)
     }
 
     int ret = 0;
-
-    if (argz_is_set(pathz, "mtu"))
-        ret |= gt_set_mtu(fd, mtu);
 
     if (argz_is_set(pathz, "tc"))
         ret |= gt_set_tc(fd, tc);
