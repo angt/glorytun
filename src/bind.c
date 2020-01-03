@@ -107,6 +107,7 @@ gt_bind(int argc, char **argv)
     struct sockaddr_storage peer_addr = { 0 };
     unsigned short bind_port = 5000;
     unsigned short peer_port = bind_port;
+    unsigned long long keepalive = 20000;
     const char *dev = NULL;
     const char *keyfile = NULL;
 
@@ -123,6 +124,7 @@ gt_bind(int argc, char **argv)
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
+        {"keepalive", "SECONDS", &keepalive, argz_time},
         {NULL}};
 
     if (argz(bindz, argc, argv))
@@ -225,45 +227,30 @@ gt_bind(int argc, char **argv)
         unsigned char buf[1500];
 
     while (!gt_quit) {
-        if (tun_can_write) {
-            FD_CLR(tun_fd, &wfds);
-        } else {
-            FD_SET(tun_fd, &wfds);
-        }
-
-        if (mud_can_write) {
-            FD_CLR(mud_fd, &wfds);
-        } else {
-            FD_SET(mud_fd, &wfds);
-        }
-
-        if (tun_can_read) {
-            FD_CLR(tun_fd, &rfds);
-        } else {
-            FD_SET(tun_fd, &rfds);
-        }
-
-        if (mud_can_read) {
-            FD_CLR(mud_fd, &rfds);
-        } else {
-            FD_SET(mud_fd, &rfds);
-        }
+        if (tun_can_write) FD_CLR(tun_fd, &wfds); else FD_SET(tun_fd, &wfds);
+        if (mud_can_write) FD_CLR(mud_fd, &wfds); else FD_SET(mud_fd, &wfds);
+        if (tun_can_read)  FD_CLR(tun_fd, &rfds); else FD_SET(tun_fd, &rfds);
+        if (mud_can_read)  FD_CLR(mud_fd, &rfds); else FD_SET(mud_fd, &rfds);
 
         FD_SET(ctl_fd, &rfds);
 
         struct timeval tv = {
-            .tv_usec = 100000,
+            .tv_sec = keepalive,
         };
 
-        if (mud_can_read && tun_can_write) {
-            tv.tv_usec = 0;
-        } else if (tun_can_read && mud_can_write) {
-            long send_wait = mud_send_wait(mud);
-            if (send_wait >= 0)
-                tv.tv_usec = send_wait * 1000;
+        long send_wait = mud_send_wait(mud);
+
+        if (send_wait >= 0) {
+            if (mud_can_read && tun_can_write) {
+                tv.tv_sec = 0;
+            } else if (tun_can_read && mud_can_write) {
+                tv.tv_sec = 0;
+                if (send_wait > 0)
+                    tv.tv_usec = 1000;
+            }
         }
 
-        const int ret = select(last_fd, &rfds, &wfds, NULL, &tv);
+        const int ret = select(last_fd, &rfds, &wfds, NULL, send_wait < 0 ? NULL : &tv);
 
         if (ret == -1) {
             if (errno == EBADF) {
@@ -273,17 +260,10 @@ gt_bind(int argc, char **argv)
             continue;
         }
 
-        if (FD_ISSET(tun_fd, &rfds))
-            tun_can_read = 1;
-
-        if (FD_ISSET(tun_fd, &wfds))
-            tun_can_write = 1;
-
-        if (FD_ISSET(mud_fd, &rfds))
-            mud_can_read = 1;
-
-        if (FD_ISSET(mud_fd, &wfds))
-            mud_can_write = 1;
+        if (FD_ISSET(tun_fd, &rfds)) tun_can_read  = 1;
+        if (FD_ISSET(tun_fd, &wfds)) tun_can_write = 1;
+        if (FD_ISSET(mud_fd, &rfds)) mud_can_read  = 1;
+        if (FD_ISSET(mud_fd, &wfds)) mud_can_write = 1;
 
         mtu = gt_setup_mtu(mud, mtu, tun_name);
 
