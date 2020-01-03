@@ -221,7 +221,8 @@ gt_bind(int argc, char **argv)
     int last_fd = MAX(tun_fd, mud_fd);
     last_fd = 1 + MAX(last_fd, ctl_fd);
 
-    unsigned char buf[4096];
+    __attribute__((aligned(16)))
+        unsigned char buf[1500];
 
     while (!gt_quit) {
         if (tun_can_write) {
