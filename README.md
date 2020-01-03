@@ -27,12 +27,13 @@ The key features of Glorytun come directly from mud:
    This implies that the client and the server must be synchronized, an offset of 10min is accepted by default.
    Perfect forward secrecy is also implemented with ECDH over Curve25519. Keys are rotated every hours.
 
- * **Multipath and active failover**
+ * **Multipath and failover**
 
    Connectivity is now crucial, especially in the SD-WAN world.
    This feature allows a TCP connection (and all other protocols) to explore and exploit all available links without being disconnected.
    Aggregation should work on all conventional links.
    Only very high latency (+500ms) links are not recommended for now.
+   Backup paths are also supported, they will be used only in case of emergency, it is useful when aggregation is not your priority.
 
  * **Traffic shaping**
 
