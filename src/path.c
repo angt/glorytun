@@ -67,10 +67,10 @@ gt_path_print_status(struct mud_path *path, int term)
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
         path->tx.rate,
-        path->tx.loss,
+        path->tx.loss * 100 / 255,
         path->tx.total,
         path->rx.rate,
-        path->rx.loss,
+        path->rx.loss * 100 / 255,
         path->rx.total);
 }
 

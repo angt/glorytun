@@ -272,7 +272,7 @@ gt_bind(int argc, char **argv)
             int r = tun_read(tun_fd, buf, sizeof(buf));
 
             if (r > 0 && !ip_get_common(&ic, buf, r)) {
-                mud_send(mud, buf, (size_t)r, ic.tc);
+                mud_send(mud, buf, (size_t)r);
                 mud_can_write = 0;
             }
 
@@ -306,7 +306,7 @@ gt_bind(int argc, char **argv)
                     break;
                 case CTL_STATE:
                     if (mud_set_state(mud, (struct sockaddr *)&req.path.addr,
-                                      req.path.state, req.path.rate_tx, req.path.rate_rx))
+                                      req.path.state, req.path.rate_tx, req.path.rate_rx, 0))
                         res.ret = errno;
                     break;
                 case CTL_PATH_STATUS:
