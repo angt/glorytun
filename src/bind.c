@@ -107,7 +107,7 @@ gt_bind(int argc, char **argv)
     struct sockaddr_storage peer_addr = { 0 };
     unsigned short bind_port = 5000;
     unsigned short peer_port = bind_port;
-    unsigned long long keepalive = 20000;
+    unsigned long long keepalive = 100;
     const char *dev = NULL;
     const char *keyfile = NULL;
 
@@ -234,23 +234,21 @@ gt_bind(int argc, char **argv)
 
         FD_SET(ctl_fd, &rfds);
 
-        struct timeval tv = {
-            .tv_sec = keepalive,
-        };
+        struct timeval tv = { 0 };
+        int update = mud_update(mud);
 
-        long send_wait = mud_send_wait(mud);
-
-        if (send_wait >= 0) {
+        if (update >= 0) {
             if (mud_can_read && tun_can_write) {
-                tv.tv_sec = 0;
             } else if (tun_can_read && mud_can_write) {
-                tv.tv_sec = 0;
-                if (send_wait > 0)
+                if (update)
                     tv.tv_usec = 1000;
+            } else {
+                tv.tv_sec = keepalive / 1000;
+                tv.tv_usec = 1000 * (keepalive % 1000);
             }
         }
 
-        const int ret = select(last_fd, &rfds, &wfds, NULL, send_wait < 0 ? NULL : &tv);
+        const int ret = select(last_fd, &rfds, &wfds, NULL, update < 0 ? NULL : &tv);
 
         if (ret == -1) {
             if (errno == EBADF) {
