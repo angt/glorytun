@@ -97,7 +97,7 @@ gt_path_cmp_addr(struct sockaddr_storage *a, struct sockaddr_storage *b)
 }
 
 static int
-gt_path_status(int fd, int state, struct sockaddr_storage *addr)
+gt_path_status(int fd, enum mud_state state, struct sockaddr_storage *addr)
 {
     struct ctl_msg req = {
         .type = CTL_PATH_STATUS,

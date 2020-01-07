@@ -24,7 +24,7 @@ ctl_rundir(char *dst, size_t size)
         "/tmp/"         PACKAGE_NAME ".%u",
     };
 
-    for (int i = 0; i < COUNT(fmt); i++) {
+    for (unsigned i = 0; i < COUNT(fmt); i++) {
         char path[128];
         int ret = snprintf(dst, size, fmt[i], geteuid());
 
@@ -33,7 +33,7 @@ ctl_rundir(char *dst, size_t size)
             ((size_t)ret >= sizeof(path)))
             continue;
 
-        memcpy(path, dst, ret + 1);
+        memcpy(path, dst, (size_t)ret + 1);
         char *p = dirname(path);
 
         if (p && !access(p, W_OK))
