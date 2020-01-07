@@ -31,8 +31,6 @@ gt_path_print_status(struct mud_path *path, int term)
         default:         return;
     }
 
-    const char *statusstr = path->ok ? "OK" : "DEGRADED";
-
     printf(term ? "path %s\n"
             "  status:  %s\n"
             "  bind:    %s port %"PRIu16"\n"
@@ -41,6 +39,7 @@ gt_path_print_status(struct mud_path *path, int term)
             "  mtu:     %zu bytes\n"
             "  rtt:     %.3f ms\n"
             "  rttvar:  %.3f ms\n"
+            "  rate:    %s\n"
             "  tx:\n"
             "    rate:  %"PRIu64" bytes/sec\n"
             "    loss:  %"PRIu64" percent\n"
@@ -52,11 +51,12 @@ gt_path_print_status(struct mud_path *path, int term)
             : "path %s %s"
             " %s %"PRIu16" %s %"PRIu16" %s %"PRIu16
             " %zu %.3f %.3f"
+            " %s"
             " %"PRIu64" %"PRIu64" %"PRIu64
             " %"PRIu64" %"PRIu64" %"PRIu64
             "\n",
         statestr,
-        statusstr,
+        path->ok ? "OK" : "DEGRADED",
         bindstr[0] ? bindstr : "-",
         gt_get_port((struct sockaddr *)&path->local_addr),
         publstr[0] ? publstr : "-",
@@ -66,6 +66,7 @@ gt_path_print_status(struct mud_path *path, int term)
         path->mtu.ok,
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
+        path->conf.fixed_rate ? "fixed" : "auto",
         path->tx.rate,
         path->tx.loss * 100 / 255,
         path->tx.total,
@@ -150,6 +151,7 @@ gt_path(int argc, char **argv)
     }, res = {0};
 
     struct argz ratez[] = {
+        {"fixed|auto", NULL, NULL, argz_option},
         {"tx", "BYTES/SEC", &req.path.rate_tx, argz_bytes},
         {"rx", "BYTES/SEC", &req.path.rate_rx, argz_bytes},
         {NULL}};
@@ -196,6 +198,12 @@ gt_path(int argc, char **argv)
         req.path.state = MUD_BACKUP;
     } else if (argz_is_set(pathz, "down")) {
         req.path.state = MUD_DOWN;
+    }
+
+    if (argz_is_set(ratez, "fixed")) {
+        req.path.fixed_rate = 3;
+    } else if (argz_is_set(ratez, "auto")) {
+        req.path.fixed_rate = 1;
     }
 
     int ret;

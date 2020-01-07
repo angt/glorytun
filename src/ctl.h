@@ -28,6 +28,7 @@ struct ctl_msg {
             enum mud_state state;
             unsigned long rate_tx;
             unsigned long rate_rx;
+            unsigned char fixed_rate;
         } path;
         struct mud_path path_status;
         struct {
