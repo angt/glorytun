@@ -161,6 +161,7 @@ gt_path(int argc, char **argv)
         {"dev", "NAME", &dev, argz_str},
         {"up|backup|down", NULL, NULL, argz_option},
         {"rate", NULL, &ratez, argz_option},
+        {"beat", "SECONDS", &req.path.beat, argz_time},
         {NULL}};
 
     if (argz(pathz, argc, argv))
