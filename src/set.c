@@ -62,6 +62,24 @@ gt_set_losslimit(int fd, unsigned percent)
 }
 
 static int
+gt_set_keepalive(int fd, unsigned long ms)
+{
+    struct ctl_msg res, req = {
+        .type = CTL_KEEPALIVE,
+        .ms = ms,
+    };
+
+    int ret = ctl_reply(fd, &res, &req);
+
+    if (ret) {
+        perror("set keepalive");
+        return 1;
+    }
+
+    return 0;
+}
+
+static int
 gt_set_tc(int fd, int tc)
 {
     struct ctl_msg res, req = {
@@ -113,6 +131,7 @@ gt_set(int argc, char **argv)
     unsigned long kxtimeout;
     unsigned long timetolerance;
     unsigned losslimit;
+    unsigned long keepalive;
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
@@ -120,6 +139,7 @@ gt_set(int argc, char **argv)
         {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
         {"timetolerance", "SECONDS", &timetolerance, argz_time},
         {"losslimit", "PERCENT", &losslimit, argz_percent},
+        {"keepalive", "SECONDS", &keepalive, argz_time},
         {NULL}};
 
     if (argz(pathz, argc, argv))
@@ -157,6 +177,9 @@ gt_set(int argc, char **argv)
 
     if (argz_is_set(pathz, "losslimit"))
         ret |= gt_set_losslimit(fd, losslimit);
+
+    if (argz_is_set(pathz, "keepalive"))
+        ret |= gt_set_keepalive(fd, keepalive);
 
     ctl_delete(fd);
 

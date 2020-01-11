@@ -107,7 +107,6 @@ gt_bind(int argc, char **argv)
     struct sockaddr_storage peer_addr = { 0 };
     unsigned short bind_port = 5000;
     unsigned short peer_port = bind_port;
-    unsigned long long keepalive = 100;
     const char *dev = NULL;
     const char *keyfile = NULL;
 
@@ -124,7 +123,6 @@ gt_bind(int argc, char **argv)
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
         {"persist", NULL, NULL, argz_option},
-        {"keepalive", "SECONDS", &keepalive, argz_time},
         {NULL}};
 
     if (argz(bindz, argc, argv))
@@ -243,8 +241,7 @@ gt_bind(int argc, char **argv)
                 if (update)
                     tv.tv_usec = 1000;
             } else {
-                tv.tv_sec = keepalive / 1000;
-                tv.tv_usec = 1000 * (keepalive % 1000);
+                tv.tv_usec = 100000;
             }
         }
 
@@ -345,6 +342,10 @@ gt_bind(int argc, char **argv)
                     break;
                 case CTL_LOSSLIMIT:
                     if (mud_set_loss_limit(mud, req.percent))
+                        res.ret = errno;
+                    break;
+                case CTL_KEEPALIVE:
+                    if (mud_set_keepalive(mud, req.ms))
                         res.ret = errno;
                     break;
                 case CTL_STATUS:

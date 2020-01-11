@@ -15,6 +15,7 @@ enum ctl_type {
     CTL_KXTIMEOUT,
     CTL_TIMETOLERANCE,
     CTL_LOSSLIMIT,
+    CTL_KEEPALIVE,
     CTL_PATH_STATUS,
     CTL_BAD,
 };
