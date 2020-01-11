@@ -40,6 +40,7 @@ gt_path_print_status(struct mud_path *path, int term)
             "  rtt:     %.3f ms\n"
             "  rttvar:  %.3f ms\n"
             "  rate:    %s\n"
+            "  beat:    %"PRIu64" ms\n"
             "  tx:\n"
             "    rate:  %"PRIu64" bytes/sec\n"
             "    loss:  %"PRIu64" percent\n"
@@ -52,6 +53,7 @@ gt_path_print_status(struct mud_path *path, int term)
             " %s %"PRIu16" %s %"PRIu16" %s %"PRIu16
             " %zu %.3f %.3f"
             " %s"
+            " %"PRIu64
             " %"PRIu64" %"PRIu64" %"PRIu64
             " %"PRIu64" %"PRIu64" %"PRIu64
             "\n",
@@ -67,6 +69,7 @@ gt_path_print_status(struct mud_path *path, int term)
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
         path->conf.fixed_rate ? "fixed" : "auto",
+        path->conf.beat / 1000,
         path->tx.rate,
         path->tx.loss * 100 / 255,
         path->tx.total,
