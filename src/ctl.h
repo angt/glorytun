@@ -10,12 +10,8 @@
 enum ctl_type {
     CTL_NONE = 0,
     CTL_STATE,
+    CTL_CONF,
     CTL_STATUS,
-    CTL_TC,
-    CTL_KXTIMEOUT,
-    CTL_TIMETOLERANCE,
-    CTL_LOSSLIMIT,
-    CTL_KEEPALIVE,
     CTL_PATH_STATUS,
     CTL_BAD,
 };
@@ -32,7 +28,6 @@ struct ctl_msg {
             unsigned long beat;
             unsigned char fixed_rate;
         } path;
-        struct mud_path path_status;
         struct {
             char tun_name[64];
             long pid;
@@ -41,10 +36,9 @@ struct ctl_msg {
             struct sockaddr_storage bind;
             struct sockaddr_storage peer;
         } status;
+        struct mud_conf conf;
+        struct mud_path path_status;
         struct mud_bad bad;
-        int tc;
-        unsigned long ms;
-        unsigned percent;
     };
 };
 

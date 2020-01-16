@@ -308,6 +308,18 @@ gt_bind(int argc, char **argv)
                                       req.path.fixed_rate))
                         res.ret = errno;
                     break;
+                case CTL_CONF:
+                    if (mud_set_conf(mud, &req.conf))
+                        res.ret = errno;
+                    break;
+                case CTL_STATUS:
+                    memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
+                    res.status.pid = pid;
+                    res.status.mtu = mtu;
+                    res.status.chacha = chacha;
+                    res.status.bind = bind_addr;
+                    res.status.peer = peer_addr;
+                    break;
                 case CTL_PATH_STATUS:
                     {
                         unsigned count = 0;
@@ -330,34 +342,6 @@ gt_bind(int argc, char **argv)
                         free(paths);
                         res.ret = 0;
                     }
-                    break;
-                case CTL_TC:
-                    if (mud_set_tc(mud, req.tc))
-                        res.ret = errno;
-                    break;
-                case CTL_KXTIMEOUT:
-                    if (mud_set_keyx_timeout(mud, req.ms))
-                        res.ret = errno;
-                    break;
-                case CTL_TIMETOLERANCE:
-                    if (mud_set_time_tolerance(mud, req.ms))
-                        res.ret = errno;
-                    break;
-                case CTL_LOSSLIMIT:
-                    if (mud_set_loss_limit(mud, req.percent))
-                        res.ret = errno;
-                    break;
-                case CTL_KEEPALIVE:
-                    if (mud_set_keepalive(mud, req.ms))
-                        res.ret = errno;
-                    break;
-                case CTL_STATUS:
-                    memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
-                    res.status.pid = pid;
-                    res.status.mtu = mtu;
-                    res.status.chacha = chacha;
-                    res.status.bind = bind_addr;
-                    res.status.peer = peer_addr;
                     break;
                 case CTL_BAD:
                     if (mud_get_bad(mud, &res.bad))

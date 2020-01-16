@@ -8,96 +8,6 @@
 #include "../argz/argz.h"
 
 static int
-gt_set_kxtimeout(int fd, unsigned long ms)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_KXTIMEOUT,
-        .ms = ms,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set kxtimeout");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
-gt_set_timetolerance(int fd, unsigned long ms)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_TIMETOLERANCE,
-        .ms = ms,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set timetolerance");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
-gt_set_losslimit(int fd, unsigned percent)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_LOSSLIMIT,
-        .percent = percent,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set losslimit");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
-gt_set_keepalive(int fd, unsigned long ms)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_KEEPALIVE,
-        .ms = ms,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set keepalive");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
-gt_set_tc(int fd, int tc)
-{
-    struct ctl_msg res, req = {
-        .type = CTL_TC,
-        .tc = tc,
-    };
-
-    int ret = ctl_reply(fd, &res, &req);
-
-    if (ret) {
-        perror("set tc");
-        return 1;
-    }
-
-    return 0;
-}
-
-static int
 gt_argz_tc(void *data, int argc, char **argv)
 {
     if (argc < 1 || !argv[0])
@@ -118,7 +28,7 @@ gt_argz_tc(void *data, int argc, char **argv)
     } else return -1;
 
     if (data)
-        *(int *)data = val;
+        *(int *)data = (val << 1) | 1;
 
     return 1;
 }
@@ -127,19 +37,18 @@ int
 gt_set(int argc, char **argv)
 {
     const char *dev = NULL;
-    int tc;
-    unsigned long kxtimeout;
-    unsigned long timetolerance;
-    unsigned losslimit;
-    unsigned long keepalive;
+
+    struct ctl_msg req = {
+        .type = CTL_CONF,
+    }, res = {0};
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
-        {"tc", "CS|AF|EF", &tc, gt_argz_tc},
-        {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
-        {"timetolerance", "SECONDS", &timetolerance, argz_time},
-        {"losslimit", "PERCENT", &losslimit, argz_percent},
-        {"keepalive", "SECONDS", &keepalive, argz_time},
+        {"tc", "CS|AF|EF", &req.conf.tc, gt_argz_tc},
+        {"kxtimeout", "SECONDS", &req.conf.kxtimeout, argz_time},
+        {"timetolerance", "SECONDS", &req.conf.timetolerance, argz_time},
+        {"losslimit", "PERCENT", &req.conf.losslimit, argz_percent},
+        {"keepalive", "SECONDS", &req.conf.keepalive, argz_time},
         {NULL}};
 
     if (argz(pathz, argc, argv))
@@ -164,24 +73,12 @@ gt_set(int argc, char **argv)
         return 1;
     }
 
-    int ret = 0;
+    int ret = ctl_reply(fd, &res, &req);
 
-    if (argz_is_set(pathz, "tc"))
-        ret |= gt_set_tc(fd, tc);
-
-    if (argz_is_set(pathz, "kxtimeout"))
-        ret |= gt_set_kxtimeout(fd, kxtimeout);
-
-    if (argz_is_set(pathz, "timetolerance"))
-        ret |= gt_set_timetolerance(fd, timetolerance);
-
-    if (argz_is_set(pathz, "losslimit"))
-        ret |= gt_set_losslimit(fd, losslimit);
-
-    if (argz_is_set(pathz, "keepalive"))
-        ret |= gt_set_keepalive(fd, keepalive);
+    if (ret)
+        perror("set");
 
     ctl_delete(fd);
 
-    return ret;
+    return !!ret;
 }
