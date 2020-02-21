@@ -189,9 +189,10 @@ gt_path(int argc, char **argv)
         return 1;
     }
 
-    int set_rate = argz_is_set(pathz, "rate");
+    int set = argz_is_set(pathz, "rate")
+           || argz_is_set(pathz, "beat");
 
-    if (set_rate && !req.path.addr.ss_family) {
+    if (set && !req.path.addr.ss_family) {
         gt_log("please specify a path\n");
         return 1;
     }
@@ -213,7 +214,7 @@ gt_path(int argc, char **argv)
     int ret;
 
     if (!req.path.addr.ss_family ||
-        (req.path.state == MUD_EMPTY && !set_rate)) {
+        (req.path.state == MUD_EMPTY && !set)) {
         ret = gt_path_status(fd, req.path.state, &req.path.addr);
     } else {
         ret = ctl_reply(fd, &res, &req);
