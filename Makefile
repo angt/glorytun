@@ -26,7 +26,7 @@ $(NAME): $(SRC) $(HDR)
 
 $(NAME)-strip: $(NAME)
 	$(Q)cp $< $@
-	$(Q)$(X)strip -s $@
+	$(Q)$(X)strip -x $@
 
 .PHONY: install
 install: $(NAME)-strip
