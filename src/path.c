@@ -40,6 +40,7 @@ gt_path_print_status(struct mud_path *path, int term)
             "  rtt:     %.3f ms\n"
             "  rttvar:  %.3f ms\n"
             "  rate:    %s\n"
+            "  losslim: %u\n"
             "  beat:    %"PRIu64" ms\n"
             "  tx:\n"
             "    rate:  %"PRIu64" bytes/sec\n"
@@ -52,7 +53,7 @@ gt_path_print_status(struct mud_path *path, int term)
             : "path %s %s"
             " %s %"PRIu16" %s %"PRIu16" %s %"PRIu16
             " %zu %.3f %.3f"
-            " %s"
+            " %s %u"
             " %"PRIu64
             " %"PRIu64" %"PRIu64" %"PRIu64
             " %"PRIu64" %"PRIu64" %"PRIu64
@@ -69,6 +70,7 @@ gt_path_print_status(struct mud_path *path, int term)
         (double)path->rtt.val / 1e3,
         (double)path->rtt.var / 1e3,
         path->conf.fixed_rate ? "fixed" : "auto",
+        path->conf.loss_limit * 100 / 255,
         path->conf.beat / 1000,
         path->tx.rate,
         path->tx.loss * 100 / 255,
@@ -145,6 +147,7 @@ int
 gt_path(int argc, char **argv)
 {
     const char *dev = NULL;
+    unsigned int loss_limit = 0;
 
     struct ctl_msg req = {
         .type = CTL_STATE,
@@ -165,6 +168,7 @@ gt_path(int argc, char **argv)
         {"up|backup|down", NULL, NULL, argz_option},
         {"rate", NULL, &ratez, argz_option},
         {"beat", "SECONDS", &req.path.beat, argz_time},
+        {"losslimit", "PERCENT", &loss_limit, argz_percent},
         {NULL}};
 
     if (argz(pathz, argc, argv))
@@ -190,7 +194,8 @@ gt_path(int argc, char **argv)
     }
 
     int set = argz_is_set(pathz, "rate")
-           || argz_is_set(pathz, "beat");
+           || argz_is_set(pathz, "beat")
+           || argz_is_set(pathz, "losslimit");
 
     if (set && !req.path.addr.ss_family) {
         gt_log("please specify a path\n");
@@ -204,6 +209,9 @@ gt_path(int argc, char **argv)
     } else if (argz_is_set(pathz, "down")) {
         req.path.state = MUD_DOWN;
     }
+
+    if (loss_limit)
+        req.path.loss_limit = loss_limit * 255 / 100;
 
     if (argz_is_set(ratez, "fixed")) {
         req.path.fixed_rate = 3;

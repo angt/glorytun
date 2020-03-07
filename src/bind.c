@@ -305,7 +305,8 @@ gt_bind(int argc, char **argv)
                                       req.path.rate_tx,
                                       req.path.rate_rx,
                                       req.path.beat,
-                                      req.path.fixed_rate))
+                                      req.path.fixed_rate,
+                                      req.path.loss_limit))
                         res.ret = errno;
                     break;
                 case CTL_CONF:

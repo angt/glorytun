@@ -47,7 +47,6 @@ gt_set(int argc, char **argv)
         {"tc", "CS|AF|EF", &req.conf.tc, gt_argz_tc},
         {"kxtimeout", "SECONDS", &req.conf.kxtimeout, argz_time},
         {"timetolerance", "SECONDS", &req.conf.timetolerance, argz_time},
-        {"losslimit", "PERCENT", &req.conf.losslimit, argz_percent},
         {"keepalive", "SECONDS", &req.conf.keepalive, argz_time},
         {NULL}};
 
