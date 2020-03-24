@@ -138,7 +138,7 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
         return -1;
     }
 
-    return open(tmp, O_RDWR);
+    return open(name, O_RDWR);
 }
 
 #endif /* not __APPLE__ */

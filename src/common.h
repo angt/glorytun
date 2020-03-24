@@ -12,6 +12,8 @@
 #include <errno.h>
 
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #ifndef PACKAGE_NAME
 #define PACKAGE_NAME "glorytun"
