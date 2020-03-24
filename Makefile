@@ -2,31 +2,31 @@ NAME    := glorytun
 VERSION := $(shell ./version.sh)
 DIST    := $(NAME)-$(VERSION)
 
+CFLAGS  ?= -std=c11 -O2 -Wall -fstack-protector-strong
+FLAGS   := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
+
 CC      ?= cc
 prefix  ?= /usr
 Q       := @
 
-CFLAGS := -std=c11 -O2 -Wall -fstack-protector-strong
+ifneq ($(X),)
+    H = $(X)-
+    FLAGS += -static
+endif
 
-FLAGS := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
 FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
-
-FLAGS += -I.static/$(CROSS)/libsodium-stable/src/libsodium/include
-FLAGS += -L.static/$(CROSS)/libsodium-stable/src/libsodium/.libs
+FLAGS += -I.static/$(X)/libsodium-stable/src/libsodium/include
+FLAGS += -L.static/$(X)/libsodium-stable/src/libsodium/.libs
 
 SRC := argz/argz.c mud/mud.c mud/aegis256/aegis256.c $(wildcard src/*.c)
 HDR := argz/argz.h mud/mud.h mud/aegis256/aegis256.h $(wildcard src/*.h)
 
-ifneq ($(CROSS),)
-    X = $(CROSS)-
-endif
-
 $(NAME): $(SRC) $(HDR)
-	$(Q)$(X)$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium
+	$(Q)$(H)$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium
 
 $(NAME)-strip: $(NAME)
 	$(Q)cp $< $@
-	$(Q)$(X)strip -x $@
+	$(Q)$(H)strip -x $@
 
 .PHONY: install
 install: $(NAME)-strip
