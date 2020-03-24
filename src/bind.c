@@ -163,12 +163,24 @@ gt_bind(int argc, char **argv)
         chacha = 1;
     }
 
-    char tun_name[64];
-    const int tun_fd = tun_create(tun_name, sizeof(tun_name), dev);
+    char tun_name_buf[64];
+    char* tun_name = tun_name_buf;
+    const int tun_fd = tun_create(tun_name_buf, sizeof(tun_name_buf), dev);
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");
         return 1;
+    }
+
+    // If the tun_name is a device path, things break, so fix it.
+    if (tun_name_buf[0] == '/') {
+        size_t len = strlen(tun_name_buf);
+        for (; len != 0; len--)
+            if (tun_name_buf[len] == '/') {
+                // This is safe because the device path will never end with a `/`.
+                tun_name = &tun_name_buf[len+1];
+                break;
+            }
     }
 
     size_t mtu = gt_setup_mtu(mud, 0, tun_name);
@@ -314,7 +326,7 @@ gt_bind(int argc, char **argv)
                         res.ret = errno;
                     break;
                 case CTL_STATUS:
-                    memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
+                    memcpy(res.status.tun_name, tun_name, strlen(tun_name)); // XXX
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = chacha;
