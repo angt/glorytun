@@ -131,7 +131,6 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
 static int
 tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
-    char tmp[64];
     int ret = snprintf(name, len, "%s", dev_name);
 
     if (ret <= 0 || (size_t)ret >= len) {
@@ -139,6 +138,7 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
         return -1;
     }
 
+    char tmp[64];
     ret = snprintf(tmp, sizeof(tmp), "/dev/%s", dev_name);
 
     if (ret <= 0 || (size_t)ret >= sizeof(tmp)) {
