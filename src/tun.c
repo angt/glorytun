@@ -131,14 +131,22 @@ tun_create_by_name(char *name, size_t len, const char *dev_name)
 static int
 tun_create_by_name(char *name, size_t len, const char *dev_name)
 {
-    int ret = snprintf(name, len, "/dev/%s", dev_name);
+    char tmp[64];
+    int ret = snprintf(name, len, "%s", dev_name);
 
     if (ret <= 0 || (size_t)ret >= len) {
         errno = EINVAL;
         return -1;
     }
 
-    return open(name, O_RDWR);
+    ret = snprintf(tmp, sizeof(tmp), "/dev/%s", dev_name);
+
+    if (ret <= 0 || (size_t)ret >= sizeof(tmp)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return open(tmp, O_RDWR);
 }
 
 #endif /* not __APPLE__ */
