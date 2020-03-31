@@ -57,7 +57,10 @@ gt_version(int argc, char **argv)
         return 1;
 
     if (argz_is_set(version_argz, "libsodium")) {
-        printf("%s\n", sodium_version_string());
+        printf("%i.%i (%s)\n",
+                sodium_library_version_major(),
+                sodium_library_version_minor(),
+                sodium_version_string());
     } else {
         printf("%s\n", PACKAGE_VERSION);
     }
