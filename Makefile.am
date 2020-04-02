@@ -7,10 +7,10 @@ glorytun_LDADD = $(libsodium_LIBS)
 glorytun_SOURCES = \
     argz/argz.c \
     argz/argz.h \
-    mud/mud.c \
-    mud/mud.h \
     mud/aegis256/aegis256.c \
     mud/aegis256/aegis256.h \
+    mud/mud.c \
+    mud/mud.h \
     src/bench.c \
     src/bind.c \
     src/common.c \
@@ -21,13 +21,15 @@ glorytun_SOURCES = \
     src/iface.h \
     src/ip.h \
     src/keygen.c \
+    src/list.c \
     src/main.c \
     src/path.c \
     src/set.c \
     src/show.c \
     src/str.h \
     src/tun.c \
-    src/tun.h
+    src/tun.h \
+    src/version.c
 
 EXTRA_DIST = \
     LICENSE \
