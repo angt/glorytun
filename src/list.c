@@ -3,10 +3,8 @@
 
 #include "../argz/argz.h"
 
-#include <stdio.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <sys/un.h>
+#include <stdio.h>
 
 int
 gt_list(int argc, char **argv)

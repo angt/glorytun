@@ -1,14 +1,13 @@
+#include "tun.h"
 #include "common.h"
 #include "ip.h"
-#include "str.h"
-#include "tun.h"
 
 #include <fcntl.h>
+#include <net/if.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <net/if.h>
 
 #ifdef __linux__
 #define IFF_TUN 0x0001
@@ -172,7 +171,7 @@ tun_create(char *name, size_t len, const char *dev_name)
 {
     int fd = -1;
 
-    if (str_empty(dev_name)) {
+    if (EMPTY(dev_name)) {
         for (unsigned id = 0; id < 32 && fd == -1; id++)
             fd = tun_create_by_id(name, len, id);
     } else {

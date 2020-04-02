@@ -1,9 +1,7 @@
 #include "common.h"
 #include "ctl.h"
-#include "str.h"
 
 #include <stdio.h>
-#include <sys/socket.h>
 
 #include "../argz/argz.h"
 

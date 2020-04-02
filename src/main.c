@@ -1,7 +1,5 @@
 #include "common.h"
-#include "str.h"
 
-#include <sodium.h>
 #include <stdio.h>
 
 #include "../argz/argz.h"
@@ -46,28 +44,6 @@ gt_set_signal(void)
     sigaction(SIGUSR2, &sa, NULL);
 }
 
-static int
-gt_version(int argc, char **argv)
-{
-    struct argz version_argz[] = {
-        {"libsodium", NULL, NULL, argz_option},
-        {NULL}};
-
-    if (argz(version_argz, argc, argv))
-        return 1;
-
-    if (argz_is_set(version_argz, "libsodium")) {
-        printf("%i.%i (%s)\n",
-                sodium_library_version_major(),
-                sodium_library_version_minor(),
-                sodium_version_string());
-    } else {
-        printf("%s\n", PACKAGE_VERSION);
-    }
-
-    return 0;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -90,7 +66,7 @@ main(int argc, char **argv)
 
     if (argv[1]) {
         for (int k = 0; cmd[k].name; k++) {
-            if (!str_cmp(cmd[k].name, argv[1]))
+            if (!strcmp(cmd[k].name, argv[1]))
                 return cmd[k].call(argc - 1, argv + 1);
         }
     }
@@ -100,10 +76,10 @@ main(int argc, char **argv)
     int len = 0;
 
     for (int k = 0; cmd[k].name; k++)
-        len = MAX(len, (int)str_len(cmd[k].name, 32));
+        len = MAX(len, (int)strlen(cmd[k].name));
 
     for (int k = 0; cmd[k].name; k++)
-        printf("  %-*s  %s\n", len, cmd[k].name, cmd[k].help);
+        printf("    %-*s    %s\n", len, cmd[k].name, cmd[k].help);
 
     printf("\n");
 

@@ -2,11 +2,9 @@
 #include "ctl.h"
 #include "iface.h"
 #include "ip.h"
-#include "str.h"
 #include "tun.h"
 
 #include <fcntl.h>
-#include <stdio.h>
 #include <sys/select.h>
 
 #include "../argz/argz.h"
@@ -103,8 +101,8 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 int
 gt_bind(int argc, char **argv)
 {
-    struct sockaddr_storage bind_addr = { .ss_family = AF_INET };
-    struct sockaddr_storage peer_addr = { 0 };
+    struct sockaddr_storage bind_addr = {.ss_family = AF_INET};
+    struct sockaddr_storage peer_addr = {0};
     unsigned short bind_port = 5000;
     unsigned short peer_port = bind_port;
     const char *dev = NULL;
@@ -128,7 +126,7 @@ gt_bind(int argc, char **argv)
     if (argz(bindz, argc, argv))
         return 1;
 
-    if (str_empty(keyfile)) {
+    if (EMPTY(keyfile)) {
         gt_log("a keyfile is needed!\n");
         return 1;
     }
@@ -175,7 +173,7 @@ gt_bind(int argc, char **argv)
 
     if (tun_set_persist(tun_fd, persist) == -1) {
         gt_log("couldn't %sable persist mode on device %s\n",
-                persist ? "en" : "dis", tun_name);
+               persist ? "en" : "dis", tun_name);
     }
 
     if (peer_addr.ss_family) {
@@ -191,7 +189,7 @@ gt_bind(int argc, char **argv)
         char dir[64];
         if (ctl_rundir(dir, sizeof(dir))) {
             gt_log("couldn't create %s/%s: %s\n",
-                    dir, tun_name, strerror(errno));
+                   dir, tun_name, strerror(errno));
         } else {
             gt_log("couldn't find a writable run/tmp directory\n");
         }
@@ -232,7 +230,7 @@ gt_bind(int argc, char **argv)
 
         FD_SET(ctl_fd, &rfds);
 
-        struct timeval tv = { 0 };
+        struct timeval tv = {0};
         int update = mud_update(mud);
 
         if (update >= 0) {
@@ -274,7 +272,7 @@ gt_bind(int argc, char **argv)
             tun_can_read = 0;
         }
 
-        if (mud_can_read && tun_can_write)  {
+        if (mud_can_read && tun_can_write) {
             int r = mud_recv(mud, buf, sizeof(buf));
 
             if (r > 0 && ip_is_valid(buf, r)) {
@@ -321,29 +319,27 @@ gt_bind(int argc, char **argv)
                     res.status.bind = bind_addr;
                     res.status.peer = peer_addr;
                     break;
-                case CTL_PATH_STATUS:
-                    {
-                        unsigned count = 0;
-                        struct mud_path *paths = mud_get_paths(mud, &count);
+                case CTL_PATH_STATUS: {
+                    unsigned count = 0;
+                    struct mud_path *paths = mud_get_paths(mud, &count);
 
-                        if (!paths) {
-                            res.ret = errno;
-                            break;
-                        }
-
-                        res.ret = EAGAIN;
-
-                        for (unsigned i = 0; i < count; i++) {
-                            memcpy(&res.path_status, &paths[i], sizeof(struct mud_path));
-                            if (sendto(ctl_fd, &res, sizeof(res), 0,
-                                       (const struct sockaddr *)&ss, sl) == -1)
-                                perror("sendto(ctl)");
-                        }
-
-                        free(paths);
-                        res.ret = 0;
+                    if (!paths) {
+                        res.ret = errno;
+                        break;
                     }
-                    break;
+
+                    res.ret = EAGAIN;
+
+                    for (unsigned i = 0; i < count; i++) {
+                        memcpy(&res.path_status, &paths[i], sizeof(struct mud_path));
+                        if (sendto(ctl_fd, &res, sizeof(res), 0,
+                                   (const struct sockaddr *)&ss, sl) == -1)
+                            perror("sendto(ctl)");
+                    }
+
+                    free(paths);
+                    res.ret = 0;
+                } break;
                 case CTL_BAD:
                     if (mud_get_bad(mud, &res.bad))
                         res.ret = errno;

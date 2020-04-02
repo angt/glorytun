@@ -1,15 +1,9 @@
 #include "common.h"
 #include "ctl.h"
-#include "str.h"
 
 #include "../argz/argz.h"
 
 #include <stdio.h>
-#include <sys/socket.h>
-#include <dirent.h>
-#include <sys/un.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 
 static void
 gt_show_bad_line(int term, char *name, uint64_t count,

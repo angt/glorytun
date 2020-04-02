@@ -1,13 +1,9 @@
-#include "common.h"
 #include "ctl.h"
-#include "str.h"
+#include "common.h"
 
-#include <stdio.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <libgen.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 
@@ -87,10 +83,10 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
 static int
 ctl_bind(int fd, const char *dir, const char *file)
 {
-    char name[10] = { [0] = '.' };
+    char name[10] = {[0] = '.'};
     struct sockaddr_un sun;
 
-    if (str_empty(file)) {
+    if (EMPTY(file)) {
         unsigned pid = (unsigned)getpid();
 
         for (size_t i = 1; i < sizeof(name) - 1; i++, pid >>= 4)
@@ -111,7 +107,7 @@ ctl_bind(int fd, const char *dir, const char *file)
 void
 ctl_delete(int fd)
 {
-    struct sockaddr_storage ss = { 0 };
+    struct sockaddr_storage ss = {0};
     socklen_t sslen = sizeof(ss);
 
     if ((getsockname(fd, (struct sockaddr *)&ss, &sslen) == 0) &&

@@ -1,8 +1,8 @@
-#include "common.h"
 #include "iface.h"
+#include "common.h"
 
-#include <stdio.h>
 #include <net/if.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
 
 int

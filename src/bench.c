@@ -1,11 +1,10 @@
 #include "common.h"
 
-#include <sodium.h>
-#include <string.h>
-#include <stdio.h>
-#include <time.h>
-#include <unistd.h>
 #include <inttypes.h>
+#include <sodium.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 #include "../argz/argz.h"
 #include "../mud/aegis256/aegis256.h"
@@ -60,7 +59,7 @@ gt_bench(int argc, char **argv)
     for (int i = 0; !gt_quit && size <= 1450; i++) {
         struct {
             int64_t min, mean, max, n;
-        } mbps = { .n = 0 };
+        } mbps = {.n = 0};
 
         int64_t bytes_max = (int64_t)1 << 24;
 
@@ -71,7 +70,7 @@ gt_bench(int argc, char **argv)
             while (!gt_quit && bytes <= bytes_max) {
                 if (chacha) {
                     crypto_aead_chacha20poly1305_encrypt(
-                            buf, NULL, buf, size, NULL, 0, NULL, npub, key);
+                        buf, NULL, buf, size, NULL, 0, NULL, npub, key);
                 } else {
                     aegis256_encrypt(buf, NULL, buf, size, NULL, 0, npub, key);
                 }
