@@ -54,19 +54,7 @@ gt_set(int argc, char **argv)
     int fd = ctl_connect(dev);
 
     if (fd < 0) {
-        switch (fd) {
-        case -1:
-            perror("set");
-            break;
-        case CTL_ERROR_NONE:
-            gt_log("no device\n");
-            break;
-        case CTL_ERROR_MANY:
-            gt_log("please choose a device\n");
-            break;
-        default:
-            gt_log("couldn't connect\n");
-        }
+        ctl_explain_connect(fd);
         return 1;
     }
 

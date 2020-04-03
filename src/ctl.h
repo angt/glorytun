@@ -48,3 +48,5 @@ int   ctl_create  (const char *);
 int   ctl_connect (const char *);
 int   ctl_reply   (int, struct ctl_msg *, struct ctl_msg *);
 void  ctl_delete  (int);
+
+void ctl_explain_connect (int);

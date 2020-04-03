@@ -36,7 +36,7 @@ ctl_rundir(char *dst, size_t size)
             return dst;
     }
 
-    errno = EINTR;
+    errno = EPERM;
     return NULL;
 }
 
@@ -151,7 +151,7 @@ ctl_connect(const char *file)
 
     if (!file) {
         if (dp = opendir(dir), !dp)
-            return -1;
+            return CTL_ERROR_NONE;
 
         struct dirent *d = NULL;
 
@@ -196,4 +196,24 @@ ctl_connect(const char *file)
     }
 
     return fd;
+}
+
+void
+ctl_explain_connect(int ret)
+{
+    switch (ret) {
+        case 0:
+            break;
+        case CTL_ERROR_MANY:
+            gt_log("please select a tunnel\n");
+            break;
+        case CTL_ERROR_NONE:
+            gt_log("no active tunnel\n");
+            break;
+        default:
+            gt_log("unknown error\n"); /* FALLTHRU */
+        case -1:
+            if (errno)
+                perror("connect");
+    }
 }
