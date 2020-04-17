@@ -10,6 +10,8 @@ gt_path_print(struct mud_path *path, int term)
 {
     const char *statestr = NULL;
     char bindstr[INET6_ADDRSTRLEN];
+    char beatstr[32];
+    char txstr[32], rxstr[32];
 
     switch (path->state) {
         case MUD_UP:     statestr = "up";     break;
@@ -22,15 +24,23 @@ gt_path_print(struct mud_path *path, int term)
                   (struct sockaddr *)&path->local_addr))
         return;
 
-    printf(term ? "path %s %s losslimit %u%% beat %"PRIu64"ms "
-                  "rate %s tx %"PRIu64" rx %"PRIu64"\n"
-                : "path %s %s %u %"PRIu64" %s %"PRIu64" %"PRIu64"\n",
+    if (gt_totime(beatstr, sizeof(beatstr), path->conf.beat / 1000))
+        return;
+
+    if (gt_torate(txstr, sizeof(txstr), path->conf.tx_max_rate * 8))
+        return;
+
+    if (gt_torate(rxstr, sizeof(rxstr), path->conf.rx_max_rate * 8))
+        return;
+
+    printf(term ? "path %s %s losslimit %u%% beat %s "
+                  "rate %s tx %s rx %s\n"
+                : "path %s %s %u %s %s %s %s\n",
             statestr, bindstr,
             path->conf.loss_limit * 100U / 255U,
-            path->conf.beat / 1000,
+            beatstr,
             path->conf.fixed_rate ? "fixed" : "auto",
-            path->conf.tx_max_rate,
-            path->conf.rx_max_rate);
+            txstr, rxstr);
 }
 
 static int

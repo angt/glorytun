@@ -61,6 +61,8 @@ void     gt_set_port (struct sockaddr *, uint16_t);
 uint16_t gt_get_port (struct sockaddr *);
 
 int gt_toaddr (char *, size_t, struct sockaddr *);
+int gt_totime (char *, size_t, unsigned long long);
+int gt_torate (char *, size_t, unsigned long long);
 
 int gt_list    (int, char **);
 int gt_show    (int, char **);

@@ -310,6 +310,7 @@ gt_bind(int argc, char **argv)
                 case CTL_CONF:
                     if (mud_set_conf(mud, &req.conf))
                         res.ret = errno;
+                    res.conf = req.conf;
                     break;
                 case CTL_STATUS:
                     memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX

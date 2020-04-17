@@ -26,7 +26,7 @@ gt_argz_tc(void *data, int argc, char **argv)
     } else return -1;
 
     if (data)
-        *(int *)data = (val << 1) | 1;
+        *(int *)data = val;
 
     return 1;
 }
@@ -35,21 +35,31 @@ int
 gt_set(int argc, char **argv)
 {
     const char *dev = NULL;
-
-    struct ctl_msg req = {
-        .type = CTL_CONF,
-    }, res = {0};
+    unsigned long kxtimeout;
+    unsigned long timetolerance;
+    unsigned long keepalive;
+    int tc;
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
-        {"tc", "CS|AF|EF", &req.conf.tc, gt_argz_tc},
-        {"kxtimeout", "SECONDS", &req.conf.kxtimeout, argz_time},
-        {"timetolerance", "SECONDS", &req.conf.timetolerance, argz_time},
-        {"keepalive", "SECONDS", &req.conf.keepalive, argz_time},
+        {"tc", "CS|AF|EF", &tc, gt_argz_tc},
+        {"kxtimeout", "SECONDS", &kxtimeout, argz_time},
+        {"timetolerance", "SECONDS", &timetolerance, argz_time},
+        {"keepalive", "SECONDS", &keepalive, argz_time},
         {NULL}};
 
     if (argz(pathz, argc, argv))
         return 1;
+
+    struct ctl_msg req = {
+        .type = CTL_CONF,
+        .conf = {
+            .tc = tc ? (tc << 1) | 1 : 0,
+            .kxtimeout = kxtimeout * UINT64_C(1000),
+            .timetolerance = timetolerance * UINT64_C(1000),
+            .keepalive = keepalive * UINT64_C(1000),
+        },
+    }, res = {0};
 
     int fd = ctl_connect(dev);
 
@@ -59,6 +69,16 @@ gt_set(int argc, char **argv)
     }
 
     int ret = ctl_reply(fd, &res, &req);
+
+    char t0[32];
+    char t1[32];
+    char t2[32];
+
+    gt_totime(t0, sizeof(t0), res.conf.kxtimeout / 1000);
+    gt_totime(t1, sizeof(t1), res.conf.timetolerance / 1000);
+    gt_totime(t2, sizeof(t2), res.conf.keepalive / 1000);
+
+    printf("set kxtimeout %s timetolerance %s keepalive %s tc %i\n", t0, t1, t2, res.conf.tc);
 
     if (ret)
         perror("set");

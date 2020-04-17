@@ -114,3 +114,79 @@ gt_toaddr(char *str, size_t size, struct sockaddr *sa)
     errno = EAFNOSUPPORT;
     return -1;
 }
+
+int
+gt_totime(char *str, size_t size, unsigned long long t)
+{
+    if (!str || size < 4) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (!t) {
+        memcpy(str, "now", 4);
+        return 0;
+    }
+
+    struct {
+        unsigned long long v;
+        unsigned long long n;
+        char *name;
+    } u[] = {
+        {0, 1000, "ms"},
+        {0,   60,  "s"},
+        {0,   60,  "m"},
+        {0,   24,  "h"},
+        {0,    0,  "d"},
+    };
+
+    size_t len = 0;
+    unsigned i = 0;
+
+    while (u[i].n) {
+        u[i].v = t % u[i].n;
+        t /= u[i].n;
+        i++;
+    }
+
+    u[i++].v = t;
+
+    while (i--)
+        if (u[i].v) {
+            int ret = snprintf(str + len, size - len, "%llu%s", u[i].v, u[i].name);
+            if (ret <= 0 || (size_t)ret >= size - len) {
+                errno = EINVAL;
+                return -1;
+            }
+            len += ret;
+        }
+
+    return 0;
+}
+
+int
+gt_torate(char *str, size_t size, unsigned long long r)
+{
+    if (!str || size < 5) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    unsigned k = 0;
+
+    while (r && k < 4 && !(r % 1000)) {
+        r /= 1000;
+        k++;
+    }
+
+    int ret = snprintf(str, size, "%llu%sbit%s", r,
+                       &"\0\0k\0M\0G\0T"[k << 1],
+                       &"s"[r <= 1]);
+
+    if (ret <= 0 || (size_t)ret >= size) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return 0;
+}
