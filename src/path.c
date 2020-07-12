@@ -6,10 +6,12 @@
 #include "../argz/argz.h"
 
 static void
-gt_path_print(struct mud_path *path, int term)
+gt_path_print(struct mud_path *path, int status, int term)
 {
     const char *statestr = NULL;
     char bindstr[INET6_ADDRSTRLEN];
+    char publstr[INET6_ADDRSTRLEN];
+    char peerstr[INET6_ADDRSTRLEN];
     char beatstr[32];
     char txstr[32], rxstr[32];
 
@@ -24,6 +26,14 @@ gt_path_print(struct mud_path *path, int term)
                   (struct sockaddr *)&path->local_addr))
         return;
 
+    if (gt_toaddr(publstr, sizeof(publstr),
+                  (struct sockaddr *)&path->r_addr))
+        return;
+
+    if (gt_toaddr(peerstr, sizeof(peerstr),
+                  (struct sockaddr *)&path->addr))
+        return;
+
     if (gt_totime(beatstr, sizeof(beatstr), path->conf.beat / 1000))
         return;
 
@@ -33,14 +43,61 @@ gt_path_print(struct mud_path *path, int term)
     if (gt_torate(rxstr, sizeof(rxstr), path->conf.rx_max_rate * 8))
         return;
 
-    printf(term ? "path %s %s losslimit %u%% beat %s "
-                  "rate %s tx %s rx %s\n"
-                : "path %s %s %u %s %s %s %s\n",
+    if (status) {
+        printf(term ? "path %s\n"
+                "  status:  %s\n"
+                "  bind:    %s port %"PRIu16"\n"
+                "  public:  %s port %"PRIu16"\n"
+                "  peer:    %s port %"PRIu16"\n"
+                "  mtu:     %zu\n"
+                "  rtt:     %.3f ms\n"
+                "  rttvar:  %.3f ms\n"
+                "  rate:    %s\n"
+                "  losslim: %u%%\n"
+                "  beat:    %"PRIu64" ms\n"
+                "  tx:\n"
+                "    rate:  %"PRIu64" B/s\n"
+                "    loss:  %"PRIu64"%%\n"
+                "    total: %"PRIu64" packets\n"
+                "  rx:\n"
+                "    rate:  %"PRIu64" B/s\n"
+                "    loss:  %"PRIu64"%%\n"
+                "    total: %"PRIu64" packets\n"
+                : "path %s %s"
+                " %s %"PRIu16" %s %"PRIu16" %s %"PRIu16
+                " %zu %.3f %.3f %s %u %"PRIu64
+                " %"PRIu64" %"PRIu64" %"PRIu64
+                " %"PRIu64" %"PRIu64" %"PRIu64
+                "\n",
+            statestr, path->ok ? "ok" : "degraded",
+            bindstr[0] ? bindstr : "-",
+            gt_get_port((struct sockaddr *)&path->local_addr),
+            publstr[0] ? publstr : "-",
+            gt_get_port((struct sockaddr *)&path->r_addr),
+            peerstr[0] ? peerstr : "-",
+            gt_get_port((struct sockaddr *)&path->addr),
+            path->mtu.ok,
+            (double)path->rtt.val / 1e3,
+            (double)path->rtt.var / 1e3,
+            path->conf.fixed_rate ? "fixed" : "auto",
+            path->conf.loss_limit * 100U / 255U,
+            path->conf.beat / 1000,
+            path->tx.rate,
+            path->tx.loss * 100U / 255U,
+            path->tx.total,
+            path->rx.rate,
+            path->rx.loss * 100U / 255U,
+            path->rx.total);
+    } else {
+        printf(term ? "path %s %s losslimit %u%% beat %s "
+                      "rate %s tx %s rx %s\n"
+                    : "path %s %s %u %s %s %s %s\n",
             statestr, bindstr,
             path->conf.loss_limit * 100U / 255U,
             beatstr,
             path->conf.fixed_rate ? "fixed" : "auto",
             txstr, rxstr);
+    }
 }
 
 static int
@@ -65,7 +122,7 @@ gt_path_cmp_addr(struct sockaddr_storage *a, struct sockaddr_storage *b)
 }
 
 static int
-gt_path_print_all(int fd, enum mud_state state, struct sockaddr_storage *addr)
+gt_path_print_all(int fd, enum mud_state state, struct sockaddr_storage *addr, int status)
 {
     struct ctl_msg req = {
         .type = CTL_PATH_STATUS,
@@ -97,15 +154,17 @@ gt_path_print_all(int fd, enum mud_state state, struct sockaddr_storage *addr)
 
     int term = isatty(1);
 
-    if (!term)
+    if (!term && !status)
         printf("# STATE ADDR LOSSLIMIT BEAT RATE TX RX\n");
+    else if (!term && status)
+        printf("# STATE STATUS BIND PUBLIC PEER MTU RTT RTTVAR RATE LOSSLIM BEAT TXRATE TXLOSS TXTOTAL RXRATE RXLOSS RXTOTAL\n");
 
     for (int i = 0; i < count; i++) {
         if (state && path[i].state != state)
             continue;
         if (addr->ss_family && gt_path_cmp_addr(addr, &path[i].local_addr))
             continue;
-        gt_path_print(&path[i], term);
+        gt_path_print(&path[i], status, term);
     }
 
     return 0;
@@ -134,6 +193,7 @@ gt_path(int argc, char **argv)
         {NULL, "IPADDR", &req.path.addr, argz_addr},
         {"dev", "NAME", &dev, argz_str},
         {"up|backup|down", NULL, NULL, argz_option},
+        {"status", NULL, NULL, argz_option},
         {"rate", NULL, &ratez, argz_option},
         {"beat", "SECONDS", &req.path.beat, argz_time},
         {"losslimit", "PERCENT", &loss_limit, argz_percent},
@@ -181,7 +241,7 @@ gt_path(int argc, char **argv)
         ret = ctl_reply(fd, &res, &req);
 
     if (!ret)
-        ret = gt_path_print_all(fd, req.path.state, &req.path.addr);
+        ret = gt_path_print_all(fd, req.path.state, &req.path.addr, argz_is_set(pathz, "status"));
 
     if (ret == -1)
         perror("path");
