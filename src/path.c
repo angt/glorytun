@@ -173,6 +173,7 @@ gt_path_print_all(int fd, enum mud_state state, struct sockaddr_storage *addr, i
 int
 gt_path(int argc, char **argv)
 {
+    unsigned short peer_port = 5000;
     const char *dev = NULL;
     unsigned int loss_limit = 0;
 
@@ -183,6 +184,11 @@ gt_path(int argc, char **argv)
         },
     }, res = {0};
 
+    struct argz peerz[] = {
+        {NULL, "IPADDR", &req.path.peer, argz_addr},
+        {NULL, "PORT", &peer_port, argz_ushort},
+        {NULL}};
+
     struct argz ratez[] = {
         {"fixed|auto", NULL, NULL, argz_option},
         {"tx", "BYTES/SEC", &req.path.rate_tx, argz_bytes},
@@ -191,6 +197,7 @@ gt_path(int argc, char **argv)
 
     struct argz pathz[] = {
         {NULL, "IPADDR", &req.path.addr, argz_addr},
+        {"peer", NULL, &peerz, argz_option},
         {"dev", "NAME", &dev, argz_str},
         {"up|backup|down", NULL, NULL, argz_option},
         {"status", NULL, NULL, argz_option},
@@ -218,6 +225,13 @@ gt_path(int argc, char **argv)
         return 1;
     }
 
+    gt_set_port((struct sockaddr *)&req.path.peer, peer_port);
+
+    if (set && !req.path.peer.ss_family) {
+        gt_log("please specify a peer\n");
+        return 1;
+    }
+
     if (argz_is_set(pathz, "up")) {
         req.path.state = MUD_UP;
     } else if (argz_is_set(pathz, "backup")) {
@@ -237,7 +251,7 @@ gt_path(int argc, char **argv)
 
     int ret = 0;
 
-    if (req.path.addr.ss_family && (req.path.state || set))
+    if (req.path.addr.ss_family && req.path.peer.ss_family && (req.path.state || set))
         ret = ctl_reply(fd, &res, &req);
 
     if (!ret)

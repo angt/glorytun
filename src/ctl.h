@@ -22,6 +22,7 @@ struct ctl_msg {
     union {
         struct {
             struct sockaddr_storage addr;
+            struct sockaddr_storage peer;
             enum mud_state state;
             unsigned long rate_tx;
             unsigned long rate_rx;
@@ -34,8 +35,8 @@ struct ctl_msg {
             long pid;
             size_t mtu;
             int chacha;
+            int master;
             struct sockaddr_storage bind;
-            struct sockaddr_storage peer;
         } status;
         struct mud_conf conf;
         struct mud_path path_status;

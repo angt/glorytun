@@ -102,21 +102,14 @@ int
 gt_bind(int argc, char **argv)
 {
     struct sockaddr_storage bind_addr = {.ss_family = AF_INET};
-    struct sockaddr_storage peer_addr = {0};
     unsigned short bind_port = 5000;
-    unsigned short peer_port = bind_port;
     const char *dev = NULL;
     const char *keyfile = NULL;
-
-    struct argz toz[] = {
-        {NULL, "IPADDR", &peer_addr, argz_addr},
-        {NULL, "PORT", &peer_port, argz_ushort},
-        {NULL}};
 
     struct argz bindz[] = {
         {NULL, "IPADDR", &bind_addr, argz_addr},
         {NULL, "PORT", &bind_port, argz_ushort},
-        {"to", NULL, &toz, argz_option},
+        {"master", NULL, NULL, argz_option},
         {"dev", "NAME", &dev, argz_str},
         {"keyfile", "FILE", &keyfile, argz_str},
         {"chacha", NULL, NULL, argz_option},
@@ -132,8 +125,8 @@ gt_bind(int argc, char **argv)
     }
 
     gt_set_port((struct sockaddr *)&bind_addr, bind_port);
-    gt_set_port((struct sockaddr *)&peer_addr, peer_port);
 
+    int master = argz_is_set(bindz, "master");
     int chacha = argz_is_set(bindz, "chacha");
     int persist = argz_is_set(bindz, "persist");
 
@@ -145,7 +138,7 @@ gt_bind(int argc, char **argv)
     unsigned char hashkey[crypto_shorthash_KEYBYTES];
     randombytes_buf(hashkey, sizeof(hashkey));
 
-    struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
+    struct mud *mud = mud_create((struct sockaddr *)&bind_addr, master);
     const int mud_fd = mud_get_fd(mud);
 
     if (mud_fd == -1) {
@@ -174,13 +167,6 @@ gt_bind(int argc, char **argv)
     if (tun_set_persist(tun_fd, persist) == -1) {
         gt_log("couldn't %sable persist mode on device %s\n",
                persist ? "en" : "dis", tun_name);
-    }
-
-    if (peer_addr.ss_family) {
-        if (mud_peer(mud, (struct sockaddr *)&peer_addr)) {
-            perror("mud_peer");
-            return 1;
-        }
     }
 
     const int ctl_fd = ctl_create(tun_name);
@@ -299,6 +285,7 @@ gt_bind(int argc, char **argv)
                     break;
                 case CTL_STATE:
                     if (mud_set_state(mud, (struct sockaddr *)&req.path.addr,
+                                      (struct sockaddr *)&req.path.peer,
                                       req.path.state,
                                       req.path.rate_tx,
                                       req.path.rate_rx,
@@ -317,8 +304,8 @@ gt_bind(int argc, char **argv)
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = chacha;
+                    res.status.master = master;
                     res.status.bind = bind_addr;
-                    res.status.peer = peer_addr;
                     break;
                 case CTL_PATH_STATUS: {
                     unsigned count = 0;

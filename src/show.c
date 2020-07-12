@@ -60,52 +60,29 @@ gt_show_status(int fd)
     gt_toaddr(bindstr, sizeof(bindstr),
               (struct sockaddr *)&res.status.bind);
 
-    int server = gt_toaddr(peerstr, sizeof(peerstr),
-                           (struct sockaddr *)&res.status.peer);
+    const char *modestr = NULL;
+    modestr = res.status.master ? "master" : "slave";
 
     int term = isatty(1);
 
-    if (server) {
-        printf(term ? "server %s:\n"
-                      "  pid:    %li\n"
-                      "  bind:   %s port %"PRIu16"\n"
-                      "  mtu:    %zu\n"
-                      "  cipher: %s\n"
-                    : "server %s"
-                      " %li"
-                      " %s %"PRIu16
-                      " %zu"
-                      " %s"
-                      "\n",
-               res.status.tun_name,
-               res.status.pid,
-               bindstr[0] ? bindstr : "-",
-               gt_get_port((struct sockaddr *)&res.status.bind),
-               res.status.mtu,
-               GT_CIPHER(res.status.chacha));
-    } else {
-        printf(term ? "client %s:\n"
-                      "  pid:    %li\n"
-                      "  bind:   %s port %"PRIu16"\n"
-                      "  peer:   %s port %"PRIu16"\n"
-                      "  mtu:    %zu\n"
-                      "  cipher: %s\n"
-                    : "client %s"
-                      " %li"
-                      " %s %"PRIu16
-                      " %s %"PRIu16
-                      " %zu"
-                      " %s"
-                      "\n",
-               res.status.tun_name,
-               res.status.pid,
-               bindstr[0] ? bindstr : "-",
-               gt_get_port((struct sockaddr *)&res.status.bind),
-               peerstr[0] ? peerstr : "-",
-               gt_get_port((struct sockaddr *)&res.status.peer),
-               res.status.mtu,
-               GT_CIPHER(res.status.chacha));
-    }
+    printf(term ? "%s %s:\n"
+                  "  pid:    %li\n"
+                  "  bind:   %s port %"PRIu16"\n"
+                  "  mtu:    %zu\n"
+                  "  cipher: %s\n"
+                : "%s %s"
+                  " %li"
+                  " %s %"PRIu16
+                  " %zu"
+                  " %s"
+                  "\n",
+           modestr,
+           res.status.tun_name,
+           res.status.pid,
+           bindstr[0] ? bindstr : "-",
+           gt_get_port((struct sockaddr *)&res.status.bind),
+           res.status.mtu,
+           GT_CIPHER(res.status.chacha));
 
     return 0;
 }
