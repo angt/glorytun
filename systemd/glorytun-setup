@@ -39,14 +39,22 @@ fi
 # install files
 mkdir -p "$DIR"
 
-cat > "$DIR/env" <<EOF
+if [ "$HOST" ]
+then
+	cat > "$DIR/env" <<EOF
 DEV=gt${HOST:+c}-$NAME
-HOST=$HOST
-PORT=$PORT
+BIND=$BIND
+BIND_PORT=$BIND_PORT
+OPTIONS="master"
+EOF
+else
+	cat > "$DIR/env" <<EOF
+DEV=gt${HOST:+c}-$NAME
 BIND=$BIND
 BIND_PORT=$BIND_PORT
 OPTIONS=
 EOF
+fi
 
 ( umask 077; echo "$KEY" > "$DIR/key" )
 
@@ -61,7 +69,7 @@ SRC=$(ip route get "$HOST" | awk '/src/{getline;print $0}' RS=' ')
 ip rule add from "$SRC" table main pref "$((PREF-1))" || true
 
 # limit to 100Mbit by default
-glorytun path up "$SRC" dev "$DEV" rate rx 12500000 tx 12500000
+glorytun path up "$SRC" peer "$HOST" "$PORT" dev "$DEV" rate rx 12500000 tx 12500000
 
 # forward everything else to the tunnel
 ip rule add from all table "$TABLE" pref "$PREF" || true
