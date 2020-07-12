@@ -35,10 +35,10 @@ int
 gt_set(int argc, char **argv)
 {
     const char *dev = NULL;
-    unsigned long kxtimeout;
-    unsigned long timetolerance;
-    unsigned long keepalive;
-    int tc;
+    unsigned long kxtimeout = 0;
+    unsigned long timetolerance = 0;
+    unsigned long keepalive = 0;
+    int tc = 0;
 
     struct argz pathz[] = {
         {"dev", "NAME", &dev, argz_str},
@@ -70,10 +70,7 @@ gt_set(int argc, char **argv)
 
     int ret = ctl_reply(fd, &res, &req);
 
-    char t0[32];
-    char t1[32];
-    char t2[32];
-
+    char t0[32], t1[32], t2[32];
     gt_totime(t0, sizeof(t0), res.conf.kxtimeout / 1000);
     gt_totime(t1, sizeof(t1), res.conf.timetolerance / 1000);
     gt_totime(t2, sizeof(t2), res.conf.keepalive / 1000);
