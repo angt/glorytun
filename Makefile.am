@@ -26,7 +26,6 @@ glorytun_SOURCES = \
     src/path.c \
     src/set.c \
     src/show.c \
-    src/str.h \
     src/tun.c \
     src/tun.h \
     src/version.c
