@@ -195,7 +195,7 @@ gt_path(int argc, char **argv)
     int ret = 0;
 
     if (argz_is_set(pathz, "set")) {
-        if (req.path.local_addr.ss_family) { // XXX
+        if (!req.path.local_addr.ss_family) { // XXX
             gt_log("please specify a path\n");
             return 1;
         }
