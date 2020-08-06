@@ -291,9 +291,15 @@ gt_bind(int argc, char **argv)
                 case CTL_NONE:
                     break;
                 case CTL_STATE:
+                    if (req.path.addr.ss_family) {
+                        if (!gt_get_port((struct sockaddr *)&req.path.addr))
+                            gt_set_port((struct sockaddr *)&req.path.addr, peer_port);
+                    } else {
+                        memcpy(&req.path.addr, &peer_addr, sizeof(req.path.addr));
+                    }
                     if (mud_set_state(mud,
+                                      (struct sockaddr *)&req.path.local_addr,
                                       (struct sockaddr *)&req.path.addr,
-                                      (struct sockaddr *)&peer_addr,
                                       req.path.state,
                                       req.path.rate_tx,
                                       req.path.rate_rx,
