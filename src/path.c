@@ -210,9 +210,9 @@ gt_path(int argc, char **argv)
 
         req.path.loss_limit = loss_limit * 255 / 100;
 
-        if (argz_is_set(setz, "fixed")) {
+        if (argz_is_set(ratez, "fixed")) {
             req.path.fixed_rate = 3;
-        } else if (argz_is_set(setz, "auto")) {
+        } else if (argz_is_set(ratez, "auto")) {
             req.path.fixed_rate = 1;
         }
 
