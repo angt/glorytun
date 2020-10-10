@@ -12,7 +12,7 @@ configure
 build-aux
 .deps
 .dirstamp
-.static
+.sodium
 glorytun
 build*
 VERSION

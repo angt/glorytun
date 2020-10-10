@@ -1,40 +1,49 @@
-NAME    := glorytun
-VERSION := $(shell ./version.sh)
-DIST    := $(NAME)-$(VERSION)
+NAME     = glorytun
+VERSION != ./version.sh
+DIST     = $(NAME)-$(VERSION)
 
-CFLAGS  ?= -std=c11 -O2 -Wall -fstack-protector-strong
-FLAGS   := $(CFLAGS) $(LDFLAGS) $(CPPFLAGS)
+CC       = cc
+CFLAGS   = -std=c99 -O2 -Wall -fstack-protector-strong
+CPPFLAGS = -I.sodium/$(X)build/src/libsodium/include
+LDFLAGS  = -L.sodium/$(X)build/src/libsodium/.libs
+LDLIBS   = -lsodium
+prefix   = /usr/local
+PREFIX   = $(prefix)
 
-CC      ?= cc
-prefix  ?= /usr
-Q       := @
+$(NAME):
+	$(X)$(CC) $(EXTRA) \
+	    $(CFLAGS) \
+	    $(CPPFLAGS) \
+	    $(LDFLAGS) \
+	    -DPACKAGE_NAME=\"$(NAME)\" \
+	    -DPACKAGE_VERSION=\"$(VERSION)\" \
+	    argz/argz.c \
+	    mud/aegis256/aegis256.c \
+	    mud/mud.c \
+	    src/bench.c \
+	    src/bind.c \
+	    src/common.c \
+	    src/ctl.c \
+	    src/iface.c \
+	    src/keygen.c \
+	    src/list.c \
+	    src/main.c \
+	    src/path.c \
+	    src/set.c \
+	    src/show.c \
+	    src/tun.c \
+	    src/version.c \
+	    -o $(NAME) \
+	    $(LDLIBS)
 
-ifneq ($(X),)
-    H = $(X)-
-    FLAGS += -static
-endif
+install: $(NAME)
+	mkdir -p $(DESTDIR)$(PREFIX)/bin
+	mv -f $(NAME) $(DESTDIR)$(PREFIX)/bin
 
-FLAGS += -DPACKAGE_NAME=\"$(NAME)\" -DPACKAGE_VERSION=\"$(VERSION)\"
-FLAGS += -I.static/$(X)/libsodium-stable/src/libsodium/include
-FLAGS += -L.static/$(X)/libsodium-stable/src/libsodium/.libs
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/$(NAME)
 
-SRC := argz/argz.c mud/mud.c mud/aegis256/aegis256.c $(wildcard src/*.c)
-HDR := argz/argz.h mud/mud.h mud/aegis256/aegis256.h $(wildcard src/*.h)
-
-$(NAME): $(SRC) $(HDR)
-	$(Q)$(H)$(CC) $(FLAGS) -o $(NAME) $(SRC) -lsodium
-
-$(NAME)-strip: $(NAME)
-	$(Q)cp $< $@
-	$(Q)$(H)strip -x $@
-
-.PHONY: install
-install: $(NAME)-strip
-	@echo "$(DESTDIR)$(prefix)/bin/$(NAME)"
-	$(Q)install -m 755 -d $(DESTDIR)$(prefix)/bin
-	$(Q)install -m 755 $(NAME)-strip $(DESTDIR)$(prefix)/bin/$(NAME)
-
-.PHONY: clean
 clean:
-	$(Q)rm -f "$(NAME)"
-	$(Q)rm -f "$(DIST).tar.gz"
+	rm -f $(NAME)
+
+.PHONY: $(NAME) install uninstall clean

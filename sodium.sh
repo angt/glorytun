@@ -1,29 +1,35 @@
 #!/bin/sh
 
-mkdir -p .static
-cd .static || exit 1
+set -e
+mkdir -p .sodium
+cd .sodium
 
-file=LATEST.tar.gz
-url=https://download.libsodium.org/libsodium/releases
-dir="$PWD"
-
-[ -f "$file" ] || wget -q     "$url/$file" -O "$file"
-[ -f "$file" ] || curl -SsfLO "$url/$file"
-[ -f "$file" ] || {
-	echo "Couldn't download $url/$file"
-	exit 1
+[ -d src ] || {
+	FILE=LATEST.tar.gz
+	URL=https://download.libsodium.org/libsodium/releases
+	[ -f "$FILE" ] \
+		|| wget -q     "$URL/$FILE" -O "$FILE" \
+		|| curl -SsfLO "$URL/$FILE" || {
+		echo "Couldn't download $URL/$FILE"
+		exit 1
+	}
+	tar zxf "$FILE"
+	mv libsodium-stable src
 }
 
-if [ "$1" ]; then
-	mkdir -p "$1"
-	cd "$1" || exit 1
-fi
+HOST="${1%-}"
+DIR="${HOST:+$HOST-}build"
 
-rm -rf libsodium-stable
-tar zxf "$dir/$file"
-cd libsodium-stable || exit 1
+mkdir -p "$DIR"
+cd "$DIR"
+
+../src/configure ${HOST:+--host=$HOST} \
+	--disable-dependency-tracking \
+	--enable-minimal \
+	--enable-static \
+	--disable-shared
 
 NPROC=$(sysctl -n hw.ncpu || nproc) 2>/dev/null
-
-./configure ${1+--host=$1} --enable-minimal --disable-dependency-tracking --enable-static --disable-shared
 make "-j$((NPROC+1))"
+
+rsync -a ../src/src/libsodium/include/ src/libsodium/include/
