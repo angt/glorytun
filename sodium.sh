@@ -32,4 +32,4 @@ cd "$DIR"
 NPROC=$(sysctl -n hw.ncpu || nproc) 2>/dev/null
 make "-j$((NPROC+1))"
 
-rsync -a ../src/src/libsodium/include/ src/libsodium/include/
+cp -a ../src/src/libsodium/include/. src/libsodium/include/
