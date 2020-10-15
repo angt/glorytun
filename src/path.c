@@ -17,7 +17,6 @@ gt_path_print(struct mud_path *path, int term)
 
     switch (path->conf.state) {
         case MUD_UP:     statestr = "up";     break;
-        case MUD_BACKUP: statestr = "backup"; break;
         case MUD_DOWN:   statestr = "down";   break;
         default:         return;
     }
@@ -36,12 +35,13 @@ gt_path_print(struct mud_path *path, int term)
         return;
 
     printf(term ? "path %s %s to %s port %"PRIu16" losslimit %u%% beat %s "
-                  "rate %s tx %s rx %s\n"
-                : "path %s %s %s %"PRIu16" %u %s %s %s %s\n",
+                  "pref %u rate %s tx %s rx %s\n"
+                : "path %s %s %s %"PRIu16" %u %s %u %s %s %s\n",
             statestr, bindstr, peerstr,
             gt_get_port((struct sockaddr *)&path->addr),
             path->conf.loss_limit * 100U / 255U,
             beatstr,
+            path->conf.pref,
             path->conf.fixed_rate ? "fixed" : "auto",
             txstr, rxstr);
 }
@@ -153,14 +153,15 @@ gt_path(int argc, char **argv, void *data)
         {0}};
 
     struct argz_ull set_beat = {.suffix = argz_time_suffix};
-    struct argz_ull set_loss = {.min = 0, .max = 100};
+    struct argz_ull set_pref = {.max = 0xFF >> 1};
+    struct argz_ull set_loss = {.max = 100};
 
     struct argz setz[] = {
-        {"up",        "Enable path as primary",        .grp = 2},
-        {"backup",    "Enable path as secondary",      .grp = 2},
+        {"up",        "Enable path",                   .grp = 2},
         {"down",      "Disable path",                  .grp = 2},
         {"rate",      "Rate limit properties",  argz,    &ratez},
         {"beat",      "Internal beat rate", argz_ull, &set_beat},
+        {"pref",      "Path preference",    argz_ull, &set_pref},
         {"losslimit", "Disable lossy path", argz_ull, &set_loss},
         {0}};
 
@@ -197,6 +198,8 @@ gt_path(int argc, char **argv, void *data)
                 .tx_max_rate = rate_tx.value,
                 .rx_max_rate = rate_rx.value,
                 .beat        = set_beat.value,
+                .pref        = argz_is_set(setz, "pref")
+                             ? (set_pref.value << 1) | 1 : 0,
                 .loss_limit  = set_loss.value * 255 / 100,
             },
         },
@@ -212,8 +215,6 @@ gt_path(int argc, char **argv, void *data)
 
         if (argz_is_set(setz, "up")) {
             req.path.conf.state = MUD_UP;
-        } else if (argz_is_set(setz, "backup")) {
-            req.path.conf.state = MUD_BACKUP;
         } else if (argz_is_set(setz, "down")) {
             req.path.conf.state = MUD_DOWN;
         }
