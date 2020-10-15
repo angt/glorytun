@@ -15,7 +15,7 @@ gt_path_print(struct mud_path *path, int term)
     char beatstr[32];
     char txstr[32], rxstr[32];
 
-    switch (path->state) {
+    switch (path->conf.state) {
         case MUD_UP:     statestr = "up";     break;
         case MUD_BACKUP: statestr = "backup"; break;
         case MUD_DOWN:   statestr = "down";   break;
@@ -89,9 +89,8 @@ gt_path_cmp_port(struct sockaddr_storage *a, struct sockaddr_storage *b)
 }
 
 static int
-gt_path_print_all(int fd, enum mud_state state,
-                  struct sockaddr_storage *local_addr,
-                  struct sockaddr_storage *addr)
+gt_path_print_all(int fd, struct sockaddr_storage *local_addr,
+                          struct sockaddr_storage *addr)
 {
     struct ctl_msg req = {
         .type = CTL_PATH_STATUS,
@@ -127,8 +126,6 @@ gt_path_print_all(int fd, enum mud_state state,
         printf("# STATE LOCAL_ADDR ADDR PORT LOSSLIMIT BEAT RATE TX RX\n");
 
     for (int i = 0; i < count; i++) {
-        if (state && path[i].state != state)
-            continue;
         if (local_addr->ss_family &&
             gt_path_cmp_addr(local_addr, &path[i].local_addr))
             continue;
@@ -195,11 +192,13 @@ gt_path(int argc, char **argv, void *data)
         .path = {
             .local_addr = from.ss,
             .addr = to.ss,
-            .state = MUD_EMPTY,
-            .rate_tx = rate_tx.value,
-            .rate_rx = rate_rx.value,
-            .beat = set_beat.value,
-            .loss_limit = set_loss.value * 255 / 100,
+            .conf = {
+                .state       = MUD_EMPTY,
+                .tx_max_rate = rate_tx.value,
+                .rx_max_rate = rate_rx.value,
+                .beat        = set_beat.value,
+                .loss_limit  = set_loss.value * 255 / 100,
+            },
         },
     }, res = {0};
 
@@ -212,26 +211,24 @@ gt_path(int argc, char **argv, void *data)
         }
 
         if (argz_is_set(setz, "up")) {
-            req.path.state = MUD_UP;
+            req.path.conf.state = MUD_UP;
         } else if (argz_is_set(setz, "backup")) {
-            req.path.state = MUD_BACKUP;
+            req.path.conf.state = MUD_BACKUP;
         } else if (argz_is_set(setz, "down")) {
-            req.path.state = MUD_DOWN;
+            req.path.conf.state = MUD_DOWN;
         }
 
         if (argz_is_set(ratez, "fixed")) {
-            req.path.fixed_rate = 3;
+            req.path.conf.fixed_rate = 3;
         } else if (argz_is_set(ratez, "auto")) {
-            req.path.fixed_rate = 1;
+            req.path.conf.fixed_rate = 1;
         }
 
         ret = ctl_reply(fd, &res, &req);
     }
 
     if (!ret)
-        ret = gt_path_print_all(fd, req.path.state,
-                                &req.path.local_addr,
-                                &req.path.addr);
+        ret = gt_path_print_all(fd, &req.path.local_addr, &req.path.addr);
 
     if (ret == -1)
         perror("path");

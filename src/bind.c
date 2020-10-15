@@ -39,7 +39,7 @@ fd_set_nonblock(int fd)
 }
 
 static int
-gt_setup_secretkey(struct mud *mud, const char *keyfile)
+gt_read_keyfile(unsigned char *key, const char *keyfile)
 {
     int fd;
 
@@ -52,12 +52,11 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
         return -1;
     }
 
-    unsigned char key[32];
-    char buf[2 * sizeof(key)];
+    char buf[2 * MUD_PUBKEY_SIZE];
     size_t size = 0;
 
     while (size < sizeof(buf)) {
-        ssize_t r = read(fd, &buf[size], sizeof(buf) - size);
+        ssize_t r = read(fd, buf + size, sizeof(buf) - size);
 
         if (r <= (ssize_t)0) {
             if (r && (errno == EAGAIN || errno == EINTR))
@@ -75,12 +74,10 @@ gt_setup_secretkey(struct mud *mud, const char *keyfile)
         return -1;
     }
 
-    if (gt_fromhex(key, sizeof(key), buf, sizeof(buf))) {
+    if (gt_fromhex(key, MUD_PUBKEY_SIZE, buf, sizeof(buf))) {
         gt_log("secret key is not valid\n");
         return -1;
     }
-
-    mud_set_key(mud, key, sizeof(key));
 
     return 0;
 }
@@ -126,18 +123,21 @@ gt_bind(int argc, char **argv, void *data)
         return -1;
     }
 
-    int chacha = argz_is_set(z, "chacha");
-    int persist = argz_is_set(z, "persist");
+    const int chacha = argz_is_set(z, "chacha");
+    const int persist = argz_is_set(z, "persist");
 
     if (sodium_init() == -1) {
         gt_log("couldn't init sodium\n");
         return -1;
     }
 
-    unsigned char hashkey[crypto_shorthash_KEYBYTES];
-    randombytes_buf(hashkey, sizeof(hashkey));
+    unsigned char key[MUD_PUBKEY_SIZE];
 
-    struct mud *mud = mud_create(&from.sa);
+    if (gt_read_keyfile(key, keyfile.path))
+        return -1;
+
+    int aes = !chacha;
+    struct mud *mud = mud_create(&from.sa, key, &aes);
     const int mud_fd = mud_get_fd(mud);
 
     if (mud_fd == -1) {
@@ -145,13 +145,8 @@ gt_bind(int argc, char **argv, void *data)
         return -1;
     }
 
-    if (gt_setup_secretkey(mud, keyfile.path))
-        return -1;
-
-    if (!chacha && mud_set_aes(mud)) {
+    if (!chacha && !aes)
         gt_log("AES is not available, enjoy ChaCha20!\n");
-        chacha = 1;
-    }
 
     char tun_name[64];
     const int tun_fd = tun_create(tun_name, sizeof(tun_name), dev);
@@ -289,19 +284,14 @@ gt_bind(int argc, char **argv, void *data)
                     } else {
                         memcpy(&req.path.addr, &to.ss, sizeof(req.path.addr));
                     }
-                    if (mud_set_state(mud,
-                                      (struct sockaddr *)&req.path.local_addr,
-                                      (struct sockaddr *)&req.path.addr,
-                                      req.path.state,
-                                      req.path.rate_tx,
-                                      req.path.rate_rx,
-                                      req.path.beat,
-                                      req.path.fixed_rate,
-                                      req.path.loss_limit))
+                    if (mud_set_path(mud,
+                                     (struct sockaddr *)&req.path.local_addr,
+                                     (struct sockaddr *)&req.path.addr,
+                                     &req.path.conf))
                         res.ret = errno;
                     break;
                 case CTL_CONF:
-                    if (mud_set_conf(mud, &req.conf))
+                    if (mud_set(mud, &req.conf))
                         res.ret = errno;
                     res.conf = req.conf;
                     break;
@@ -309,7 +299,7 @@ gt_bind(int argc, char **argv, void *data)
                     memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
                     res.status.pid = pid;
                     res.status.mtu = mtu;
-                    res.status.chacha = chacha;
+                    res.status.chacha = !aes;
                     res.status.bind = from.ss;
                     res.status.peer = to.ss;
                     break;

@@ -23,12 +23,7 @@ struct ctl_msg {
         struct {
             struct sockaddr_storage local_addr;
             struct sockaddr_storage addr;
-            enum mud_state state;
-            unsigned long rate_tx;
-            unsigned long rate_rx;
-            unsigned long beat;
-            unsigned char fixed_rate;
-            unsigned char loss_limit;
+            struct mud_path_conf conf;
         } path;
         struct {
             char tun_name[64];
