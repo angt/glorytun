@@ -25,17 +25,13 @@ gt_sa_handler(int sig)
 static void
 gt_set_signal(void)
 {
-    struct sigaction sa = {
-        .sa_flags = 0,
-    };
-
-    sigemptyset(&sa.sa_mask);
+    struct sigaction sa = {0};
 
     sa.sa_handler = gt_sa_handler;
-    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGINT,  &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGHUP, &sa, NULL);
+    sigaction(SIGHUP,  &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
     sa.sa_handler = SIG_IGN;
@@ -44,44 +40,35 @@ gt_set_signal(void)
     sigaction(SIGUSR2, &sa, NULL);
 }
 
+int gt_list    (int, char **, void *);
+int gt_show    (int, char **, void *);
+int gt_bench   (int, char **, void *);
+int gt_bind    (int, char **, void *);
+int gt_set     (int, char **, void *);
+int gt_keygen  (int, char **, void *);
+int gt_path    (int, char **, void *);
+int gt_version (int, char **, void *);
+
 int
 main(int argc, char **argv)
 {
     gt_set_signal();
 
-    struct {
-        char *name;
-        char *help;
-        int (*call)(int, char **);
-    } cmd[] = {
-        {"list", "list all tunnels", gt_list},
-        {"show", "show tunnel information", gt_show},
-        {"bench", "start a crypto bench", gt_bench},
-        {"bind", "start a new tunnel", gt_bind},
-        {"set", "change tunnel properties", gt_set},
-        {"keygen", "generate a new secret key", gt_keygen},
-        {"path", "manage paths", gt_path},
-        {"version", "show version", gt_version},
-        {NULL}};
+    struct argz z[] = {
+        {"list",    "List all tunnels",          gt_list,    .grp = 1},
+        {"show",    "Show tunnel information",   gt_show,    .grp = 1},
+        {"bench",   "Start a crypto bench",      gt_bench,   .grp = 1},
+        {"bind",    "Start a new tunnel",        gt_bind,    .grp = 1},
+        {"set",     "Change tunnel properties",  gt_set,     .grp = 1},
+        {"keygen",  "Generate a new secret key", gt_keygen,  .grp = 1},
+        {"path",    "Manage paths",              gt_path,    .grp = 1},
+        {"version", "Show version",              gt_version, .grp = 1},
+        {0}};
 
-    if (argv[1]) {
-        for (int k = 0; cmd[k].name; k++) {
-            if (!strcmp(cmd[k].name, argv[1]))
-                return cmd[k].call(argc - 1, argv + 1);
-        }
+    if (argc == 1) {
+        argz_print(z);
+        return 0;
     }
 
-    printf("available commands:\n\n");
-
-    int len = 0;
-
-    for (int k = 0; cmd[k].name; k++)
-        len = MAX(len, (int)strlen(cmd[k].name));
-
-    for (int k = 0; cmd[k].name; k++)
-        printf("    %-*s    %s\n", len, cmd[k].name, cmd[k].help);
-
-    printf("\n");
-
-    return 1;
+    return argz_main(argc, argv, z);
 }

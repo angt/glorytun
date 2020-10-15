@@ -3,6 +3,7 @@
 #include "iface.h"
 #include "ip.h"
 #include "tun.h"
+#include "argz.h"
 
 #include <fcntl.h>
 #include <sys/select.h>
@@ -99,62 +100,53 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 }
 
 int
-gt_bind(int argc, char **argv)
+gt_bind(int argc, char **argv, void *data)
 {
-    struct sockaddr_storage bind_addr = {.ss_family = AF_INET};
-    struct sockaddr_storage peer_addr = {0};
-    unsigned short bind_port = 5000;
-    unsigned short peer_port = bind_port;
+    struct gt_argz_addr from = {.ss.ss_family = AF_INET, .port = 5000};
+    struct gt_argz_addr to = {.port = from.port};
     const char *dev = NULL;
-    const char *keyfile = NULL;
+    struct argz_path keyfile = {0};
 
-    struct argz toz[] = {
-        {NULL, "IPADDR", &peer_addr, argz_addr},
-        {NULL, "PORT", &peer_port, argz_ushort},
-        {NULL}};
+    struct argz z[] = {
+        {"dev",     "Tunnel device",               argz_str,      &dev},
+        {"keyfile", "Secret file to use",          argz_path, &keyfile},
+        {"from",    "Address and port to bind",    gt_argz_addr, &from},
+        {"to",      "Address and port to connect", gt_argz_addr,   &to},
+        {"persist", "Keep the tunnel device after exiting"            },
+        {"chacha" , "Force fallback cipher"                           },
+        {0}};
 
-    struct argz bindz[] = {
-        {NULL, "IPADDR", &bind_addr, argz_addr},
-        {NULL, "PORT", &bind_port, argz_ushort},
-        {"to", NULL, &toz, argz_option},
-        {"dev", "NAME", &dev, argz_str},
-        {"keyfile", "FILE", &keyfile, argz_str},
-        {"chacha", NULL, NULL, argz_option},
-        {"persist", NULL, NULL, argz_option},
-        {NULL}};
+    int err = argz(argc, argv, z);
 
-    if (argz(bindz, argc, argv))
-        return 1;
+    if (err)
+        return err;
 
-    if (EMPTY(keyfile)) {
+    if (EMPTY(keyfile.path)) {
         gt_log("a keyfile is needed!\n");
-        return 1;
+        return -1;
     }
 
-    gt_set_port((struct sockaddr *)&bind_addr, bind_port);
-    gt_set_port((struct sockaddr *)&peer_addr, peer_port);
-
-    int chacha = argz_is_set(bindz, "chacha");
-    int persist = argz_is_set(bindz, "persist");
+    int chacha = argz_is_set(z, "chacha");
+    int persist = argz_is_set(z, "persist");
 
     if (sodium_init() == -1) {
         gt_log("couldn't init sodium\n");
-        return 1;
+        return -1;
     }
 
     unsigned char hashkey[crypto_shorthash_KEYBYTES];
     randombytes_buf(hashkey, sizeof(hashkey));
 
-    struct mud *mud = mud_create((struct sockaddr *)&bind_addr);
+    struct mud *mud = mud_create(&from.sa);
     const int mud_fd = mud_get_fd(mud);
 
     if (mud_fd == -1) {
         gt_log("couldn't create mud\n");
-        return 1;
+        return -1;
     }
 
-    if (gt_setup_secretkey(mud, keyfile))
-        return 1;
+    if (gt_setup_secretkey(mud, keyfile.path))
+        return -1;
 
     if (!chacha && mud_set_aes(mud)) {
         gt_log("AES is not available, enjoy ChaCha20!\n");
@@ -166,7 +158,7 @@ gt_bind(int argc, char **argv)
 
     if (tun_fd == -1) {
         gt_log("couldn't create tun device\n");
-        return 1;
+        return -1;
     }
 
     size_t mtu = gt_setup_mtu(mud, 0, tun_name);
@@ -186,14 +178,14 @@ gt_bind(int argc, char **argv)
         } else {
             gt_log("couldn't find a writable run/tmp directory\n");
         }
-        return 1;
+        return -1;
     }
 
     if (//fd_set_nonblock(tun_fd) ||
         //fd_set_nonblock(mud_fd) ||
         fd_set_nonblock(ctl_fd)) {
         gt_log("couldn't setup non-blocking fds\n");
-        return 1;
+        return -1;
     }
 
     const long pid = (long)getpid();
@@ -293,9 +285,9 @@ gt_bind(int argc, char **argv)
                 case CTL_STATE:
                     if (req.path.addr.ss_family) {
                         if (!gt_get_port((struct sockaddr *)&req.path.addr))
-                            gt_set_port((struct sockaddr *)&req.path.addr, peer_port);
+                            gt_set_port((struct sockaddr *)&req.path.addr, to.port);
                     } else {
-                        memcpy(&req.path.addr, &peer_addr, sizeof(req.path.addr));
+                        memcpy(&req.path.addr, &to.ss, sizeof(req.path.addr));
                     }
                     if (mud_set_state(mud,
                                       (struct sockaddr *)&req.path.local_addr,
@@ -318,8 +310,8 @@ gt_bind(int argc, char **argv)
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = chacha;
-                    res.status.bind = bind_addr;
-                    res.status.peer = peer_addr;
+                    res.status.bind = from.ss;
+                    res.status.peer = to.ss;
                     break;
                 case CTL_PATH_STATUS: {
                     unsigned count = 0;

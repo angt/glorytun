@@ -1,5 +1,6 @@
 #include "common.h"
 #include "ctl.h"
+#include "argz.h"
 
 #include <stdio.h>
 
@@ -142,60 +143,70 @@ gt_path_print_all(int fd, enum mud_state state,
 }
 
 int
-gt_path(int argc, char **argv)
+gt_path(int argc, char **argv, void *data)
 {
-    const char *dev = NULL;
-    unsigned int loss_limit = 0;
-    unsigned short peer_port = 0;
-
-    struct ctl_msg req = {
-        .type = CTL_STATE,
-        .path = {
-            .state = MUD_EMPTY,
-        },
-    }, res = {0};
+    struct argz_ull rate_tx = {.suffix = argz_size_suffix};
+    struct argz_ull rate_rx = {.suffix = argz_size_suffix};
 
     struct argz ratez[] = {
-        {"fixed|auto", NULL, NULL, argz_option},
-        {"tx", "BYTES/SEC", &req.path.rate_tx, argz_bytes},
-        {"rx", "BYTES/SEC", &req.path.rate_rx, argz_bytes},
-        {NULL}};
+        {"fixed", "Fixed rate",                            .grp = 2},
+        {"auto",  "Dynamic rate detection (experimental)", .grp = 2},
+        {"tx",    "Maximum transmission rate",   argz_ull, &rate_tx},
+        {"rx",    "Maximum reception rate",      argz_ull, &rate_rx},
+        {0}};
+
+    struct argz_ull set_beat = {.suffix = argz_time_suffix};
+    struct argz_ull set_loss = {.min = 0, .max = 100};
 
     struct argz setz[] = {
-        {"up|backup|down", NULL, NULL, argz_option},
-        {"rate", NULL, &ratez, argz_option},
-        {"beat", "SECONDS", &req.path.beat, argz_time},
-        {"losslimit", "PERCENT", &loss_limit, argz_percent},
-        {NULL}};
+        {"up",        "Enable path as primary",        .grp = 2},
+        {"backup",    "Enable path as secondary",      .grp = 2},
+        {"down",      "Disable path",                  .grp = 2},
+        {"rate",      "Rate limit properties",  argz,    &ratez},
+        {"beat",      "Internal beat rate", argz_ull, &set_beat},
+        {"losslimit", "Disable lossy path", argz_ull, &set_loss},
+        {0}};
 
-    struct argz toz[] = {
-        {NULL, "IPADDR", &req.path.addr, argz_addr},
-        {NULL, "PORT", &peer_port, argz_ushort},
-        {NULL}};
+    struct gt_argz_addr from = {0};
+    struct gt_argz_addr to = {0};
+    const char *dev = NULL;
 
-    struct argz pathz[] = {
-        {NULL, "IPADDR", &req.path.local_addr, argz_addr},
-        {"to", NULL, &toz, argz_option},
-        {"dev", "NAME", &dev, argz_str},
-        {"set", NULL, &setz, argz_option},
-        {NULL}};
+    struct argz z[] = {
+        {"dev",  "Select tunnel device",               gt_argz_dev,   &dev},
+        {"from", "Select path by source address",      gt_argz_addr, &from},
+        {"to",   "Select path by destination address", gt_argz_addr,   &to},
+        {"set",  "Change path properties",             argz,         &setz},
+        {0}};
 
-    if (argz(pathz, argc, argv))
-        return 1;
+    int err = argz(argc, argv, z);
 
-    gt_set_port((struct sockaddr *)&req.path.addr, peer_port);
+    if (err)
+        return err;
 
     int fd = ctl_connect(dev);
 
     if (fd < 0) {
         ctl_explain_connect(fd);
-        return 1;
+        return -1;
     }
+
+    struct ctl_msg req = {
+        .type = CTL_STATE,
+        .path = {
+            .local_addr = from.ss,
+            .addr = to.ss,
+            .state = MUD_EMPTY,
+            .rate_tx = rate_tx.value,
+            .rate_rx = rate_rx.value,
+            .beat = set_beat.value,
+            .loss_limit = set_loss.value * 255 / 100,
+        },
+    }, res = {0};
 
     int ret = 0;
 
-    if (argz_is_set(pathz, "set")) {
-        if (!req.path.local_addr.ss_family) { // XXX
+    if (argz_is_set(z, "set")) {
+        if (!from.ss.ss_family) { // XXX
             gt_log("please specify a path\n");
             return 1;
         }
@@ -207,8 +218,6 @@ gt_path(int argc, char **argv)
         } else if (argz_is_set(setz, "down")) {
             req.path.state = MUD_DOWN;
         }
-
-        req.path.loss_limit = loss_limit * 255 / 100;
 
         if (argz_is_set(ratez, "fixed")) {
             req.path.fixed_rate = 3;
@@ -229,5 +238,5 @@ gt_path(int argc, char **argv)
 
     ctl_delete(fd);
 
-    return !!ret;
+    return -!!ret;
 }

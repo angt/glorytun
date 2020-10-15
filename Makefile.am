@@ -11,6 +11,8 @@ glorytun_SOURCES = \
     mud/aegis256/aegis256.h \
     mud/mud.c \
     mud/mud.h \
+    src/argz.c \
+    src/argz.h \
     src/bench.c \
     src/bind.c \
     src/common.c \

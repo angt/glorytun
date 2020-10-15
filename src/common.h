@@ -51,8 +51,7 @@ extern volatile sig_atomic_t gt_alarm;
 extern volatile sig_atomic_t gt_reload;
 extern volatile sig_atomic_t gt_quit;
 
-int  gt_print (const char *, ...) _printf_(1, 2);
-void gt_log   (const char *, ...) _printf_(1, 2);
+void gt_log (const char *, ...) _printf_(1, 2);
 
 int gt_tohex   (char *, size_t, const uint8_t *, size_t);
 int gt_fromhex (uint8_t *, size_t, const char *, size_t);
@@ -63,12 +62,3 @@ uint16_t gt_get_port (struct sockaddr *);
 int gt_toaddr (char *, size_t, struct sockaddr *);
 int gt_totime (char *, size_t, unsigned long long);
 int gt_torate (char *, size_t, unsigned long long);
-
-int gt_list    (int, char **);
-int gt_show    (int, char **);
-int gt_bind    (int, char **);
-int gt_path    (int, char **);
-int gt_keygen  (int, char **);
-int gt_bench   (int, char **);
-int gt_set     (int, char **);
-int gt_version (int, char **);

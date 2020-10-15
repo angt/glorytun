@@ -1,9 +1,10 @@
 #include "common.h"
 #include "ctl.h"
-
-#include "../argz/argz.h"
+#include "argz.h"
 
 #include <stdio.h>
+
+#include "../argz/argz.h"
 
 static void
 gt_show_bad_line(int term, char *name, uint64_t count,
@@ -91,33 +92,34 @@ gt_show_status(int fd)
 }
 
 int
-gt_show(int argc, char **argv)
+gt_show(int argc, char **argv, void *data)
 {
     const char *dev = NULL;
 
-    struct argz showz[] = {
-        {"dev", "NAME", &dev, argz_str},
-        {"bad", NULL, NULL, argz_option},
-        {NULL}};
+    struct argz z[] = {
+        {"dev", "Tunnel device to show", gt_argz_dev, &dev},
+        {"bad", "Show tunnel errors"},
+        {0}};
 
-    if (argz(showz, argc, argv))
-        return 1;
+    int err = argz(argc, argv, z);
+
+    if (err)
+        return err;
 
     int fd = ctl_connect(dev);
 
     if (fd < 0) {
         ctl_explain_connect(fd);
-        return 1;
+        return -1;
     }
 
-    int ret = argz_is_set(showz, "bad")
-            ? gt_show_bad(fd)
-            : gt_show_status(fd);
+    int ret = argz_is_set(z, "bad") ? gt_show_bad(fd)
+                                    : gt_show_status(fd);
 
     if (ret == -1)
         perror("show");
 
     ctl_delete(fd);
 
-    return !!ret;
+    return -!!ret;
 }

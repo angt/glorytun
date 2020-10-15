@@ -14,30 +14,28 @@
 #define ABYTES    16
 
 int
-gt_bench(int argc, char **argv)
+gt_bench(int argc, char **argv, void *data)
 {
-    struct argz bench_argz[] = {
-        {"aes|chacha", NULL, NULL, argz_option},
-        {NULL}};
+    struct argz z[] = {
+        {"fallback", "Bench fallback cipher"},
+        {0}};
 
-    if (argz(bench_argz, argc, argv))
-        return 1;
+    int err = argz(argc, argv, z);
+
+    if (err)
+        return err;
 
     if (sodium_init() == -1) {
         gt_log("sodium init failed\n");
-        return 1;
+        return -1;
     }
 
     int term = isatty(1);
-    int aes = argz_is_set(bench_argz, "aes");
-    int chacha = argz_is_set(bench_argz, "chacha");
+    int fallback = argz_is_set(z, "fallback");
 
-    if (!aegis256_is_available()) {
-        if (aes) {
-            gt_log("aes is not available on your platform\n");
-            return 1;
-        }
-        chacha = 1;
+    if (!fallback && !aegis256_is_available()) {
+        gt_log("%s is not available on your platform\n", GT_CIPHER(0));
+        return -1;
     }
 
     unsigned char buf[1450 + ABYTES];
@@ -49,7 +47,7 @@ gt_bench(int argc, char **argv)
     randombytes_buf(key, sizeof(key));
 
     if (term) {
-        printf("cipher: %s\n\n", GT_CIPHER(chacha));
+        printf("bench %s\n", GT_CIPHER(fallback));
         printf("  size       min           mean            max      \n");
         printf("----------------------------------------------------\n");
     }
@@ -68,7 +66,7 @@ gt_bench(int argc, char **argv)
             int64_t base = (int64_t)clock();
 
             while (!gt_quit && bytes <= bytes_max) {
-                if (chacha) {
+                if (fallback) {
                     crypto_aead_chacha20poly1305_encrypt(
                         buf, NULL, buf, size, NULL, 0, NULL, npub, key);
                 } else {
@@ -107,7 +105,7 @@ gt_bench(int argc, char **argv)
             printf("\n");
         } else {
             printf("bench %s %"PRIi64" %"PRIi64" %"PRIi64" %"PRIi64"\n",
-                    GT_CIPHER(chacha), size, mbps.min, mbps.mean, mbps.max);
+                    GT_CIPHER(fallback), size, mbps.min, mbps.mean, mbps.max);
         }
 
         size += 2 * 5 * 13;

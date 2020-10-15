@@ -20,6 +20,7 @@ $(NAME):
 	    argz/argz.c \
 	    mud/aegis256/aegis256.c \
 	    mud/mud.c \
+	    src/argz.c \
 	    src/bench.c \
 	    src/bind.c \
 	    src/common.c \

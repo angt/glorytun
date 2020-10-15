@@ -199,21 +199,60 @@ ctl_connect(const char *file)
 }
 
 void
+ctl_foreach(void (*cb)(const char *))
+{
+    char dir[64];
+
+    if (!ctl_rundir(dir, sizeof(dir)))
+        return;
+
+    DIR *dp = opendir(dir);
+
+    if (!dp)
+        return;
+
+    struct dirent *d = NULL;
+
+    while (d = readdir(dp), d) {
+        if (d->d_name[0] == '.')
+            continue;
+
+        int fd = ctl_connect(d->d_name);
+
+        if (fd < 0)
+            continue;
+
+        cb(d->d_name);
+        close(fd);
+    }
+
+    closedir(dp);
+}
+
+void
 ctl_explain_connect(int ret)
 {
     switch (ret) {
-        case 0:
-            break;
-        case CTL_ERROR_MANY:
-            gt_log("please select a tunnel\n");
-            break;
-        case CTL_ERROR_NONE:
-            gt_log("no active tunnel\n");
+    case 0:
+        break;
+    case CTL_ERROR_MANY:
+        gt_log("please select a tunnel\n");
+        break;
+    case CTL_ERROR_NONE:
+        gt_log("no active tunnel\n");
+        break;
+    default:
+        gt_log("unknown error\n");
+        break;
+    case -1:
+        switch (errno) {
+        case ENOENT:
+            gt_log("tunnel not found\n");
             break;
         default:
-            gt_log("unknown error\n"); /* FALLTHRU */
-        case -1:
-            if (errno)
-                perror("connect");
+            perror("connect");
+        case 0:
+            break;
+        }
     }
 }
