@@ -9,6 +9,12 @@ gt_argz_print(const char *str)
 }
 
 int
+gt_argz_percent_suffix(struct argz_ull *ull, const char *s)
+{
+    return s && s[0] && strcmp(s, "%");
+}
+
+int
 gt_argz_dev(int argc, char **argv, void *data)
 {
     if (argz_help_me(argc, argv)) {
