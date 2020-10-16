@@ -29,41 +29,6 @@ gt_argz_dev(int argc, char **argv, void *data)
 }
 
 int
-gt_argz_tc(int argc, char **argv, void *data)
-{
-    if (argz_help_me(argc, argv)) {
-        for (unsigned i=0; i <= 7; i++)
-            printf("CS%u\n", i);
-        for (unsigned i=1; i <= 4; i++)
-            for (unsigned j=1; j <= 3; j++)
-                printf("AF%u%u\n", i, j);
-        printf("EF\n");
-    } else if (argc > 1) {
-        int val = 0;
-        const char *s = argv[1];
-
-        if ((s[0] == 'C') && (s[1] == 'S') &&
-            (s[2] >= '0') && (s[2] <= '7') && !s[3]) {
-            val = (s[2] - '0') << 3;
-        } else if ((s[0] == 'A') && (s[1] == 'F') &&
-                   (s[2] >= '1') && (s[2] <= '4') &&
-                   (s[3] >= '1') && (s[3] <= '3') && !s[4]) {
-            val = ((s[2] - '0') << 3) | ((s[3] - '0') << 1);
-        } else if ((s[0] == 'E') && (s[1] == 'F') && !s[2]) {
-            val = 46;
-        } else {
-            gt_log("Option %s is not a valid tc value\n", argv[1]);
-            return -1;
-        }
-        memcpy(data, &val, sizeof(int));
-        return argc - 2;
-    } else {
-        gt_log("Option %s requires a value\n", argv[0]);
-    }
-    return -1;
-}
-
-int
 gt_argz_addr_ip(int argc, char **argv, void *data)
 {
     struct gt_argz_addr *addr = (struct gt_argz_addr *)data;

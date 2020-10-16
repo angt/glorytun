@@ -6,14 +6,12 @@ int
 gt_set(int argc, char **argv, void *data)
 {
     const char *dev = NULL;
-    int tc = 0;
     struct argz_ull kx = {.suffix = argz_time_suffix};
     struct argz_ull tt = {.suffix = argz_time_suffix};
     struct argz_ull ka = {.suffix = argz_time_suffix};
 
     struct argz z[] = {
         {"dev",           "Tunnel device",            gt_argz_dev, &dev},
-        {"tc",            "Internal traffic control", gt_argz_tc,   &tc},
         {"kxtimeout",     "Key rotation timeout",     argz_ull,     &kx},
         {"timetolerance", "Clock sync tolerance",     argz_ull,     &tt},
         {"keepalive",     "Keep alive timeout",       argz_ull,     &ka},
@@ -27,7 +25,6 @@ gt_set(int argc, char **argv, void *data)
     struct ctl_msg req = {
         .type = CTL_CONF,
         .conf = {
-            .tc            = tc ? (tc << 1) | 1 : 0,
             .kxtimeout     = kx.value * UINT64_C(1000),
             .timetolerance = tt.value * UINT64_C(1000),
             .keepalive     = ka.value * UINT64_C(1000),
@@ -49,8 +46,8 @@ gt_set(int argc, char **argv, void *data)
         gt_totime(t1, sizeof(t1), res.conf.timetolerance / 1000);
         gt_totime(t2, sizeof(t2), res.conf.keepalive     / 1000);
 
-        printf("set dev %s kxtimeout %s timetolerance %s keepalive %s tc %i\n",
-                res.tun_name, t0, t1, t2, res.conf.tc);
+        printf("set dev %s kxtimeout %s timetolerance %s keepalive %s\n",
+                res.tun_name, t0, t1, t2);
     } else {
         perror("set");
     }
