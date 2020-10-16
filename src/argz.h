@@ -2,6 +2,8 @@
 
 #include <netinet/in.h>
 
+#include "../argz/argz.h"
+
 struct gt_argz_addr {
     union {
         struct sockaddr sa;

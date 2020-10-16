@@ -1,8 +1,5 @@
 #include "common.h"
-
-#include <stdio.h>
-
-#include "../argz/argz.h"
+#include "argz.h"
 
 volatile sig_atomic_t gt_alarm;
 volatile sig_atomic_t gt_reload;

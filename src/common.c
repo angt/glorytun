@@ -1,7 +1,6 @@
 #include "common.h"
 
 #include <stdarg.h>
-#include <stdio.h>
 
 void
 gt_log(const char *fmt, ...)

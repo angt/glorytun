@@ -2,10 +2,6 @@
 #include "ctl.h"
 #include "argz.h"
 
-#include <stdio.h>
-
-#include "../argz/argz.h"
-
 int
 gt_set(int argc, char **argv, void *data)
 {

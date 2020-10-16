@@ -1,9 +1,7 @@
 #include "common.h"
+#include "argz.h"
 
 #include <sodium.h>
-#include <stdio.h>
-
-#include "../argz/argz.h"
 
 int
 gt_keygen(int argc, char **argv, void *data)

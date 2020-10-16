@@ -2,8 +2,6 @@
 #include "ctl.h"
 #include "argz.h"
 
-#include "../argz/argz.h"
-
 int
 gt_list(int argc, char **argv, void *data)
 {

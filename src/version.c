@@ -1,8 +1,7 @@
 #include "common.h"
+#include "argz.h"
 
 #include <sodium.h>
-
-#include "../argz/argz.h"
 
 int
 gt_version(int argc, char **argv, void *data)

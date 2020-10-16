@@ -2,10 +2,6 @@
 #include "ctl.h"
 #include "argz.h"
 
-#include <stdio.h>
-
-#include "../argz/argz.h"
-
 static void
 gt_show_bad_line(int term, char *name, uint64_t count,
                  struct sockaddr_storage *ss)

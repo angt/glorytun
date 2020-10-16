@@ -1,12 +1,10 @@
 #include "common.h"
+#include "argz.h"
 
 #include <inttypes.h>
 #include <sodium.h>
-#include <stdio.h>
-#include <string.h>
 #include <time.h>
 
-#include "../argz/argz.h"
 #include "../mud/aegis256/aegis256.h"
 
 #define NPUBBYTES 32

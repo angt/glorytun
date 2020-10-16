@@ -2,7 +2,6 @@
 #include "common.h"
 
 #include <net/if.h>
-#include <stdio.h>
 #include <sys/ioctl.h>
 
 int

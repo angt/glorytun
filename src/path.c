@@ -2,10 +2,6 @@
 #include "ctl.h"
 #include "argz.h"
 
-#include <stdio.h>
-
-#include "../argz/argz.h"
-
 static void
 gt_path_print(struct mud_path *path, int term)
 {

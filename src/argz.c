@@ -1,10 +1,6 @@
+#include "argz.h"
 #include "common.h"
 #include "ctl.h"
-#include "argz.h"
-
-#include <stdio.h>
-
-#include "../argz/argz.h"
 
 void
 gt_argz_print(const char *str)

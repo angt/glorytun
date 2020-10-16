@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <sys/select.h>
 
-#include "../argz/argz.h"
 #include "../mud/mud.h"
 
 #include <sodium.h>

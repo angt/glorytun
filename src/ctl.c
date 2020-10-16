@@ -3,7 +3,6 @@
 
 #include <dirent.h>
 #include <libgen.h>
-#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 
