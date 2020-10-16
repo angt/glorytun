@@ -19,6 +19,7 @@ enum ctl_type {
 struct ctl_msg {
     enum ctl_type type;
     int reply, ret;
+    char tun_name[64];
     union {
         struct {
             struct sockaddr_storage local_addr;
@@ -26,7 +27,6 @@ struct ctl_msg {
             struct mud_path_conf conf;
         } path;
         struct {
-            char tun_name[64];
             long pid;
             size_t mtu;
             int chacha;

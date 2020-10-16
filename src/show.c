@@ -79,7 +79,7 @@ gt_show_status(int fd)
             " %zu"
             " %s"
             "\n",
-            res.status.tun_name,
+            res.tun_name,
             res.status.pid,
             bindstr[0] ? bindstr : "-",
             gt_get_port((struct sockaddr *)&res.status.bind),

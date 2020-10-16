@@ -265,6 +265,8 @@ gt_bind(int argc, char **argv, void *data)
 
         if (FD_ISSET(ctl_fd, &rfds)) {
             struct ctl_msg req, res = {.reply = 1};
+            memcpy(res.tun_name, tun_name, sizeof(res.tun_name));
+
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
 
@@ -296,7 +298,6 @@ gt_bind(int argc, char **argv, void *data)
                     res.conf = req.conf;
                     break;
                 case CTL_STATUS:
-                    memcpy(res.status.tun_name, tun_name, sizeof(tun_name)); // XXX
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.chacha = !aes;
