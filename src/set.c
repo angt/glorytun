@@ -47,15 +47,17 @@ gt_set(int argc, char **argv, void *data)
 
     int ret = ctl_reply(fd, &res, &req);
 
-    char t0[32], t1[32], t2[32];
-    gt_totime(t0, sizeof(t0), res.conf.kxtimeout     / 1000);
-    gt_totime(t1, sizeof(t1), res.conf.timetolerance / 1000);
-    gt_totime(t2, sizeof(t2), res.conf.keepalive     / 1000);
+    if (!ret) {
+        char t0[32], t1[32], t2[32];
+        gt_totime(t0, sizeof(t0), res.conf.kxtimeout     / 1000);
+        gt_totime(t1, sizeof(t1), res.conf.timetolerance / 1000);
+        gt_totime(t2, sizeof(t2), res.conf.keepalive     / 1000);
 
-    printf("set kxtimeout %s timetolerance %s keepalive %s tc %i\n", t0, t1, t2, res.conf.tc);
-
-    if (ret)
+        printf("set dev %s kxtimeout %s timetolerance %s keepalive %s tc %i\n",
+                res.tun_name, t0, t1, t2, res.conf.tc);
+    } else {
         perror("set");
+    }
 
     ctl_delete(fd);
 
