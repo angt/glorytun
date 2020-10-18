@@ -7,7 +7,6 @@
 
 struct gt_argz_addr {
     union mud_sockaddr sock;
-    in_port_t port;
 };
 
 void     gt_set_port (union mud_sockaddr *, uint16_t);

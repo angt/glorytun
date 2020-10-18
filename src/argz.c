@@ -159,7 +159,7 @@ gt_argz_addr(int argc, char **argv, void *data)
     struct gt_argz_addr *addr = (struct gt_argz_addr *)data;
 
     struct argz_ull port = {
-        .value = addr->port,
+        .value = gt_get_port(&addr->sock),
         .min = 0,
         .max = 0xFFFF,
     };

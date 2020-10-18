@@ -90,10 +90,15 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 int
 gt_bind(int argc, char **argv, void *data)
 {
-    struct gt_argz_addr from = {.sock.sa.sa_family = AF_INET, .port = 5000};
-    struct gt_argz_addr to = {.port = from.port};
     const char *dev = NULL;
     struct argz_path keyfile = {0};
+    struct gt_argz_addr from = {
+        .sock.sin = {
+            .sin_family = AF_INET,
+            .sin_port = htons(5000),
+        },
+    };
+    struct gt_argz_addr to = from;
 
     struct argz z[] = {
         {"dev",     "Tunnel device",               argz_str,      &dev},
@@ -286,7 +291,7 @@ gt_bind(int argc, char **argv, void *data)
                 case CTL_PATH_CONF:
                     if (req.path.conf.remote.sa.sa_family) {
                         if (!gt_get_port(&req.path.conf.remote))
-                            gt_set_port(&req.path.conf.remote, to.port);
+                            gt_set_port(&req.path.conf.remote, gt_get_port(&to.sock));
                     } else {
                         req.path.conf.remote = to.sock;
                     }
