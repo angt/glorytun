@@ -11,7 +11,7 @@ gt_show_error(const char *name, struct mud_error *err)
     char addr[INET6_ADDRSTRLEN];
     gt_toaddr(addr, sizeof(addr), &err->addr);
 
-    printf("error %s count %"PRIu64" from %s port %"PRIu16"\n",
+    printf("error %s count %"PRIu64" from %s.%"PRIu16"\n",
             name, err->count, addr, gt_get_port(&err->addr));
 }
 
@@ -49,8 +49,8 @@ gt_show_status(int fd)
     gt_toaddr(remote, sizeof(remote), &res.status.remote);
 
     printf("tunnel %s\n"
-           "local  %s port %"PRIu16"\n"
-           "remote %s port %"PRIu16"\n"
+           "local  %s.%"PRIu16"\n"
+           "remote %s.%"PRIu16"\n"
            "pid    %li\n"
            "mtu    %zu\n"
            "cipher %s\n",
