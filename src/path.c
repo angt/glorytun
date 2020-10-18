@@ -127,8 +127,7 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         memcpy(hdr[type].v[i], "path", 5);
 
         gt_toaddr(tmp, sizeof(tmp), &res.path.conf.local);
-        gt_path_print(&hdr[local ], i, "%s.%"PRIu16, tmp,
-                      gt_get_port(&res.path.conf.local));
+        gt_path_print(&hdr[local ], i, "%s", tmp);
 
         gt_toaddr(tmp, sizeof(tmp), &res.path.conf.remote);
         gt_path_print(&hdr[remote], i, "%s.%"PRIu16, tmp,
