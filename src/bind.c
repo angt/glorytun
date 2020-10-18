@@ -7,9 +7,6 @@
 
 #include <fcntl.h>
 #include <sys/select.h>
-
-#include "../mud/mud.h"
-
 #include <sodium.h>
 
 #ifndef O_CLOEXEC
@@ -50,7 +47,6 @@ gt_read_keyfile(unsigned char *key, const char *keyfile)
         gt_log("couldn't open %s: %s\n", keyfile, strerror(errno));
         return -1;
     }
-
     char buf[2 * MUD_PUBKEY_SIZE];
     size_t size = 0;
 
@@ -62,22 +58,18 @@ gt_read_keyfile(unsigned char *key, const char *keyfile)
                 continue;
             break;
         }
-
         size += (size_t)r;
     }
-
     close(fd);
 
     if (size != sizeof(buf)) {
         gt_log("couldn't read secret key\n");
         return -1;
     }
-
     if (gt_fromhex(key, MUD_PUBKEY_SIZE, buf, sizeof(buf))) {
         gt_log("secret key is not valid\n");
         return -1;
     }
-
     return 0;
 }
 
@@ -98,7 +90,7 @@ gt_setup_mtu(struct mud *mud, size_t old, const char *tun_name)
 int
 gt_bind(int argc, char **argv, void *data)
 {
-    struct gt_argz_addr from = {.ss.ss_family = AF_INET, .port = 5000};
+    struct gt_argz_addr from = {.sock.sa.sa_family = AF_INET, .port = 5000};
     struct gt_argz_addr to = {.port = from.port};
     const char *dev = NULL;
     struct argz_path keyfile = {0};
@@ -121,7 +113,6 @@ gt_bind(int argc, char **argv, void *data)
         gt_log("a keyfile is needed!\n");
         return -1;
     }
-
     const int chacha = argz_is_set(z, "chacha");
     const int persist = argz_is_set(z, "persist");
 
@@ -129,21 +120,19 @@ gt_bind(int argc, char **argv, void *data)
         gt_log("couldn't init sodium\n");
         return -1;
     }
-
     unsigned char key[MUD_PUBKEY_SIZE];
 
     if (gt_read_keyfile(key, keyfile.path))
         return -1;
 
     int aes = !chacha;
-    struct mud *mud = mud_create(&from.sa, key, &aes);
+    struct mud *mud = mud_create(&from.sock, key, &aes);
     const int mud_fd = mud_get_fd(mud);
 
     if (mud_fd == -1) {
         gt_log("couldn't create mud\n");
         return -1;
     }
-
     if (!chacha && !aes)
         gt_log("AES is not available, enjoy ChaCha20!\n");
 
@@ -154,14 +143,12 @@ gt_bind(int argc, char **argv, void *data)
         gt_log("couldn't create tun device\n");
         return -1;
     }
-
     size_t mtu = gt_setup_mtu(mud, 0, tun_name);
 
     if (tun_set_persist(tun_fd, persist) == -1) {
         gt_log("couldn't %sable persist mode on device %s\n",
                persist ? "en" : "dis", tun_name);
     }
-
     const int ctl_fd = ctl_create(tun_name);
 
     if (ctl_fd == -1) {
@@ -174,7 +161,6 @@ gt_bind(int argc, char **argv, void *data)
         }
         return -1;
     }
-
     if (//fd_set_nonblock(tun_fd) ||
         //fd_set_nonblock(mud_fd) ||
         fd_set_nonblock(ctl_fd)) {
@@ -183,7 +169,6 @@ gt_bind(int argc, char **argv, void *data)
     }
 
     const long pid = (long)getpid();
-
     gt_log("running on device %s as pid %li\n", tun_name, pid);
 
     fd_set rfds, wfds;
@@ -221,7 +206,6 @@ gt_bind(int argc, char **argv, void *data)
                 tv.tv_usec = 100000;
             }
         }
-
         const int ret = select(last_fd, &rfds, &wfds, NULL, update < 0 ? NULL : &tv);
 
         if (ret == -1) {
@@ -231,7 +215,6 @@ gt_bind(int argc, char **argv, void *data)
             }
             continue;
         }
-
         if (FD_ISSET(tun_fd, &rfds)) tun_can_read  = 1;
         if (FD_ISSET(tun_fd, &wfds)) tun_can_write = 1;
         if (FD_ISSET(mud_fd, &rfds)) mud_can_read  = 1;
@@ -247,10 +230,8 @@ gt_bind(int argc, char **argv, void *data)
                 mud_send(mud, buf, (size_t)r);
                 mud_can_write = 0;
             }
-
             tun_can_read = 0;
         }
-
         if (mud_can_read && tun_can_write) {
             int r = mud_recv(mud, buf, sizeof(buf));
 
@@ -258,10 +239,8 @@ gt_bind(int argc, char **argv, void *data)
                 tun_write(tun_fd, buf, (size_t)r);
                 tun_can_write = 0;
             }
-
             mud_can_read = 0;
         }
-
         if (FD_ISSET(ctl_fd, &rfds)) {
             struct ctl_msg req, res = {.reply = 1};
             memcpy(res.tun_name, tun_name, sizeof(res.tun_name));
@@ -269,63 +248,57 @@ gt_bind(int argc, char **argv, void *data)
             struct sockaddr_storage ss;
             socklen_t sl = sizeof(ss);
 
+            struct mud_paths paths;
+
             ssize_t r = recvfrom(ctl_fd, &req, sizeof(req), 0,
                                  (struct sockaddr *)&ss, &sl);
 
             if (r == (ssize_t)sizeof(req)) {
                 res.type = req.type;
-
                 switch (req.type) {
                 case CTL_NONE:
                     break;
-                case CTL_STATE:
-                    if (req.path.addr.ss_family) {
-                        if (!gt_get_port((struct sockaddr *)&req.path.addr))
-                            gt_set_port((struct sockaddr *)&req.path.addr, to.port);
-                    } else {
-                        memcpy(&req.path.addr, &to.ss, sizeof(req.path.addr));
-                    }
-                    if (mud_set_path(mud,
-                                     (struct sockaddr *)&req.path.local_addr,
-                                     (struct sockaddr *)&req.path.addr,
-                                     &req.path.conf))
-                        res.ret = errno;
+                case CTL_STATUS:
+                    res.status.pid = pid;
+                    res.status.mtu = mtu;
+                    res.status.cipher = !aes;
+                    res.status.local = from.sock;
+                    res.status.remote = to.sock;
                     break;
                 case CTL_CONF:
                     if (mud_set(mud, &req.conf))
                         res.ret = errno;
                     res.conf = req.conf;
                     break;
-                case CTL_STATUS:
-                    res.status.pid = pid;
-                    res.status.mtu = mtu;
-                    res.status.chacha = !aes;
-                    res.status.bind = from.ss;
-                    res.status.peer = to.ss;
-                    break;
-                case CTL_PATH_STATUS: {
-                    unsigned count = 0;
-                    struct mud_path *paths = mud_get_paths(mud, &count);
-
-                    if (!paths) {
+                case CTL_PATH_STATUS:
+                    if (mud_get_paths(mud, &paths,
+                                      &req.path.conf.local,
+                                      &req.path.conf.remote)) {
                         res.ret = errno;
                         break;
                     }
-
                     res.ret = EAGAIN;
-
-                    for (unsigned i = 0; i < count; i++) {
-                        memcpy(&res.path_status, &paths[i], sizeof(struct mud_path));
+                    for (unsigned i = 0; i < paths.count; i++) {
+                        res.path = paths.path[i];
                         if (sendto(ctl_fd, &res, sizeof(res), 0,
                                    (const struct sockaddr *)&ss, sl) == -1)
                             perror("sendto(ctl)");
                     }
-
-                    free(paths);
                     res.ret = 0;
-                } break;
-                case CTL_BAD:
-                    if (mud_get_bad(mud, &res.bad))
+                    break;
+                case CTL_PATH_CONF:
+                    if (req.path.conf.remote.sa.sa_family) {
+                        if (!gt_get_port(&req.path.conf.remote))
+                            gt_set_port(&req.path.conf.remote, to.port);
+                    } else {
+                        req.path.conf.remote = to.sock;
+                    }
+                    if (mud_set_path(mud, &req.path.conf))
+                        res.ret = errno;
+                    res.path.conf = req.path.conf;
+                    break;
+                case CTL_ERRORS:
+                    if (mud_get_errors(mud, &res.errors))
                         res.ret = errno;
                     break;
                 }
@@ -337,7 +310,6 @@ gt_bind(int argc, char **argv, void *data)
             }
         }
     }
-
     if (gt_reload && tun_fd >= 0)
         tun_set_persist(tun_fd, 1);
 

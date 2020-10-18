@@ -66,6 +66,5 @@ main(int argc, char **argv)
         argz_print(z);
         return 0;
     }
-
     return argz_main(argc, argv, z);
 }

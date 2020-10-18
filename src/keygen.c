@@ -15,7 +15,6 @@ gt_keygen(int argc, char **argv, void *data)
         gt_log("sodium init failed\n");
         return -1;
     }
-
     unsigned char key[32];
     randombytes_buf(key, sizeof(key));
 

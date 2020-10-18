@@ -11,10 +11,10 @@ gt_set(int argc, char **argv, void *data)
     struct argz_ull ka = {.suffix = argz_time_suffix};
 
     struct argz z[] = {
-        {"dev",           "Tunnel device",            gt_argz_dev, &dev},
-        {"kxtimeout",     "Key rotation timeout",     argz_ull,     &kx},
-        {"timetolerance", "Clock sync tolerance",     argz_ull,     &tt},
-        {"keepalive",     "Keep alive timeout",       argz_ull,     &ka},
+        {"dev",           "Tunnel device",       gt_argz_dev, &dev},
+        {"kxtimeout",     "Key rotation timeout",   argz_ull,  &kx},
+        {"timetolerance", "Clock sync tolerance",   argz_ull,  &tt},
+        {"keepalive",     "Keep alive timeout",     argz_ull,  &ka},
         {0}};
 
     int err = argz(argc, argv, z);

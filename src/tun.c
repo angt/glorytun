@@ -1,5 +1,5 @@
-#include "tun.h"
 #include "common.h"
+#include "tun.h"
 #include "ip.h"
 
 #include <fcntl.h>

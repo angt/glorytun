@@ -3,42 +3,31 @@
 #include "argz.h"
 
 static void
-gt_show_bad_line(int term, char *name, uint64_t count,
-                 struct sockaddr_storage *ss)
+gt_show_error(const char *name, struct mud_error *err)
 {
-    if (!count)
+    if (!err->count)
         return;
 
     char addr[INET6_ADDRSTRLEN];
-    gt_toaddr(addr, sizeof(addr), (struct sockaddr *)ss);
+    gt_toaddr(addr, sizeof(addr), &err->addr);
 
-    printf(term ? "%s:\n"
-                  "  count: %"PRIu64"\n"
-                  "  last:  %s port %"PRIu16"\n"
-                : "%s"
-                  " %"PRIu64
-                  " %s %"PRIu16
-                  "\n",
-           name, count, addr[0] ? addr : "-",
-           gt_get_port((struct sockaddr *)ss));
+    printf("error %s count %"PRIu64" from %s port %"PRIu16"\n",
+            name, err->count, addr, gt_get_port(&err->addr));
 }
 
 static int
-gt_show_bad(int fd)
+gt_show_errors(int fd)
 {
-    struct ctl_msg res, req = {.type = CTL_BAD};
+    struct ctl_msg req = {
+        .type = CTL_ERRORS,
+    }, res = {0};
 
     if (ctl_reply(fd, &res, &req))
         return -1;
 
-    int term = isatty(1);
-
-    gt_show_bad_line(term, "decrypt",
-            res.bad.decrypt.count, &res.bad.decrypt.addr);
-    gt_show_bad_line(term, "difftime",
-            res.bad.difftime.count, &res.bad.difftime.addr);
-    gt_show_bad_line(term, "keyx",
-            res.bad.keyx.count, &res.bad.keyx.addr);
+    gt_show_error("decrypt",   &res.errors.decrypt);
+    gt_show_error("clocksync", &res.errors.clocksync);
+    gt_show_error("keyx",      &res.errors.keyx);
 
     return 0;
 }
@@ -46,43 +35,31 @@ gt_show_bad(int fd)
 static int
 gt_show_status(int fd)
 {
-    struct ctl_msg res, req = {.type = CTL_STATUS};
+    struct ctl_msg req = {
+        .type = CTL_STATUS,
+    }, res = {0};
 
     if (ctl_reply(fd, &res, &req))
         return -1;
 
-    char bindstr[INET6_ADDRSTRLEN] = {0};
-    char peerstr[INET6_ADDRSTRLEN] = {0};
+    char local[INET6_ADDRSTRLEN];
+    char remote[INET6_ADDRSTRLEN];
 
-    gt_toaddr(bindstr, sizeof(bindstr),
-              (struct sockaddr *)&res.status.bind);
+    gt_toaddr(local, sizeof(local), &res.status.local);
+    gt_toaddr(remote, sizeof(remote), &res.status.remote);
 
-    gt_toaddr(peerstr, sizeof(peerstr),
-              (struct sockaddr *)&res.status.peer);
-
-    int term = isatty(1);
-
-    printf(term ? "tunnel %s:\n"
-            "  pid:    %li\n"
-            "  bind:   %s port %"PRIu16"\n"
-            "  peer:   %s port %"PRIu16"\n"
-            "  mtu:    %zu\n"
-            "  cipher: %s\n"
-            : "tunnel %s"
-            " %li"
-            " %s %"PRIu16
-            " %s %"PRIu16
-            " %zu"
-            " %s"
-            "\n",
+    printf("tunnel %s\n"
+           "local  %s port %"PRIu16"\n"
+           "remote %s port %"PRIu16"\n"
+           "pid    %li\n"
+           "mtu    %zu\n"
+           "cipher %s\n",
             res.tun_name,
+            local, gt_get_port(&res.status.local),
+            remote, gt_get_port(&res.status.remote),
             res.status.pid,
-            bindstr[0] ? bindstr : "-",
-            gt_get_port((struct sockaddr *)&res.status.bind),
-            peerstr[0] ? peerstr : "-",
-            gt_get_port((struct sockaddr *)&res.status.peer),
             res.status.mtu,
-            GT_CIPHER(res.status.chacha));
+            GT_CIPHER(res.status.cipher));
 
     return 0;
 }
@@ -93,8 +70,8 @@ gt_show(int argc, char **argv, void *data)
     const char *dev = NULL;
 
     struct argz z[] = {
-        {"dev", "Tunnel device to show", gt_argz_dev, &dev},
-        {"bad", "Show tunnel errors"},
+        {"dev",    "Tunnel device", gt_argz_dev, &dev},
+        {"errors", "Show tunnel errors"              },
         {0}};
 
     int err = argz(argc, argv, z);
@@ -108,14 +85,12 @@ gt_show(int argc, char **argv, void *data)
         ctl_explain_connect(fd);
         return -1;
     }
-
-    int ret = argz_is_set(z, "bad") ? gt_show_bad(fd)
-                                    : gt_show_status(fd);
-
+    int ret = argz_is_set(z, "errors") ? gt_show_errors(fd)
+                                       : gt_show_status(fd);
     if (ret == -1)
         perror("show");
 
     ctl_delete(fd);
 
-    return -!!ret;
+    return ret;
 }

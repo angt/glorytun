@@ -1,18 +1,21 @@
 #pragma once
 
-#include <netinet/in.h>
-
+#include "../mud/mud.h"
 #include "../argz/argz.h"
 
+#include <netinet/in.h>
+
 struct gt_argz_addr {
-    union {
-        struct sockaddr sa;
-        struct sockaddr_in sin;
-        struct sockaddr_in6 sin6;
-        struct sockaddr_storage ss;
-    };
+    union mud_sockaddr sock;
     in_port_t port;
 };
+
+void     gt_set_port (union mud_sockaddr *, uint16_t);
+uint16_t gt_get_port (union mud_sockaddr *);
+
+int gt_toaddr (char *, size_t, union mud_sockaddr *);
+int gt_totime (char *, size_t, unsigned long long);
+int gt_torate (char *, size_t, unsigned long long);
 
 void gt_argz_print (const char *);
 

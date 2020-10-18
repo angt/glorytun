@@ -9,11 +9,11 @@
 
 enum ctl_type {
     CTL_NONE = 0,
-    CTL_STATE,
-    CTL_CONF,
     CTL_STATUS,
+    CTL_CONF,
     CTL_PATH_STATUS,
-    CTL_BAD,
+    CTL_PATH_CONF,
+    CTL_ERRORS,
 };
 
 struct ctl_msg {
@@ -22,20 +22,15 @@ struct ctl_msg {
     char tun_name[64];
     union {
         struct {
-            struct sockaddr_storage local_addr;
-            struct sockaddr_storage addr;
-            struct mud_path_conf conf;
-        } path;
-        struct {
             long pid;
             size_t mtu;
-            int chacha;
-            struct sockaddr_storage bind;
-            struct sockaddr_storage peer;
+            int cipher;
+            union mud_sockaddr local;
+            union mud_sockaddr remote;
         } status;
         struct mud_conf conf;
-        struct mud_path path_status;
-        struct mud_bad bad;
+        struct mud_path path;
+        struct mud_errors errors;
     };
 };
 

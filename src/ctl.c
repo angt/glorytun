@@ -1,5 +1,5 @@
-#include "ctl.h"
 #include "common.h"
+#include "ctl.h"
 
 #include <dirent.h>
 #include <libgen.h>
@@ -50,12 +50,10 @@ ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
         errno = EBADMSG;
         return -1;
     }
-
     if (res->ret) {
         errno = res->ret;
         return -1;
     }
-
     return 0;
 }
 
@@ -65,14 +63,12 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
     struct sockaddr_un sun = {
         .sun_family = AF_UNIX,
     };
-
     int ret = snprintf(sun.sun_path, sizeof(sun.sun_path), "%s/%s", dir, file);
 
     if (ret <= 0 || (size_t)ret >= sizeof(sun.sun_path)) {
         errno = EINVAL;
         return -1;
     }
-
     if (dst)
         *dst = sun;
 
@@ -93,7 +89,6 @@ ctl_bind(int fd, const char *dir, const char *file)
 
         file = name;
     }
-
     if (ctl_setsun(&sun, dir, file))
         return -1;
 
@@ -135,7 +130,6 @@ ctl_create(const char *file)
         errno = err;
         return -1;
     }
-
     return fd;
 }
 
@@ -162,16 +156,13 @@ ctl_connect(const char *file)
                 closedir(dp);
                 return CTL_ERROR_MANY;
             }
-
             file = &d->d_name[0];
         }
-
         if (!file) {
             closedir(dp);
             return CTL_ERROR_NONE;
         }
     }
-
     struct sockaddr_un sun;
     const int ret = ctl_setsun(&sun, dir, file);
 
@@ -180,7 +171,6 @@ ctl_connect(const char *file)
         closedir(dp);
         errno = err;
     }
-
     if (ret)
         return -1;
 
@@ -193,7 +183,6 @@ ctl_connect(const char *file)
         errno = err;
         return -1;
     }
-
     return fd;
 }
 
@@ -224,7 +213,6 @@ ctl_foreach(void (*cb)(const char *))
         cb(d->d_name);
         close(fd);
     }
-
     closedir(dp);
 }
 
@@ -232,26 +220,14 @@ void
 ctl_explain_connect(int ret)
 {
     switch (ret) {
-    case 0:
-        break;
-    case CTL_ERROR_MANY:
-        gt_log("please select a tunnel\n");
-        break;
-    case CTL_ERROR_NONE:
-        gt_log("no active tunnel\n");
-        break;
-    default:
-        gt_log("unknown error\n");
-        break;
-    case -1:
-        switch (errno) {
-        case ENOENT:
-            gt_log("tunnel not found\n");
-            break;
-        default:
-            perror("connect");
-        case 0:
-            break;
+        case 0: break;
+        case CTL_ERROR_MANY: gt_log("please select a tunnel\n"); break;
+        case CTL_ERROR_NONE: gt_log("no active tunnel\n");       break;
+        default:             gt_log("unknown error\n");          break;
+        case -1: switch (errno) {
+            case 0: break;
+            case ENOENT:     gt_log("tunnel not found\n");       break;
+            default:         perror("connect");                  break;
         }
     }
 }

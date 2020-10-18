@@ -27,7 +27,6 @@ gt_bench(int argc, char **argv, void *data)
         gt_log("sodium init failed\n");
         return -1;
     }
-
     int term = isatty(1);
     int fallback = argz_is_set(z, "fallback");
 
@@ -35,7 +34,6 @@ gt_bench(int argc, char **argv, void *data)
         gt_log("%s is not available on your platform\n", GT_CIPHER(0));
         return -1;
     }
-
     unsigned char buf[1450 + ABYTES];
     unsigned char npub[NPUBBYTES];
     unsigned char key[KEYBYTES];
@@ -49,7 +47,6 @@ gt_bench(int argc, char **argv, void *data)
         printf("  size       min           mean            max      \n");
         printf("----------------------------------------------------\n");
     }
-
     int64_t size = 20;
 
     for (int i = 0; !gt_quit && size <= 1450; i++) {
@@ -72,7 +69,6 @@ gt_bench(int argc, char **argv, void *data)
                 }
                 bytes += size;
             }
-
             int64_t dt = (int64_t)clock() - base;
             bytes_max = (bytes * (CLOCKS_PER_SEC / 3)) / dt;
             int64_t _mbps = (8 * bytes * CLOCKS_PER_SEC) / (dt * 1000 * 1000);
@@ -83,7 +79,6 @@ gt_bench(int argc, char **argv, void *data)
                 mbps.mean = _mbps;
                 continue;
             }
-
             if (mbps.min > _mbps)
                 mbps.min = _mbps;
 
@@ -98,16 +93,13 @@ gt_bench(int argc, char **argv, void *data)
                 fflush(stdout);
             }
         }
-
         if (term) {
             printf("\n");
         } else {
             printf("bench %s %"PRIi64" %"PRIi64" %"PRIi64" %"PRIi64"\n",
                     GT_CIPHER(fallback), size, mbps.min, mbps.mean, mbps.max);
         }
-
         size += 2 * 5 * 13;
     }
-
     return 0;
 }

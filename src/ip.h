@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <string.h>
 
 struct ip_common {
     uint8_t tc;
@@ -40,7 +41,6 @@ ip_is_valid(const uint8_t *data, int size)
         case 4: return size == ip_read16(&data[2]);
         case 6: return size == ip_read16(&data[4]) + 40;
     }
-
     return 0;
 }
 
