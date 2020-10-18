@@ -54,10 +54,9 @@ gt_path_conf(struct ctl_msg *res)
         gt_torate(rx, sizeof(rx), res->path.conf.rx_max_rate * 8))
         return;
 
-    printf("path dev %s from addr %s port %"PRIu16" to addr %s port %"PRIu16" "
+    printf("path dev %s addr %s to addr %s port %"PRIu16" "
            "set %s pref %u beat %s losslimit %u%% rate %s tx %s rx %s\n",
-            res->tun_name,
-            local, gt_get_port(&res->path.conf.local),
+            res->tun_name, local,
             remote, gt_get_port(&res->path.conf.remote),
             state, res->path.conf.pref, beat,
             res->path.conf.loss_limit * 100U / 255U,
@@ -238,16 +237,16 @@ gt_path(int argc, char **argv, void *data)
         {"stat", "Show TX/RX statistics", .grp = 2},
         {0}};
 
-    struct gt_argz_addr from = {0};
+    struct gt_argz_addr addr = {0};
     struct gt_argz_addr to = {0};
     const char *dev = NULL;
 
     struct argz z[] = {
-        {"dev",  "Select tunnel device",               gt_argz_dev,   &dev},
-        {"from", "Select path by source address",      gt_argz_addr, &from},
-        {"to",   "Select path by destination address", gt_argz_addr,   &to},
-        {"set",  "Change path properties",          argz,  &setz, .grp = 1},
-        {"show", "Show path status",                argz, &showz, .grp = 1},
+        {"dev",  "Select tunnel device",       gt_argz_dev,      &dev},
+        {"addr", "Select path by local addr",  gt_argz_addr_ip, &addr},
+        {"to",   "Select path by remote addr", gt_argz_addr,      &to},
+        {"set",  "Change path properties",     argz,  &setz, .grp = 1},
+        {"show", "Show path status",           argz, &showz, .grp = 1},
         {0}};
 
     int err = argz(argc, argv, z);
@@ -267,7 +266,7 @@ gt_path(int argc, char **argv, void *data)
         struct ctl_msg req = {
             .type = CTL_PATH_CONF,
             .path.conf = {
-                .local       = from.sock,
+                .local       = addr.sock,
                 .remote      = to.sock,
                 .state       = MUD_EMPTY,
                 .tx_max_rate = tx.value,
@@ -305,7 +304,7 @@ gt_path(int argc, char **argv, void *data)
         if (argz_is_set(showz, "stat"))
             show = gt_path_show_stat;
 
-        ret = gt_path_status(fd, &from.sock, &to.sock, show);
+        ret = gt_path_status(fd, &addr.sock, &to.sock, show);
     }
     if (ret == -1)
         perror("path");

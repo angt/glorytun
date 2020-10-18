@@ -20,6 +20,6 @@ void gt_argz_print (const char *);
 
 int gt_argz_percent_suffix (struct argz_ull *, const char *);
 
-int gt_argz_dev  (int argc, char **argv, void *data);
-int gt_argz_tc   (int argc, char **argv, void *data);
-int gt_argz_addr (int argc, char **argv, void *data);
+int gt_argz_dev     (int argc, char **argv, void *data);
+int gt_argz_addr    (int argc, char **argv, void *data);
+int gt_argz_addr_ip (int argc, char **argv, void *data);
