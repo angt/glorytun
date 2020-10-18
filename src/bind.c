@@ -92,21 +92,21 @@ gt_bind(int argc, char **argv, void *data)
 {
     const char *dev = NULL;
     struct argz_path keyfile = {0};
-    struct gt_argz_addr from = {
+    struct gt_argz_addr local = {
         .sock.sin = {
             .sin_family = AF_INET,
             .sin_port = htons(5000),
         },
     };
-    struct gt_argz_addr to = from;
+    struct gt_argz_addr remote = local;
 
     struct argz z[] = {
-        {"dev",     "Tunnel device",               argz_str,      &dev},
-        {"keyfile", "Secret file to use",          argz_path, &keyfile},
-        {"from",    "Address and port to bind",    gt_argz_addr, &from},
-        {"to",      "Address and port to connect", gt_argz_addr,   &to},
-        {"persist", "Keep the tunnel device after exiting"            },
-        {"chacha" , "Force fallback cipher"                           },
+        {"dev",     "Tunnel device",                  argz_str,      &dev},
+        {"keyfile", "Secret file to use",             argz_path, &keyfile},
+        {"from",    "Address and port to bind",    gt_argz_addr,   &local},
+        {"to",      "Address and port to connect", gt_argz_addr,  &remote},
+        {"persist", "Keep the tunnel device after exiting"               },
+        {"chacha" , "Force fallback cipher"                              },
         {0}};
 
     int err = argz(argc, argv, z);
@@ -131,7 +131,7 @@ gt_bind(int argc, char **argv, void *data)
         return -1;
 
     int aes = !chacha;
-    struct mud *mud = mud_create(&from.sock, key, &aes);
+    struct mud *mud = mud_create(&local.sock, key, &aes);
     const int mud_fd = mud_get_fd(mud);
 
     if (mud_fd == -1) {
@@ -264,8 +264,8 @@ gt_bind(int argc, char **argv, void *data)
                     res.status.pid = pid;
                     res.status.mtu = mtu;
                     res.status.cipher = !aes;
-                    res.status.local = from.sock;
-                    res.status.remote = to.sock;
+                    res.status.local  = local.sock;
+                    res.status.remote = remote.sock;
                     break;
                 case CTL_CONF:
                     if (mud_set(mud, &req.conf))
@@ -291,9 +291,10 @@ gt_bind(int argc, char **argv, void *data)
                 case CTL_PATH_CONF:
                     if (req.path.conf.remote.sa.sa_family) {
                         if (!gt_get_port(&req.path.conf.remote))
-                            gt_set_port(&req.path.conf.remote, gt_get_port(&to.sock));
+                            gt_set_port(&req.path.conf.remote,
+                                        gt_get_port(&remote.sock));
                     } else {
-                        req.path.conf.remote = to.sock;
+                        req.path.conf.remote = remote.sock;
                     }
                     if (mud_set_path(mud, &req.path.conf))
                         res.ret = errno;

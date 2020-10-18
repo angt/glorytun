@@ -87,7 +87,7 @@ gt_show(int argc, char **argv, void *data)
     }
     int ret = argz_is_set(z, "errors") ? gt_show_errors(fd)
                                        : gt_show_status(fd);
-    if (ret == -1)
+    if (ret == -1 && errno)
         perror("show");
 
     ctl_delete(fd);

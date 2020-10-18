@@ -65,21 +65,9 @@ gt_path_conf(struct ctl_msg *res)
 }
 
 static int
-gt_path_status(int fd, union mud_sockaddr *_local,
-                       union mud_sockaddr *_remote,
-                       enum gt_path_show show)
+gt_path_status(int fd, enum gt_path_show show)
 {
-    struct ctl_msg req = {
-        .type = CTL_PATH_STATUS,
-        .path.conf = {
-            .local  = *_local,
-            .remote = *_remote,
-        },
-    }, res = {0};
-
-    if (send(fd, &req, sizeof(struct ctl_msg), 0) == -1)
-        return -1;
-
+    struct ctl_msg res = {0};
     enum {
         type,   local,  remote, public, rtt,    rttvar,
         txloss, txrate, txtot,  rxloss, rxrate, rxtot,
@@ -106,10 +94,10 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         [rxtot ] = {8, .v[0] = "RX-TOTAL" },
     };
     for (unsigned i = 1; i <= MUD_PATH_MAX; i++) {
-        if (recv(fd, &res, sizeof(struct ctl_msg), 0) == -1)
+        if (recv(fd, &res, sizeof(res), 0) == -1)
             return -1;
 
-        if (res.type != req.type) {
+        if (res.type != CTL_PATH_STATUS) {
             errno = EBADMSG;
             return -1;
         }
@@ -237,16 +225,16 @@ gt_path(int argc, char **argv, void *data)
         {"stat", "Show TX/RX statistics", .grp = 2},
         {0}};
 
-    struct gt_argz_addr addr = {0};
-    struct gt_argz_addr to = {0};
+    struct gt_argz_addr local = {0};
+    struct gt_argz_addr remote = {0};
     const char *dev = NULL;
 
     struct argz z[] = {
-        {"dev",  "Select tunnel device",       gt_argz_dev,      &dev},
-        {"addr", "Select path by local addr",  gt_argz_addr_ip, &addr},
-        {"to",   "Select path by remote addr", gt_argz_addr,      &to},
-        {"set",  "Change path properties",     argz,  &setz, .grp = 1},
-        {"show", "Show path status",           argz, &showz, .grp = 1},
+        {"dev",  "Select tunnel device",       gt_argz_dev,       &dev},
+        {"addr", "Select path by local addr",  gt_argz_addr_ip, &local},
+        {"to",   "Select path by remote addr", gt_argz_addr,   &remote},
+        {"set",  "Change path properties",     argz,  &setz,  .grp = 1},
+        {"show", "Show path status",           argz, &showz,  .grp = 1},
         {0}};
 
     int err = argz(argc, argv, z);
@@ -266,8 +254,8 @@ gt_path(int argc, char **argv, void *data)
         struct ctl_msg req = {
             .type = CTL_PATH_CONF,
             .path.conf = {
-                .local       = addr.sock,
-                .remote      = to.sock,
+                .local       = local.sock,
+                .remote      = remote.sock,
                 .state       = MUD_EMPTY,
                 .tx_max_rate = tx.value,
                 .rx_max_rate = rx.value,
@@ -293,6 +281,13 @@ gt_path(int argc, char **argv, void *data)
         if (!ret)
             gt_path_conf(&res);
     } else {
+        struct ctl_msg req = {
+            .type = CTL_PATH_STATUS,
+            .path.conf = {
+                .local  = local.sock,
+                .remote = remote.sock,
+            },
+        };
         enum gt_path_show show = 0;
 
         if (argz_is_set(showz, "rtt"))
@@ -304,9 +299,13 @@ gt_path(int argc, char **argv, void *data)
         if (argz_is_set(showz, "stat"))
             show = gt_path_show_stat;
 
-        ret = gt_path_status(fd, &addr.sock, &to.sock, show);
+        if (send(fd, &req, sizeof(req), 0) != sizeof(req))
+            ret = -1;
+
+        if (!ret)
+            ret = gt_path_status(fd, show);
     }
-    if (ret == -1)
+    if (ret == -1 && errno)
         perror("path");
 
     ctl_delete(fd);

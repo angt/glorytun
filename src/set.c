@@ -37,7 +37,6 @@ gt_set(int argc, char **argv, void *data)
         ctl_explain_connect(fd);
         return -1;
     }
-
     int ret = ctl_reply(fd, &res, &req);
 
     if (!ret) {
@@ -48,11 +47,11 @@ gt_set(int argc, char **argv, void *data)
 
         printf("set dev %s kxtimeout %s timetolerance %s keepalive %s\n",
                 res.tun_name, t0, t1, t2);
-    } else {
-        perror("set");
     }
+    if (ret == -1 && errno)
+        perror("set");
 
     ctl_delete(fd);
 
-    return -!!ret;
+    return ret;
 }
