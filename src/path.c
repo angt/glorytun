@@ -82,11 +82,9 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         return -1;
 
     enum {
-        type, local, remote, public,
-        status, rtt, rttvar,
-        mtu, mprobe, mmin, mmax, mlast,
-        txloss, txrate, txtot,
-        rxloss, rxrate, rxtot,
+        type,   local,  remote, public, rtt,    rttvar,
+        txloss, txrate, txtot,  rxloss, rxrate, rxtot,
+        status, mtu,    mprobe, mmin,   mmax,   mlast,
     };
     struct gt_path_hdr hdr[] = {
         [type  ] = {4, .v[0] = "#"        },
@@ -154,8 +152,8 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         gt_path_print(&hdr[mmin  ], i,  "%zu", res.path.mtu.min);
         gt_path_print(&hdr[mmax  ], i,  "%zu", res.path.mtu.max);
         gt_path_print(&hdr[mlast ], i,  "%zu", res.path.mtu.last);
-        gt_path_print(&hdr[rtt   ], i, "%.3f", (double)res.path.rtt.val / 1e3);
-        gt_path_print(&hdr[rttvar], i, "%.3f", (double)res.path.rtt.var / 1e3);
+        gt_path_print(&hdr[rtt   ], i, "%.3f", res.path.rtt.val / 1e3);
+        gt_path_print(&hdr[rttvar], i, "%.3f", res.path.rtt.var / 1e3);
         gt_path_print(&hdr[txloss], i,   "%u", res.path.tx.loss * 100U / 255U);
         gt_path_print(&hdr[txrate], i,   "%u", res.path.tx.rate);
         gt_path_print(&hdr[txtot ], i,   "%u", res.path.tx.total);
