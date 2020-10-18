@@ -126,6 +126,17 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         char tmp[INET6_ADDRSTRLEN];
         memcpy(hdr[type].v[i], "path", 5);
 
+        const char *path_status;
+        switch (res.path.status) {
+            case MUD_PROBING:  path_status = "probing";  break;
+            case MUD_DEGRADED: path_status = "degraded"; break;
+            case MUD_LOSSY:    path_status = "lossy";    break;
+            case MUD_WAITING:  path_status = "waiting";  break;
+            case MUD_READY:    path_status = "ready";    break;
+            case MUD_RUNNING:  path_status = "running";  break;
+            default:           return -1;
+        }
+
         gt_toaddr(tmp, sizeof(tmp), &res.path.conf.local);
         gt_path_print(&hdr[local ], i, "%s", tmp);
 
@@ -137,7 +148,7 @@ gt_path_status(int fd, union mud_sockaddr *_local,
         gt_path_print(&hdr[public], i, "%s.%"PRIu16, tmp,
                       gt_get_port(&res.path.remote));
 
-        gt_path_print(&hdr[status], i,   "%s", res.path.ok ? "OK" : "DEGRADED");
+        gt_path_print(&hdr[status], i,   "%s", path_status);
         gt_path_print(&hdr[mtu   ], i,  "%zu", res.path.mtu.ok);
         gt_path_print(&hdr[mprobe], i,  "%zu", res.path.mtu.probe);
         gt_path_print(&hdr[mmin  ], i,  "%zu", res.path.mtu.min);
