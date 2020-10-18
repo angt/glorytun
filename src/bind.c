@@ -223,10 +223,8 @@ gt_bind(int argc, char **argv, void *data)
         mtu = gt_setup_mtu(mud, mtu, tun_name);
 
         if (tun_can_read && mud_can_write && !mud_send_wait(mud)) {
-            struct ip_common ic;
             int r = tun_read(tun_fd, buf, sizeof(buf));
-
-            if (r > 0 && !ip_get_common(&ic, buf, r)) {
+            if (r > 0) {
                 mud_send(mud, buf, (size_t)r);
                 mud_can_write = 0;
             }
@@ -234,7 +232,6 @@ gt_bind(int argc, char **argv, void *data)
         }
         if (mud_can_read && tun_can_write) {
             int r = mud_recv(mud, buf, sizeof(buf));
-
             if (r > 0 && ip_is_valid(buf, r)) {
                 tun_write(tun_fd, buf, (size_t)r);
                 tun_can_write = 0;
