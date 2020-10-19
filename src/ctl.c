@@ -77,7 +77,7 @@ ctl_bind(int fd, const char *dir, const char *file)
     union ctl_sun sock;
 
     if (EMPTY(file)) {
-        unsigned pid = (unsigned)getpid();
+        unsigned long pid = (unsigned long)getpid();
 
         for (size_t i = 1; i < sizeof(name) - 1; i++, pid >>= 4)
             name[i] = "uncopyrightables"[pid & 15];
