@@ -49,14 +49,19 @@ tun_create_by_id(char *name, size_t len, unsigned id)
         errno = err;
         return -1;
     }
-    struct sockaddr_ctl sc = {
-        .sc_id = ci.ctl_id,
-        .sc_len = sizeof(sc),
-        .sc_family = AF_SYSTEM,
-        .ss_sysaddr = AF_SYS_CONTROL,
-        .sc_unit = id + 1,
+    union {
+        struct sockaddr sa;
+        struct sockaddr_ctl sctl;
+    } sock = {
+        .sctl = {
+            .sc_family = AF_SYSTEM,
+            .ss_sysaddr = AF_SYS_CONTROL,
+            .sc_id = ci.ctl_id,
+            .sc_len = sizeof(sock),
+            .sc_unit = id + 1,
+        },
     };
-    if (connect(fd, (struct sockaddr *)&sc, sizeof(sc))) {
+    if (connect(fd, &sock.sa, sizeof(sock))) {
         int err = errno;
         close(fd);
         errno = err;
