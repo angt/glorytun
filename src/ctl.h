@@ -3,6 +3,7 @@
 #include "../mud/mud.h"
 
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #define CTL_ERROR_NONE (-2)
 #define CTL_ERROR_MANY (-3)
@@ -32,6 +33,11 @@ struct ctl_msg {
         struct mud_path path;
         struct mud_errors errors;
     };
+};
+
+union ctl_sun {
+    struct sockaddr sa;
+    struct sockaddr_un sun;
 };
 
 char *ctl_rundir  (char *, size_t);

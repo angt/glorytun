@@ -4,7 +4,6 @@
 #include <dirent.h>
 #include <libgen.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 
 char *
 ctl_rundir(char *dst, size_t size)
@@ -18,7 +17,6 @@ ctl_rundir(char *dst, size_t size)
         "/var/run/"     PACKAGE_NAME ".%u",
         "/tmp/"         PACKAGE_NAME ".%u",
     };
-
     for (unsigned i = 0; i < COUNT(fmt); i++) {
         char path[128];
         int ret = snprintf(dst, size, fmt[i], geteuid());
@@ -34,7 +32,6 @@ ctl_rundir(char *dst, size_t size)
         if (p && !access(p, W_OK))
             return dst;
     }
-
     errno = EPERM;
     return NULL;
 }
@@ -58,7 +55,7 @@ ctl_reply(int fd, struct ctl_msg *res, struct ctl_msg *req)
 }
 
 static int
-ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
+ctl_setsun(union ctl_sun *dst, const char *dir, const char *file)
 {
     struct sockaddr_un sun = {
         .sun_family = AF_UNIX,
@@ -69,9 +66,7 @@ ctl_setsun(struct sockaddr_un *dst, const char *dir, const char *file)
         errno = EINVAL;
         return -1;
     }
-    if (dst)
-        *dst = sun;
-
+    dst->sun = sun;
     return 0;
 }
 
@@ -79,7 +74,7 @@ static int
 ctl_bind(int fd, const char *dir, const char *file)
 {
     char name[10] = {[0] = '.'};
-    struct sockaddr_un sun;
+    union ctl_sun sock;
 
     if (EMPTY(file)) {
         unsigned pid = (unsigned)getpid();
@@ -89,24 +84,23 @@ ctl_bind(int fd, const char *dir, const char *file)
 
         file = name;
     }
-    if (ctl_setsun(&sun, dir, file))
+    if (ctl_setsun(&sock, dir, file))
         return -1;
 
-    if (unlink(sun.sun_path) && errno != ENOENT)
+    if (unlink(sock.sun.sun_path) && errno != ENOENT)
         return -1;
 
-    return bind(fd, (struct sockaddr *)&sun, sizeof(sun));
+    return bind(fd, &sock.sa, sizeof(sock));
 }
 
 void
 ctl_delete(int fd)
 {
-    struct sockaddr_storage ss = {0};
-    socklen_t sslen = sizeof(ss);
+    union ctl_sun sock;
+    socklen_t slen = sizeof(sock);
 
-    if ((getsockname(fd, (struct sockaddr *)&ss, &sslen) == 0) &&
-        (ss.ss_family == AF_UNIX))
-        unlink(((struct sockaddr_un *)&ss)->sun_path);
+    if (!getsockname(fd, &sock.sa, &slen) && sock.sa.sa_family == AF_UNIX)
+        unlink(sock.sun.sun_path);
 
     close(fd);
 }
@@ -163,8 +157,8 @@ ctl_connect(const char *file)
             return CTL_ERROR_NONE;
         }
     }
-    struct sockaddr_un sun;
-    const int ret = ctl_setsun(&sun, dir, file);
+    union ctl_sun sock;
+    const int ret = ctl_setsun(&sock, dir, file);
 
     if (dp) {
         int err = errno;
@@ -177,7 +171,7 @@ ctl_connect(const char *file)
     int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 
     if (ctl_bind(fd, dir, NULL) ||
-        connect(fd, (struct sockaddr *)&sun, sizeof(sun))) {
+        connect(fd, &sock.sa, sizeof(sock))) {
         int err = errno;
         ctl_delete(fd);
         errno = err;

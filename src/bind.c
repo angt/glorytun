@@ -245,18 +245,16 @@ gt_bind(int argc, char **argv, void *data)
         }
         if (FD_ISSET(ctl_fd, &rfds)) {
             struct ctl_msg req, res = {.reply = 1};
-            memcpy(res.tun_name, tun_name, sizeof(res.tun_name));
-
-            struct sockaddr_storage ss;
-            socklen_t sl = sizeof(ss);
-
             struct mud_paths paths;
-
-            ssize_t r = recvfrom(ctl_fd, &req, sizeof(req), 0,
-                                 (struct sockaddr *)&ss, &sl);
-
-            if (r == (ssize_t)sizeof(req)) {
+            union ctl_sun sun;
+            socklen_t slen = sizeof(sun);
+            ssize_t r = recvfrom(ctl_fd, &req, sizeof(req), 0, &sun.sa, &slen);
+            if (r == -1) {
+                if (errno != EAGAIN)
+                    perror("recvfrom(ctl)");
+            } else if (r == (ssize_t)sizeof(req)) {
                 res.type = req.type;
+                memcpy(res.tun_name, tun_name, sizeof(res.tun_name));
                 switch (req.type) {
                 case CTL_NONE:
                     break;
@@ -282,8 +280,7 @@ gt_bind(int argc, char **argv, void *data)
                     res.ret = EAGAIN;
                     for (unsigned i = 0; i < paths.count; i++) {
                         res.path = paths.path[i];
-                        if (sendto(ctl_fd, &res, sizeof(res), 0,
-                                   (const struct sockaddr *)&ss, sl) == -1)
+                        if (sendto(ctl_fd, &res, sizeof(res), 0, &sun.sa, slen) == -1)
                             perror("sendto(ctl)");
                     }
                     res.ret = 0;
@@ -305,11 +302,8 @@ gt_bind(int argc, char **argv, void *data)
                         res.ret = errno;
                     break;
                 }
-                if (sendto(ctl_fd, &res, sizeof(res), 0,
-                           (const struct sockaddr *)&ss, sl) == -1)
+                if (sendto(ctl_fd, &res, sizeof(res), 0, &sun.sa, slen) == -1)
                     perror("sendto(ctl)");
-            } else if (r == -1 && errno != EAGAIN) {
-                perror("recvfrom(ctl)");
             }
         }
     }
