@@ -129,9 +129,12 @@ gt_path_status(int fd, enum gt_path_show show)
         gt_path_print(&hdr[remote], i, "%s.%"PRIu16, tmp,
                       gt_get_port(&res.path.conf.remote));
 
-        gt_toaddr(tmp, sizeof(tmp), &res.path.remote);
-        gt_path_print(&hdr[public], i, "%s.%"PRIu16, tmp,
-                      gt_get_port(&res.path.remote));
+        if (gt_toaddr(tmp, sizeof(tmp), &res.path.remote)) {
+            gt_path_print(&hdr[public], i, "unknown", tmp);
+        } else {
+            gt_path_print(&hdr[public], i, "%s.%"PRIu16, tmp,
+                          gt_get_port(&res.path.remote));
+        }
 
         gt_path_print(&hdr[status], i,   "%s", path_status);
         gt_path_print(&hdr[mtu   ], i,  "%zu", res.path.mtu.ok);
@@ -266,16 +269,18 @@ gt_path(int argc, char **argv, void *data)
             },
         }, res = {0};
 
-        if (argz_is_set(setz, "up")) {
+        if (argz_is_set(setz, "up"))
             req.path.conf.state = MUD_UP;
-        } else if (argz_is_set(setz, "down")) {
+
+        if (argz_is_set(setz, "down"))
             req.path.conf.state = MUD_DOWN;
-        }
-        if (argz_is_set(ratez, "fixed")) {
+
+        if (argz_is_set(ratez, "fixed"))
             req.path.conf.fixed_rate = 3;
-        } else if (argz_is_set(ratez, "auto")) {
+
+        if (argz_is_set(ratez, "auto"))
             req.path.conf.fixed_rate = 1;
-        }
+
         ret = ctl_reply(fd, &res, &req);
 
         if (!ret)
