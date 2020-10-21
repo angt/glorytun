@@ -136,20 +136,20 @@ gt_path_status(int fd, enum gt_path_show show)
                           gt_get_port(&res.path.remote));
         }
 
-        gt_path_print(&hdr[status], i,   "%s", path_status);
-        gt_path_print(&hdr[mtu   ], i,  "%zu", res.path.mtu.ok);
-        gt_path_print(&hdr[mprobe], i,  "%zu", res.path.mtu.probe);
-        gt_path_print(&hdr[mmin  ], i,  "%zu", res.path.mtu.min);
-        gt_path_print(&hdr[mmax  ], i,  "%zu", res.path.mtu.max);
-        gt_path_print(&hdr[mlast ], i,  "%zu", res.path.mtu.last);
-        gt_path_print(&hdr[rtt   ], i, "%.3f", res.path.rtt.val / 1e3);
-        gt_path_print(&hdr[rttvar], i, "%.3f", res.path.rtt.var / 1e3);
-        gt_path_print(&hdr[txloss], i,   "%u", res.path.tx.loss * 100U / 255U);
-        gt_path_print(&hdr[txrate], i,   "%u", res.path.tx.rate);
-        gt_path_print(&hdr[txtot ], i,   "%u", res.path.tx.total);
-        gt_path_print(&hdr[rxloss], i,   "%u", res.path.rx.loss * 100U / 255U);
-        gt_path_print(&hdr[rxrate], i,   "%u", res.path.rx.rate);
-        gt_path_print(&hdr[rxtot ], i,   "%u", res.path.rx.total);
+        gt_path_print(&hdr[status], i,      "%s", path_status);
+        gt_path_print(&hdr[mtu   ], i,     "%zu", res.path.mtu.ok);
+        gt_path_print(&hdr[mprobe], i,     "%zu", res.path.mtu.probe);
+        gt_path_print(&hdr[mmin  ], i,     "%zu", res.path.mtu.min);
+        gt_path_print(&hdr[mmax  ], i,     "%zu", res.path.mtu.max);
+        gt_path_print(&hdr[mlast ], i,     "%zu", res.path.mtu.last);
+        gt_path_print(&hdr[rtt   ], i,    "%.3f", res.path.rtt.val / 1e3);
+        gt_path_print(&hdr[rttvar], i,    "%.3f", res.path.rtt.var / 1e3);
+        gt_path_print(&hdr[txloss], i, "%"PRIu64, res.path.tx.loss * 100U / 255U);
+        gt_path_print(&hdr[rxloss], i, "%"PRIu64, res.path.rx.loss * 100U / 255U);
+        gt_path_print(&hdr[txrate], i, "%"PRIu64, res.path.tx.rate);
+        gt_path_print(&hdr[rxrate], i, "%"PRIu64, res.path.rx.rate);
+        gt_path_print(&hdr[txtot ], i, "%"PRIu64, res.path.tx.total);
+        gt_path_print(&hdr[rxtot ], i, "%"PRIu64, res.path.rx.total);
     }
     for (unsigned i = 0; i <= MUD_PATH_MAX; i++) {
         if (hdr[type].v[i][0]) switch (show) {
