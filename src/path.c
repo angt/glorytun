@@ -173,15 +173,13 @@ gt_path_status(int fd, enum gt_path_show show)
                     hdr[rttvar].m, hdr[rttvar].v[i]);
             break;
         case gt_path_show_stat:
-            printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
+            printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
                     hdr[type  ].m, hdr[type  ].v[i],
                     hdr[local ].m, hdr[local ].v[i],
                     hdr[remote].m, hdr[remote].v[i],
                     hdr[txrate].m, hdr[txrate].v[i],
-                    hdr[txtot ].m, hdr[txtot ].v[i],
-                    hdr[txloss].m, hdr[txloss].v[i],
                     hdr[rxrate].m, hdr[rxrate].v[i],
-                    hdr[rxtot ].m, hdr[rxtot ].v[i],
+                    hdr[txloss].m, hdr[txloss].v[i],
                     hdr[rxloss].m, hdr[rxloss].v[i]);
             break;
         default:
