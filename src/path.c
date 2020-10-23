@@ -144,8 +144,8 @@ gt_path_status(int fd, enum gt_path_show show)
         gt_path_print(&hdr[mlast ], i,     "%zu", res.path.mtu.last);
         gt_path_print(&hdr[rtt   ], i,    "%.3f", res.path.rtt.val / 1e3);
         gt_path_print(&hdr[rttvar], i,    "%.3f", res.path.rtt.var / 1e3);
-        gt_path_print(&hdr[txloss], i, "%"PRIu64, res.path.tx.loss * 100U / 255U);
-        gt_path_print(&hdr[rxloss], i, "%"PRIu64, res.path.rx.loss * 100U / 255U);
+        gt_path_print(&hdr[txloss], i,   "%3.2f", res.path.tx.loss * 100 / 255.0);
+        gt_path_print(&hdr[rxloss], i,   "%3.2f", res.path.rx.loss * 100 / 255.0);
         gt_path_print(&hdr[txrate], i, "%"PRIu64, res.path.tx.rate);
         gt_path_print(&hdr[rxrate], i, "%"PRIu64, res.path.rx.rate);
         gt_path_print(&hdr[txtot ], i, "%"PRIu64, res.path.tx.total);
