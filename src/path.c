@@ -40,9 +40,10 @@ gt_path_conf(struct ctl_msg *res)
     char tx[32], rx[32];
 
     switch (res->path.conf.state) {
-        case MUD_UP:   state = "up";   break;
-        case MUD_DOWN: state = "down"; break;
-        default:       return;
+        case MUD_PASSIVE: state = "passive"; break;
+        case MUD_UP:      state = "up";      break;
+        case MUD_DOWN:    state = "down";    break;
+        default:          return;
     }
     gt_toaddr(local, sizeof(local), &res->path.conf.local);
     gt_toaddr(remote, sizeof(remote), &res->path.conf.remote);
@@ -113,6 +114,7 @@ gt_path_status(int fd, enum gt_path_show show)
 
         const char *path_status;
         switch (res.path.status) {
+            case MUD_DELETING: path_status = "deleting"; break;
             case MUD_PROBING:  path_status = "probing";  break;
             case MUD_DEGRADED: path_status = "degraded"; break;
             case MUD_LOSSY:    path_status = "lossy";    break;
