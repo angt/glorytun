@@ -1,0 +1,29 @@
+name: Upload
+
+on:
+  push:
+    tags:
+    - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install libsodium-dev
+      run: |
+        sudo apt-get install libsodium-dev
+
+    - uses: actions/checkout@v2
+    - name: Run distcheck
+      run: |
+        git submodule update --init --recursive
+        ./autogen.sh
+        ./configure --disable-dependency-tracking
+        make distcheck
+
+    - name: Upload dist
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload v$(cat VERSION) $(echo glorytun-*.tar.gz)
