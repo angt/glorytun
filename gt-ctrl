@@ -1,0 +1,111 @@
+#!/bin/bash
+#set -x
+
+function throw() {
+    echo "Config error: $1" 
+    exit 1
+}
+
+
+set -a
+GT="$(which glorytun)"
+IP="$(which ip)"
+SETSID="$(which setsid)"
+
+[[ -x $SETSID ]] || echo "No setsid executable found." && exit 1
+[[ -x $GT ]] ||  echo "No glorytun executable found" &&  exit 1
+[[ -x $IP ]] || echo "No ip executable found." && exit 1
+
+DEV="$2"
+configfile="/etc/glorytun/$2.conf"
+[[ $1 != 'up' && $1 != 'down' ]] && echo "Usage: $0 up | down <devname>" && exit 1
+[[ ! -f $configfile ]] && throw "No $configfile config file found"
+
+
+shopt -s extglob
+while IFS='= ' read -r lhs rhs
+do
+    if [[ ! $lhs =~ ^\ *# && -n $lhs ]]
+    then
+        rhs="${rhs%%\#*}"    # Del in line right comments
+        rhs="${rhs//[[:blank:]]/}"     # Del spaces and tabs
+        rhs="${rhs%\"*}"     # Del opening string quotes 
+        rhs="${rhs#\"*}"     # Del closing string quotes 
+        if [[ "$lhs" =~ ^[A-z]+_[0-9]_.*$ ]]
+        then
+    	    NUM=${lhs//[^[:digit:]]/}
+    	    lhs="${lhs/_[0-9]_/_}"
+    	    eval $lhs[$NUM]="$rhs"
+        else
+    	    declare $lhs="$rhs"
+        fi
+    fi
+done  < $configfile
+set +a
+
+case $mode in
+    server)
+    ;;
+    client)
+        [[ $endpoint =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9] ]] || throw "Bad endpoint address $endpoint"
+	[[ -n $tc && $tc != 'CS' && $tc != 'AF' && $tc != 'EF' ]] && tc=""
+	[[ -n $tc ]] && tc="tc $tc"
+	[[ -n $kxtimeout && $kxtimeout =~ ^[0-9]+ ]] && kxtimeout="kxtimeout $kxtimeout" || kxtimeout=""
+        [[ -n $timetolerance && $timetolerance =~ ^[0-9]+ ]] && timetolerance="timetolerance $timetolerance" || timetolerance=""
+        [[ -n $keepalive && $keepalive =~ ^[0-9]+ ]] && keepalive="keepalive $keepalive" || keepalive=""
+    ;;
+    *)	throw "Bad mode value \"$mode\"";;
+esac
+
+    [[ -n $port && $port =~ ^[0-9]+ && $port -gt 0 && $port -le 65535 ]] || throw "Bad port value \"$port\""
+    [[ -f $keyfile ]] || keyfile="/etc/glorytun/$keyfile"
+    [[ -f $keyfile ]] || throw "No $keyfile key file found"
+    [[ $local =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9] ]] || throw "Bad local address $local"
+    [[ $remote =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9] ]] || throw "Bad remote address $remote"
+    [[ -n $cipher && $cipher != 'aes' && $cipher != 'chacha' ]] && cipher=""
+    [[ -n $post_up && -x $post_up ]] || post_up="/etc/glorytun/$post_up"
+    [[ -n $post_up && -x $post_up ]] || throw "Bad $post_up script"
+    [[ -n $pre_down && -x $pre_down ]] || pre_down="/etc/glorytun/$pre_down"
+    [[ -n $pre_down && -x $pre_down ]] || throw "Bad $pre_down script"
+    [[ $persist == 'on' ]] && persist='persist' || persist=""
+
+if [[ $1 == 'up' ]]
+then
+    if [[ $mode == 'server' ]]
+    then
+	$SETSID $GT bind ${bind:-0.0.0.0} $port dev $DEV keyfile $keyfile $cipher $persist & >/dev/null 2>&1
+	sleep 1
+	$GT show dev $DEV  >/dev/null 2>&1 || echo "Error! Glorytun $mode did not start!" && exit 1
+	$GT set dev $DEV $tc $kxtimeout $timetolerance $keepalive $persist
+	$IP addr add $local peer $remote dev $DEV
+	$IP link set up dev $DEV
+    else #client mode
+	$SETSID $GT bind ${bind:-0.0.0.0} to $endpoint $port dev $DEV keyfile $keyfile ${cipher} & >/dev/null 2>&1
+	sleep 1
+	$GT show dev $DEV  >/dev/null 2>&1 || echo "Error! Glorytun $mode did not start!" && exit 1
+	$GT set dev $DEV $tc $kxtimeout $timetolerance $keepalive $persist
+	$IP addr add $local peer $remote dev $DEV
+	$IP link set up dev $DEV
+
+	for II in 0 1 2 3 4 5 6 7 8 9
+	do
+	    if [[ -n ${path_ip[$II]} ]]
+	    then
+		[[ -n ${path_losslimit[$II]} ]] && losslimit="losslimit ${path_losslimit[$II]}" || losslimit=""
+		[[ ${path_tx[$II]} =~ ^[0-9]+ || ${path_rx[$II]} =~ ^[0-9]+ ]] && rate='rate ' || rate=""
+		[[ ${path_tx[$II]} =~ ^[0-9]+ ]] && rate="$rate tx ${path_tx[$II]} "
+		[[ ${path_rx[$II]} =~ ^[0-9]+ ]] && rate="$rate rx ${path_rx[$II]} "
+		echo -n "Starting path $II: "
+		echo $GT path dev $DEV up ${path_ip[$II]} $rate $losslimit
+		$GT path dev $DEV up ${path_ip[$II]} $rate $losslimit
+	    fi
+	done
+    fi
+    [[ -x $post_up ]] && $post_up
+else
+    PID=$($GT show dev $DEV | cut -d ' ' -f3)
+    [[ -x $pre_down ]] && $pre_down
+    $IP link show dev $DEV >/dev/null 2>&1 && $IP link set down dev $DEV
+    [[ -n $PID && -n "$(ps $PID | tail -1)" ]] && kill $PID
+fi
+exit 0
