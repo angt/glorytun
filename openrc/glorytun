@@ -1,0 +1,40 @@
+#!/sbin/openrc-run
+
+name="GloryTun"
+description="Glorytun via gt-ctrl"
+
+depend() {
+	need net
+}
+
+CONF="${SVCNAME#*.}"
+
+checkconfig() {
+	if [ "$CONF" = "$SVCNAME" ]; then
+		eerror "You cannot call this init script directly. You must create a symbolic link to it with the configuration name:"
+		eerror "    ln -s /etc/init.d/glorytun /etc/init.d/glorytun.vpn0"
+		eerror "And then call it instead:"
+		eerror "    /etc/init.d/glorutyn.vpn0 start"
+		return 1
+	fi
+	if ! modprobe tun
+	then
+	    eerror "No TUN/TAP module installed!"
+	    return 1
+	fi
+	return 0
+}
+
+start() {
+	checkconfig || return 1
+	ebegin "Starting $description for $CONF"
+	gt-ctrl up "$CONF"
+	eend $? "Failed to start $description for $CONF"
+}
+
+stop() {
+	checkconfig || return 1
+	ebegin "Stopping $description for $CONF"
+	gt-ctrl down "$CONF"
+	eend $? "Failed to stop $description for $CONF"
+}
