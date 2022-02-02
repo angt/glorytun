@@ -15,4 +15,5 @@ jobs:
       run: |
           git submodule update --init --recursive
           ./sodium.sh
-          make
+:Build::
+Return: 'Run ''
